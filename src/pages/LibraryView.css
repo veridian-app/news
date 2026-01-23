@@ -1,0 +1,319 @@
+/* LibraryView - Estilo Terminal de Inteligencia / Dossier Digital */
+.library-view {
+    min-height: 100vh;
+    background: hsl(0, 0%, 3%); /* bg-neutral-950 equivalente */
+    color: hsl(0, 0%, 98%);
+    padding: 0;
+    padding-bottom: calc(60px + env(safe-area-inset-bottom)); /* Espacio para el BottomDock integrado */
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    position: relative;
+    overflow-x: hidden;
+}
+
+/* Cabecera de Valor */
+.library-header {
+    padding: 32px 24px 24px 24px;
+    border-bottom: 1px solid hsl(0, 0%, 15%);
+    background: linear-gradient(180deg, hsl(0, 0%, 5%) 0%, hsl(0, 0%, 3%) 100%);
+}
+
+.header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.header-title {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: 48px;
+    font-weight: 700;
+    line-height: 1.1;
+    margin: 0 0 16px 0;
+    color: hsl(0, 0%, 98%);
+    letter-spacing: -0.02em;
+}
+
+.header-stats {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+    font-size: 12px;
+    color: hsl(0, 0%, 60%);
+    letter-spacing: 0.5px;
+}
+
+.stat-item {
+    white-space: nowrap;
+}
+
+.stat-divider {
+    color: hsl(0, 0%, 30%);
+}
+
+/* Buscador Inteligente */
+.search-container {
+    padding: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.search-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-icon {
+    position: absolute;
+    left: 16px;
+    width: 18px;
+    height: 18px;
+    color: hsl(0, 0%, 50%);
+    pointer-events: none;
+}
+
+.search-input {
+    width: 100%;
+    padding: 14px 16px 14px 48px;
+    background: hsl(0, 0%, 8%);
+    border: 1px solid hsl(0, 0%, 20%);
+    border-radius: 8px;
+    color: hsl(0, 0%, 98%);
+    font-size: 15px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    transition: all 0.2s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: hsl(0, 0%, 35%);
+    background: hsl(0, 0%, 10%);
+}
+
+.search-input::placeholder {
+    color: hsl(0, 0%, 45%);
+}
+
+/* Colecciones Automáticas */
+.categories-container {
+    padding: 0 24px 24px 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.categories-container::-webkit-scrollbar {
+    display: none;
+}
+
+.categories-scroll {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.category-chip {
+    padding: 8px 20px;
+    background: hsl(0, 0%, 8%);
+    border: 1px solid hsl(0, 0%, 20%);
+    border-radius: 20px;
+    color: hsl(0, 0%, 70%);
+    font-size: 14px;
+    font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    letter-spacing: 0.3px;
+}
+
+.category-chip:hover {
+    background: hsl(0, 0%, 12%);
+    border-color: hsl(0, 0%, 30%);
+    color: hsl(0, 0%, 85%);
+}
+
+.category-chip.active {
+    background: hsl(0, 0%, 15%);
+    border-color: hsl(0, 0%, 40%);
+    color: hsl(0, 0%, 98%);
+    font-weight: 600;
+}
+
+/* Grid de Archivos */
+.items-grid {
+    padding: 0 24px 120px 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+/* Mini Tarjeta */
+.item-card {
+    background: hsl(0, 0%, 6%); /* bg-neutral-900 equivalente */
+    border: 1px solid hsl(0, 0%, 12%); /* border-neutral-800 equivalente */
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.item-card:hover {
+    background: hsl(0, 0%, 8%);
+    border-color: hsl(0, 0%, 20%);
+    transform: translateY(-2px);
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: -4px;
+}
+
+.card-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: hsl(0, 0%, 10%);
+    border-radius: 6px;
+    color: hsl(0, 0%, 70%);
+    border: 1px solid hsl(0, 0%, 15%);
+}
+
+.card-body {
+    flex: 1;
+}
+
+.card-title {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.4;
+    color: hsl(0, 0%, 95%);
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: -0.01em;
+}
+
+.card-footer {
+    margin-top: auto;
+    padding-top: 8px;
+    border-top: 1px solid hsl(0, 0%, 12%);
+}
+
+.card-date {
+    font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+    font-size: 10px;
+    color: hsl(0, 0%, 50%);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+/* Botón Flotante Exportar */
+.export-button {
+    position: fixed;
+    bottom: 32px;
+    right: 32px;
+    width: 56px;
+    height: 56px;
+    background: hsl(0, 0%, 10%);
+    border: 1px solid hsl(0, 0%, 20%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: hsl(0, 0%, 70%);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px hsl(0, 0%, 0% / 0.3);
+    z-index: 100;
+}
+
+.export-button:hover {
+    background: hsl(0, 0%, 15%);
+    border-color: hsl(0, 0%, 30%);
+    color: hsl(0, 0%, 90%);
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px hsl(0, 0%, 0% / 0.4);
+}
+
+.export-button:active {
+    transform: scale(0.95);
+}
+
+/* Responsive Design */
+@media (min-width: 768px) {
+    .items-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+    }
+
+    .card-title {
+        font-size: 16px;
+    }
+
+    .header-title {
+        font-size: 56px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .items-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+    }
+
+    .library-header,
+    .search-container,
+    .categories-container,
+    .items-grid {
+        padding-left: 32px;
+        padding-right: 32px;
+    }
+}
+
+@media (max-width: 480px) {
+    .header-title {
+        font-size: 36px;
+    }
+
+    .header-stats {
+        font-size: 11px;
+        gap: 8px;
+    }
+
+    .stat-divider {
+        display: none;
+    }
+
+    .stat-item {
+        display: block;
+        margin-bottom: 4px;
+    }
+
+    .items-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .export-button {
+        bottom: 24px;
+        right: 24px;
+        width: 48px;
+        height: 48px;
+    }
+}
+
