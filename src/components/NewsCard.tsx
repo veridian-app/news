@@ -85,7 +85,7 @@ export const NewsCard = ({ item, isActive, index, onLike, onComment, onShare, on
             </div>
 
             {/* Content Layer */}
-            <div className="absolute bottom-0 left-0 right-0 z-10 p-4 pb-24 md:p-8 md:pb-32 flex flex-col gap-3 md:gap-5 max-w-[85%] md:max-w-2xl mx-auto">
+            <div className="absolute bottom-0 left-0 right-0 z-10 p-4 pb-24 md:p-8 md:pb-32 flex flex-col gap-3 md:gap-5 max-w-full mx-auto pr-16 md:pr-24">
                 {/* Source Pill */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -94,7 +94,21 @@ export const NewsCard = ({ item, isActive, index, onLike, onComment, onShare, on
                     className="flex items-center gap-2"
                 >
                     <div className="rounded-full bg-white/10 backdrop-blur-md px-3 py-1 text-xs font-medium text-white border border-white/5 shadow-sm">
-                        {item.source}
+                        {(() => {
+                            // Limpiar la fuente: quitar (URLs: ...), quitar http/https, quitar paréntesis
+                            let clean = item.source || 'Veridian';
+                            clean = clean.replace(/\(URLs?:?\s*/gi, '').replace(/\)/g, ''); // Quitar "(URLs: " y ")"
+                            try {
+                                // Si es una URL, mostrar solo el dominio
+                                if (clean.includes('.') && !clean.includes(' ')) {
+                                    const url = new URL(clean.startsWith('http') ? clean : `https://${clean}`);
+                                    clean = url.hostname.replace('www.', '');
+                                }
+                            } catch (e) {
+                                // Si falla parsear URL, dejar como está
+                            }
+                            return clean.trim();
+                        })()}
                     </div>
                     <span className="text-xs text-white/70 shadow-black drop-shadow-md">• {new Date(item.date).toLocaleDateString()}</span>
                 </motion.div>
@@ -104,7 +118,7 @@ export const NewsCard = ({ item, isActive, index, onLike, onComment, onShare, on
                     initial={{ opacity: 0, y: 20 }}
                     animate={isActive ? { opacity: 1, y: 0 } : {}}
                     transition={{ delay: 0.2 }}
-                    className="text-2xl font-bold text-white leading-tight drop-shadow-lg"
+                    className="text-2xl md:text-3xl font-bold text-white leading-tight drop-shadow-lg pr-4"
                 >
                     {item.title}
                 </motion.h2>
@@ -114,7 +128,7 @@ export const NewsCard = ({ item, isActive, index, onLike, onComment, onShare, on
                     initial={{ opacity: 0, y: 20 }}
                     animate={isActive ? { opacity: 1, y: 0 } : {}}
                     transition={{ delay: 0.3 }}
-                    className="text-sm text-white/90 line-clamp-3 font-light leading-relaxed drop-shadow-md"
+                    className="text-sm md:text-base text-white/90 line-clamp-3 font-light leading-relaxed drop-shadow-md"
                     onClick={(e) => {
                         e.stopPropagation(); // Avoid triggering double tap when reading
                         onReadMore();

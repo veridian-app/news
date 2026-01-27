@@ -1,0 +1,1048 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 6
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        160
+      ],
+      "id": "b4dc12a5-f6b1-4358-96db-0fb9190e028a",
+      "name": "Schedule Trigger",
+      "retryOnFail": true,
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "url": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/ultimas-noticias/portada",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        -272
+      ],
+      "id": "6a8b4b51-4923-4d88-92c6-7b2eb52e6902",
+      "name": "EL PAIS ESPAÑA"
+    },
+    {
+      "parameters": {
+        "url": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/economia/portada",
+        "options": {
+          "customFields": "",
+          "ignoreSSL": false
+        }
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        -80
+      ],
+      "id": "840dc874-536a-4391-8256-5cdcc436c8e0",
+      "name": "EL PAIS ECONOMIA"
+    },
+    {
+      "parameters": {
+        "numberInputs": 10
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        592,
+        -224
+      ],
+      "id": "88ba7e96-bb36-4882-b100-be1450e3ff02",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "url": "https://e00-elmundo.uecdn.es/rss/portada.xml",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        736
+      ],
+      "id": "1a44a191-b330-4c12-ae7c-162521a2bb2a",
+      "name": "EL MUNDO ESPAÑA"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/news_hashes?on_conflict=hash",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $vars.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$vars.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Content-Type ",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer ",
+              "value": "resolution=ignore-duplicates, return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(\n  $items().map(i => ({\n    hash: i.json.hash,\n    source: i.json.source || null\n  }))\n) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        208
+      ],
+      "id": "f9df6fc0-3ae0-4707-ae08-23199ecebcf2",
+      "name": "Supabase_Upsert"
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\nfunction clean(s = '', max = 900) {\n  return String(s)\n    .replace(/\\s+/g, ' ')\n    .replace(/[\\u0000-\\u001F]/g, '')\n    .slice(0, max)\n    .trim();\n}\n\nreturn items.map(item => {\n  const j = item.json;\n\n  // Campos básicos\n  const title = clean(j.title || j.heading || '');\n  const link  = j.link || j.guid || '';\n  const pub   = j.isoDate || j.pubDate || j.published || '';\n\n  // --- SOURCE & DOMAIN ------------------------------\n  // Intentamos sacar algo de los campos del feed\n  let source = j.feed || j.source || j.meta?.link || '';\n  let domain = '';\n\n  // Si tenemos link, sacamos el dominio a mano (sin usar URL())\n  if (link) {\n    const m = String(link).match(/^[a-zA-Z]+:\\/\\/([^\\/?#]+)/);\n    if (m && m[1]) {\n      domain = m[1].replace(/^www\\./, ''); // ej: www.elmundo.es -> elmundo.es\n      if (!source) {\n        source = domain; // usamos el dominio como \"source\" si no había otro\n      }\n    }\n  }\n\n  const desc = clean(\n    j.content ||\n    j['content:encoded'] ||\n    j.description ||\n    ''\n  );\n\n  // Base para el hash (título + link + fecha)\n  const base = `${title}|${link}|${pub}`;\n  const hash = crypto.createHash('sha1').update(base).digest('hex');\n\n  const content_for_llm = `${title} — ${desc}`.slice(0, 900);\n\n  return {\n    json: {\n      timestamp: new Date().toISOString(),\n      source,          // ahora debería tener valor (elmundo.es, elpais.com, etc.)\n      domain,          // dominio limpio, útil para tu tabla de confianza\n      title,\n      link,\n      publishedAt: pub,\n      description: desc,\n      content_for_llm,\n      hash,\n    },\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        208
+      ],
+      "id": "98e1f400-76c7-433c-b88a-710d7e99a209",
+      "name": "Hash_Normalizar"
+    },
+    {
+      "parameters": {
+        "jsCode": "// === RESET MANUAL (solo para forzar primera vez, luego bórralo) ===\nconst sd = $getWorkflowStaticData('global');\nsd.initialized = false;  // ⚠️ Solo para resetear UNA VEZ\n\n// === 1) Items ORIGINALES (del nodo que genera el hash) ===\nconst originals = $items('Hash_Normalizar', 0, 0);\n\n// === 2) Respuesta del HTTP (lo que se insertó en Supabase) ===\nconst httpItems = $items('Supabase_Upsert', 0, 0);\nconst resp = httpItems[0]?.json;\nconst insertedArray = Array.isArray(resp) ? resp : (resp?.body ?? []);\nconst inserted = new Set(insertedArray.map(r => r.hash));\n\n// === 3) Control de \"primera vez\" o siguientes ===\nif (!sd.initialized) {\n  // Primera ejecución: deja pasar TODO y marca como inicializado\n  sd.initialized = true;\n  return originals;\n}\n\n// === 4) Ejecuciones siguientes: solo los nuevos ===\nreturn originals.filter(i => inserted.has(i.json.hash));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        208
+      ],
+      "id": "ea192179-2f3f-41a6-af3f-507500839168",
+      "name": "Filtrar_Nuevos"
+    },
+    {
+      "parameters": {
+        "url": "https://www.abc.es/rss/2.0/portada/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        -464
+      ],
+      "id": "f458e00c-2b84-477e-9016-97182d82fce6",
+      "name": "ABC PORTADA"
+    },
+    {
+      "parameters": {
+        "url": "https://www.abc.es/rss/2.0/espana/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        -656
+      ],
+      "id": "7b1a856e-347c-4ba4-b9a4-e7a4dec6b15b",
+      "name": "ABC ESPAÑA"
+    },
+    {
+      "parameters": {
+        "url": "https://www.abc.es/rss/2.0/economia/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        -848
+      ],
+      "id": "bb88b9f7-3494-4196-b481-0ee2e77a2b3f",
+      "name": "ABC  ECONOMÍA"
+    },
+    {
+      "parameters": {
+        "url": "https://www.abc.es/rss/2.0/internacional/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        -1040
+      ],
+      "id": "158bc897-18be-42cd-bfad-fd6753d295fc",
+      "name": "ABC INTERNACIONAL"
+    },
+    {
+      "parameters": {
+        "url": "https://www.abc.es/rss/2.0/internacional/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        -1168
+      ],
+      "id": "f2d59c55-a542-4738-95cd-b1f845cfa162",
+      "name": "ABC DEPORTES"
+    },
+    {
+      "parameters": {
+        "url": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada",
+        "options": {
+          "customFields": "",
+          "ignoreSSL": false
+        }
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        112
+      ],
+      "id": "47cafe5e-1f69-4e3f-ad7e-7b613c07ce13",
+      "name": "ES PAÍS ESPAÑA"
+    },
+    {
+      "parameters": {
+        "url": "https://feeds.elpais.com/mrss-s/list/ep/site/elpais.com/section/economia/subsection/negocios",
+        "options": {
+          "customFields": "",
+          "ignoreSSL": false
+        }
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        304
+      ],
+      "id": "1852978a-85b7-421d-adca-9f41b7450f03",
+      "name": "EL PAIS NEGOCIOS"
+    },
+    {
+      "parameters": {
+        "url": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/deportes/portada",
+        "options": {
+          "customFields": "",
+          "ignoreSSL": false
+        }
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        496
+      ],
+      "id": "131c3bef-f4f0-4318-b46a-cbea548c00df",
+      "name": "EL PAIS DEPORTES"
+    },
+    {
+      "parameters": {
+        "url": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/internacional/portada",
+        "options": {
+          "customFields": "",
+          "ignoreSSL": false
+        }
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        688
+      ],
+      "id": "b125699b-acc5-4ae5-aedc-628d8d61e6ae",
+      "name": "EL PAIS INTERNACIONAL"
+    },
+    {
+      "parameters": {
+        "url": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/ciencia/portada",
+        "options": {
+          "customFields": "",
+          "ignoreSSL": false
+        }
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        880
+      ],
+      "id": "480dc37f-cb21-4e17-b84f-c5b004bd4d63",
+      "name": "EL PAIS CIENCIA"
+    },
+    {
+      "parameters": {
+        "url": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/ciencia/portada",
+        "options": {
+          "customFields": "",
+          "ignoreSSL": false
+        }
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        1168
+      ],
+      "id": "fcd9b14a-f9bc-447d-a208-e0be8d85b40c",
+      "name": "EL PAIS TECH"
+    },
+    {
+      "parameters": {
+        "url": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/gente/portada",
+        "options": {
+          "customFields": "",
+          "ignoreSSL": false
+        }
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        592
+      ],
+      "id": "1ae513ea-7446-4487-a622-c1e301954d51",
+      "name": "EL PAIS GENTE"
+    },
+    {
+      "parameters": {
+        "numberInputs": 10
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        592,
+        400
+      ],
+      "id": "f682a6f1-2190-41df-bc1f-d43095eaa6c3",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        672,
+        208
+      ],
+      "id": "678a6615-33e5-477f-9e02-3a83d2916dfe",
+      "name": "Merge2"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "Eres un editor experto. Analiza el titular y la descripción.\nResponde SOLO con un JSON válido (sin markdown) con este formato:\n{\n  \"es_noticia\": boolean, // true = noticia factual. false = opinión, columna, horóscopo, publicidad o irrelevante.\n  \"razon\": \"string corta explicando por qué\"\n}",
+              "role": "system"
+            },
+            {
+              "content": "=TITULAR: {{ $json.title }}\nDESCRIPCIÓN: {{ $json.description }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1568,
+        208
+      ],
+      "id": "60efb003-24fc-42f5-b224-22b2aaf6e458",
+      "name": "Clasificador_AI",
+      "credentials": {
+        "openAiApi": {
+          "id": "iZxyJx4Mvk5oNqz5",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "48e4b180-96c9-4290-9c6b-9f187d080ec4",
+              "leftValue": "={{ JSON.parse($json.message.content).es_noticia }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2080,
+        96
+      ],
+      "id": "5e053c8d-4b19-4b4e-9b71-b9da553394dc",
+      "name": "Filtrar_Opinion"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simplemente pasa los items tal cual, ya están agrupados en esta vista\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2336,
+        112
+      ],
+      "id": "2eb1bf4c-2f57-41e8-a96c-43439cd2eecd",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "// CÓDIGO PARA EL NODO: Preparar_Cluster\n// Asegúrate de que este nodo también esté en Mode: \"Run Once for All Items\"\n\n// 1. Obtenemos todas las noticias\nconst allNews = items.map(item => item.json);\n\n// 2. Creamos la lista de texto simple para el prompt\nconst simplifiedList = allNews.map((news, index) => {\n  // Limpiamos saltos de línea para que quede limpio\n  const cleanTitle = (news.title || \"\").replace(/\\n/g, \" \");\n  // Creamos el formato \"ID_0: Titulo (Fuente)\"\n  return `ID_${index}: ${cleanTitle} (Fuente: ${news.source})`;\n}).join(\"\\n\");\n\n// 3. Devolvemos la lista lista y los datos originales\nreturn {\n  json: {\n    prompt_list: simplifiedList,\n    original_data: allNews\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2544,
+        112
+      ],
+      "id": "68ef60f7-2054-41b3-933a-e455e2b4835c",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Eres un algoritmo de agrupación de noticias.\nRecibirás una lista de titulares con IDs.\nTu trabajo es agrupar las noticias que traten EXACTAMENTE sobre el mismo evento o tema específico.\n\nReglas:\n1. Devuelve SOLO un JSON válido.\n2. El formato debe ser un objeto con una clave \"grupos\" que contenga arrays de IDs.\n3. NO uses Markdown (nada de ```json).\n\nEjemplo de salida:\n{\n  \"grupos\": [\n    [\"ID_0\", \"ID_5\"],\n    [\"ID_1\"],\n    [\"ID_2\", \"ID_8\"]\n  ]\n}"
+            },
+            {
+              "content": "=Lista de noticias para agrupar:\n{{ $json.prompt_list }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        112
+      ],
+      "id": "e97ae83f-0c91-4a20-9bc4-d24b39e0b2bb",
+      "name": "AI_Clusterer",
+      "credentials": {
+        "openAiApi": {
+          "id": "iZxyJx4Mvk5oNqz5",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ==========================================\n// 1. EXTRACCIÓN DE DATOS \"A PRUEBA DE BALAS\"\n// ==========================================\nconst item = items[0].json;\n\n// Buscamos la respuesta en todos los sitios posibles\nlet rawData = \n  item.output || \n  item.message?.content || \n  item.response?.text || \n  item.text ||\n  item.content;\n\n// CORRECCIÓN ESPECÍFICA PARA TU ERROR:\n// Si la respuesta es un Objeto con una propiedad \"content\" (como se ve en tu foto)\nif (rawData && typeof rawData === 'object') {\n  if (rawData.content) {\n    rawData = rawData.content;\n  }\n}\n\n// Si resulta que es un Array (lista), cogemos el primer elemento o lo convertimos todo\nif (Array.isArray(rawData)) {\n  // A veces viene como [{ \"text\": \"...\" }] o simplemente [\"...\"]\n  rawData = rawData[0].text || rawData[0] || JSON.stringify(rawData);\n}\n\n// SIEMPRE convertimos a String para evitar el error \".replace is not a function\"\nconst aiString = typeof rawData === 'string' ? rawData : JSON.stringify(rawData);\n\nif (!aiString || aiString === \"{}\" || aiString === \"null\") {\n  return []; // Si no hay datos útiles, salimos suavemente\n}\n\n// ==========================================\n// 2. LIMPIEZA Y PARSEO\n// ==========================================\n// Ahora sí es seguro usar .replace() porque 'aiString' es texto 100% seguro\nconst cleanJson = aiString.replace(/```json|```/g, '').trim();\nlet llmResponse;\n\ntry {\n  llmResponse = JSON.parse(cleanJson);\n} catch (e) {\n  // Si falla el parseo, devolvemos array vacío\n  return [];\n}\n\n// ==========================================\n// 3. RECUPERAR DATOS ORIGINALES (VIAJE EN EL TIEMPO)\n// ==========================================\nlet originalData = [];\ntry {\n  const sourceNode = $('Code in JavaScript1').first();\n  if (sourceNode && sourceNode.json) {\n    originalData = sourceNode.json.original_data;\n  }\n} catch(e) {}\n\nconst outputItems = [];\n\n// ==========================================\n// 4. RECONSTRUCCIÓN DE GRUPOS\n// ==========================================\nif (llmResponse.grupos && Array.isArray(llmResponse.grupos) && originalData && originalData.length > 0) {\n    llmResponse.grupos.forEach(grupoIds => {\n      const noticiasDelGrupo = [];\n\n      grupoIds.forEach(idString => {\n        // Extraemos \"ID_5\" -> 5\n        const parts = String(idString).split('_');\n        if (parts.length > 1) {\n            const index = parseInt(parts[1]); \n            if (originalData[index]) {\n              noticiasDelGrupo.push(originalData[index]);\n            }\n        }\n      });\n\n      if (noticiasDelGrupo.length > 0) {\n        const contexto = noticiasDelGrupo.map(n => {\n          const src = n.source || 'Fuente desconocida';\n          const tit = n.title || 'Sin título';\n          const desc = n.content_for_llm || n.description || '';\n          const lnk = n.link || '';\n          return `--- FUENTE: ${src} ---\\nTITULAR: ${tit}\\nCONTENIDO: ${desc}\\nLINK: ${lnk}`;\n        }).join('\\n\\n');\n\n        const links = noticiasDelGrupo.map(n => n.link).filter(Boolean).join(', ');\n        const fuentes = [...new Set(noticiasDelGrupo.map(n => n.source).filter(Boolean))].join(', ');\n\n        outputItems.push({\n          json: {\n            tema: noticiasDelGrupo[0].title,\n            fuentes_usadas: fuentes,\n            links_referencia: links,\n            contexto_completo: contexto\n          }\n        });\n      }\n    });\n}\n\nreturn outputItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3104,
+        112
+      ],
+      "id": "38e0adcc-4323-4988-a443-75487387114c",
+      "name": "Procesar_Grupos"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        3312,
+        112
+      ],
+      "id": "b905da44-6560-4d81-a2df-acbe1768beb9",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "name": "Replace Me",
+      "typeVersion": 1,
+      "position": [
+        3520,
+        320
+      ],
+      "id": "6d54d1aa-fdaf-4349-90b3-a6bdb8591e8d"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Eres un periodista experto en síntesis neutral. \nTu objetivo es escribir UN artículo informativo basándote en múltiples fuentes que cubren el mismo evento.\n\nInstrucciones:\n1. Identifica los hechos comunes (la verdad factual).\n2. Identifica las discrepancias o matices entre medios (ej: \"Mientras El País dice X, ABC señala Y\").\n3. Redacta con tono objetivo, formal y sin opiniones propias.\n4. NO inventes información que no esté en el contexto."
+            },
+            {
+              "content": "=CONTEXTO DE LAS FUENTES:\n{{ $json.contexto_completo }}\n\nPor favor, redacta el artículo final."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        3520,
+        16
+      ],
+      "id": "49d56dbf-e40f-4b32-9c6d-a8d0819786ee",
+      "name": "El Redactor Neutral (AI_Writer)",
+      "credentials": {
+        "openAiApi": {
+          "id": "iZxyJx4Mvk5oNqz5",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/daily_news",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $vars.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $vars.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  title: $('Procesar_Grupos').item.json.tema,\n  content: $json.message.content,\n  summary: $json.message.content.substring(0, 200) + '...',\n  source: $('Procesar_Grupos').item.json.fuentes_usadas,\n  url: $('Procesar_Grupos').item.json.links_referencia.split(',')[0],\n  metadata: {\n    all_links: $('Procesar_Grupos').item.json.links_referencia,\n    all_sources: $('Procesar_Grupos').item.json.fuentes_usadas\n  }\n}) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3872,
+        16
+      ],
+      "id": "new-supabase-insert-node",
+      "name": "Supabase_Insert_News"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "EL PAIS ESPAÑA",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "EL PAIS ECONOMIA",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "EL MUNDO ESPAÑA",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ABC PORTADA",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ABC ESPAÑA",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ABC  ECONOMÍA",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ABC INTERNACIONAL",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ABC DEPORTES",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ES PAÍS ESPAÑA",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "EL PAIS NEGOCIOS",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "EL PAIS DEPORTES",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "EL PAIS INTERNACIONAL",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "EL PAIS CIENCIA",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "EL PAIS TECH",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "EL PAIS GENTE",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 5
+          }
+        ]
+      ]
+    },
+    "EL PAIS ESPAÑA": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "EL PAIS ECONOMIA": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EL MUNDO ESPAÑA": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase_Upsert": {
+      "main": [
+        [
+          {
+            "node": "Filtrar_Nuevos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hash_Normalizar": {
+      "main": [
+        [
+          {
+            "node": "Supabase_Upsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar_Nuevos": {
+      "main": [
+        [
+          {
+            "node": "Clasificador_AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ABC PORTADA": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "ABC ESPAÑA": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "ABC  ECONOMÍA": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 5
+          }
+        ]
+      ]
+    },
+    "ABC INTERNACIONAL": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 6
+          }
+        ]
+      ]
+    },
+    "ABC DEPORTES": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 7
+          }
+        ]
+      ]
+    },
+    "ES PAÍS ESPAÑA": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 8
+          }
+        ]
+      ]
+    },
+    "EL PAIS NEGOCIOS": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 9
+          }
+        ]
+      ]
+    },
+    "EL PAIS DEPORTES": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EL PAIS INTERNACIONAL": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "EL PAIS CIENCIA": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "EL PAIS TECH": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "EL PAIS GENTE": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge2": {
+      "main": [
+        [
+          {
+            "node": "Hash_Normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clasificador_AI": {
+      "main": [
+        [
+          {
+            "node": "Filtrar_Opinion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar_Opinion": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "AI_Clusterer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI_Clusterer": {
+      "main": [
+        [
+          {
+            "node": "Procesar_Grupos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar_Grupos": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "El Redactor Neutral (AI_Writer)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Replace Me",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replace Me": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "El Redactor Neutral (AI_Writer)": {
+      "main": [
+        [
+          {
+            "node": "Supabase_Insert_News",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e34f9f6000ad93224be9a0f0ae5612efb076281c807ea819fc77467e5940c5ea"
+  }
+}

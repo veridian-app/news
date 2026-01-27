@@ -95,3 +95,21 @@ CREATE POLICY "Public Insert Comments" ON public.news_comments FOR INSERT WITH C
 -- 3. SERVICE ROLE (Para n8n y script administrativos)
 -- Los keys de servicio ("service_role") se saltan el RLS, pero definimos explícitamente para claridad.
 CREATE POLICY "Service Role Full Access News" ON public.daily_news FOR ALL USING (true);
+
+-- ==========================================
+-- 6. STORAGE (Almacenamiento de imágenes)
+-- ==========================================
+-- Crear el bucket 'news-covers' si no existe
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('news-covers', 'news-covers', true) 
+ON CONFLICT (id) DO NOTHING;
+
+-- Política de lectura pública
+CREATE POLICY "Public Read News Covers" 
+ON storage.objects FOR SELECT 
+USING (bucket_id = 'news-covers');
+
+-- Política de escritura para Service Role (API/n8n)
+CREATE POLICY "Service Role Upload News Covers" 
+ON storage.objects FOR INSERT 
+WITH CHECK (bucket_id = 'news-covers');
