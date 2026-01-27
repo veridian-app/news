@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             .from('daily_news')
             .select('id, title, summary')
             .is('image', null)
-            .limit(2);
+            .limit(5);
 
         if (fetchError) throw fetchError;
         if (!newsItems || newsItems.length === 0) {
