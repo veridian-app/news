@@ -566,7 +566,7 @@ const VeridianNews = () => {
       // Si falló la red pero tenemos caché, es un éxito parcial (usuario ve contenido)
       if (cachedNews) {
         console.log('⚠️ Usando versión en caché debido a error de red');
-        toast("Modo Offline: Mostrando noticias guardadas", { duration: 3000 });
+        toast({ title: "Modo Offline", description: "Mostrando noticias guardadas", duration: 3000 });
       } else {
         setError('No se pudieron cargar las noticias. Verifica tu conexión.');
         // En último caso, usar mockNews si todo falla y no hay caché?
