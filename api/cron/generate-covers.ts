@@ -50,6 +50,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             try {
                 console.log(`Generating image for: ${item.title}`);
 
+                const summarySnippet = item.summary ? item.summary.slice(0, 1000) : '';
+                const prompt = `Editorial magazine cover art, minimalist, modern, abstract, high quality photography style for news headline: "${item.title}". Summary: "${summarySnippet}". NO TEXT. Horizontal aspect ratio.`;
+
                 // Generate Image with Gemini (Imagen 4) via REST API
                 const response = await fetch(
                     `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${process.env.GEMINI_API_KEY}`,
