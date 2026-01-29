@@ -50,10 +50,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             try {
                 console.log(`Generating image for: ${item.title}`);
 
-                const summarySnippet = item.summary ? item.summary.slice(0, 1000) : '';
-                const prompt = `Editorial magazine cover art, minimalist, modern, abstract, high quality photography style for news headline: "${item.title}". Summary: "${summarySnippet}". NO TEXT. Horizontal aspect ratio.`;
+                // 1. Generate a Smart Prompt using Gemini 1.5 Flash
+                let imagePrompt = `Editorial news photography, high quality, realistic, for: ${item.title}`; // Fallback
 
-                // Generate Image with Gemini (Imagen 4) via REST API
+                try {
+                    const promptGenResponse = await fetch(
+                        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{
+                                    parts: [{
+                                        text: `You are an expert art director for a high-end news magazine.
+                                        Create a detailed, creative image generation prompt for this news story:
+                                        
+                                        Title: "${item.title}"
+                                        Summary: "${item.summary || item.title}"
+                                        
+                                        REQUIREMENTS:
+                                        - The prompt must describe a specific, visual scene that represents the core topic.
+                                        - Style: Cinematic, photorealistic, 8k resolution, dramatic lighting.
+                                        - NO text in the image.
+                                        - Do NOT use abstract concepts, describe physical objects, people, or settings.
+                                        - Return ONLY the prompt text, nothing else.`
+                                    }]
+                                }]
+                            })
+                        }
+                    );
+
+                    const promptData = await promptGenResponse.json();
+                    if (promptData.candidates?.[0]?.content?.parts?.[0]?.text) {
+                        imagePrompt = promptData.candidates[0].content.parts[0].text.trim();
+                        console.log(`✨ Smart Prompt generated: ${imagePrompt}`);
+                    }
+                } catch (e) {
+                    console.error('Failed to generate smart prompt, using fallback:', e);
+                }
+
+                // 2. Generate Image with specific prompt using Imagen 4
                 const response = await fetch(
                     `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${process.env.GEMINI_API_KEY}`,
                     {
@@ -63,7 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         },
                         body: JSON.stringify({
                             instances: [
-                                { prompt: prompt }
+                                { prompt: imagePrompt }
                             ],
                             parameters: {
                                 sampleCount: 1,
