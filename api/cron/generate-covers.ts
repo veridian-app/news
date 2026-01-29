@@ -14,12 +14,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        // 1. Fetch news without images (limit to 2 per run to control costs/timeouts)
-        const { data: newsItems, error: fetchError } = await supabase
+        let query = supabase
             .from('daily_news')
-            .select('id, title, summary')
-            .or('image.is.null,image.eq.""')
-            .limit(5);
+            .select('id, title, summary');
+
+        // Si recibimos un specific ID (ej: desde webhook/trigger), procesamos solo ese
+        if (req.body && req.body.newsId) {
+            console.log(`🚀 Triggered for specific news ID: ${req.body.newsId}`);
+            query = query.eq('id', req.body.newsId);
+        } else {
+            // Modo cron normal: buscar las que faltan (limitado por lotes)
+            query = query.or('image.is.null,image.eq.""').limit(5);
+        }
+
+        const { data: newsItems, error: fetchError } = await query;
 
         if (fetchError) throw fetchError;
         if (!newsItems || newsItems.length === 0) {
