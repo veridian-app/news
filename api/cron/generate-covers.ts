@@ -18,7 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { data: newsItems, error: fetchError } = await supabase
             .from('daily_news')
             .select('id, title, summary')
-            .is('image', null)
+            .or('image.is.null,image.eq.""')
             .limit(5);
 
         if (fetchError) throw fetchError;
@@ -33,7 +33,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             try {
                 console.log(`Generating image for: ${item.title}`);
 
-                const prompt = `Editorial magazine cover art, minimalist, modern, abstract, high quality photography style for news headline: "${item.title}". Summary: "${item.summary}". NO TEXT. Horizontal aspect ratio.`;
+                const summarySnippet = item.summary ? item.summary.slice(0, 1000) : '';
+                const prompt = `Editorial magazine cover art, minimalist, modern, abstract, high quality photography style for news headline: "${item.title}". Summary: "${summarySnippet}". NO TEXT. Horizontal aspect ratio.`;
 
                 // Generate Image with Gemini (Imagen 3) via REST API
                 // Using REST avoids SDK version mismatches for image generation specifically

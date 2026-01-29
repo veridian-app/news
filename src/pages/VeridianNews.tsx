@@ -1819,11 +1819,17 @@ const VeridianNews = () => {
             )}
 
             <div className="prose prose-invert prose-lg max-w-none">
-              {selectedNews.content?.split('\n').map((p, i) => (
-                <p key={i} className="mb-4 text-gray-300 leading-relaxed">
-                  {p}
+              {selectedNews.content && selectedNews.content.trim().length > 5 ? (
+                selectedNews.content.split('\n').map((p, i) => (
+                  <p key={i} className="mb-4 text-gray-300 leading-relaxed">
+                    {p}
+                  </p>
+                ))
+              ) : (
+                <p className="mb-4 text-gray-300 leading-relaxed text-lg">
+                  {selectedNews.summary}
                 </p>
-              )) || <p>{selectedNews.summary}</p>}
+              )}
             </div>
           </div>
 
