@@ -50,27 +50,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             try {
                 console.log(`Generating image for: ${item.title}`);
 
-                // DEBUG: List models to find the correct one
-                try {
-                    const modelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`);
-                    const modelsData = await modelsRes.json();
-                    if (modelsData.models) {
-                        const availableModels = modelsData.models
-                            .map((m: any) => m.name)
-                            .filter((n: string) => n.includes('image') || n.includes('imagen'));
-                        console.log('📸 Available Image Models:', availableModels);
-                    }
-                } catch (e) {
-                    console.error('Error listing models:', e);
-                }
-
-                const summarySnippet = item.summary ? item.summary.slice(0, 1000) : '';
-                const prompt = `Editorial magazine cover art, minimalist, modern, abstract, high quality photography style for news headline: "${item.title}". Summary: "${summarySnippet}". NO TEXT. Horizontal aspect ratio.`;
-
-                // Generate Image with Gemini (Imagen 3) via REST API
-                // Using REST avoids SDK version mismatches for image generation specifically
+                // Generate Image with Gemini (Imagen 4) via REST API
                 const response = await fetch(
-                    `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${process.env.GEMINI_API_KEY}`,
+                    `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${process.env.GEMINI_API_KEY}`,
                     {
                         method: 'POST',
                         headers: {
