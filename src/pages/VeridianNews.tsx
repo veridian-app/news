@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import { NewsImage } from "../components/NewsImage";
 import "./VeridianNews.css";
 import { supabase, isSupabaseConfigured } from "../integrations/supabase/client";
