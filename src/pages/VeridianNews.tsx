@@ -296,6 +296,8 @@ const VeridianNews = () => {
   const feedContainerRef = useRef<HTMLDivElement>(null);
   const loadingProgressRef = useRef<HTMLDivElement>(null);
 
+  const [sortBy, setSortBy] = useState<'recommended' | 'recent'>('recommended');
+
   // Calcular noticias recomendadas basándose en preferencias
   const news = useMemo(() => {
     console.log('📰 Calculando noticias, rawNews.length:', rawNews.length);
@@ -304,6 +306,15 @@ const VeridianNews = () => {
       console.log('⚠️ No hay noticias del Excel disponibles');
       return [];
     }
+
+    // Si el usuario elige "Recientes", forzar orden cronológico
+    if (sortBy === 'recent') {
+      console.log('📅 Ordenando por fecha (Recientes)');
+      return [...rawNews].sort((a, b) => {
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      });
+    }
+
     if (userPreferences.size === 0) {
       const shuffled = shuffleNews([...rawNews]);
       console.log('✅ Noticias mezcladas:', shuffled.length);
@@ -312,7 +323,7 @@ const VeridianNews = () => {
     const recommended = recommendNews([...rawNews], userPreferences, likedNewsIds);
     console.log('✅ Noticias recomendadas:', recommended.length);
     return recommended;
-  }, [rawNews, userPreferences, likedNewsIds]);
+  }, [rawNews, userPreferences, likedNewsIds, sortBy]);
 
   useEffect(() => {
     // No usar mockNews - solo cargar del Excel
@@ -1715,6 +1726,39 @@ const VeridianNews = () => {
       </div>
 
       <StreakHeader />
+
+      {/* Botón de Ordenar / Filtro */}
+      <div className="fixed top-4 left-4 z-50 animate-in fade-in duration-700">
+        <button
+          onClick={() => {
+            const newSort = sortBy === 'recommended' ? 'recent' : 'recommended';
+            setSortBy(newSort);
+            toast({
+              title: newSort === 'recent' ? "📅 Ordenado por fecha" : "✨ Ordenado por relevancia",
+              description: newSort === 'recent' ? "Mostrando las noticias más nuevas primero." : "Mostrando noticias personalizadas para ti.",
+              duration: 2000
+            });
+            // Haptic feedback
+            if (navigator.vibrate) navigator.vibrate(10);
+            // Scroll to top
+            if (feedContainerRef.current) {
+              feedContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          }}
+          className={cn(
+            "flex items-center gap-2 px-3 py-1.5 backdrop-blur-md border rounded-full shadow-[0_0_15px_rgba(0,0,0,0.3)] transition-all duration-300",
+            sortBy === 'recent'
+              ? "bg-blue-500/20 border-blue-500/50 text-blue-200 hover:bg-blue-500/30"
+              : "bg-black/30 border-white/10 text-white/70 hover:bg-white/10"
+          )}
+        >
+          {sortBy === 'recent' ? <Clock className="w-4 h-4" /> : <Brain className="w-4 h-4" />}
+          <span className="text-xs font-medium">
+            {sortBy === 'recent' ? 'Recientes' : 'Relevantes'}
+          </span>
+        </button>
+      </div>
+
       <main
         ref={feedContainerRef}
         className="h-full w-full md:max-w-md md:mx-auto relative z-10 overflow-y-scroll snap-y snap-mandatory scroll-smooth no-scrollbar md:border-x md:border-white/10 shadow-2xl bg-black"
