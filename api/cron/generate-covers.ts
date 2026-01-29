@@ -9,8 +9,17 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Security check: Verify the request is from Vercel Cron
     const authHeader = req.headers['authorization'];
+
+    // DEBUG LOGS
+    console.log('🔒 Auth Debug:');
+    console.log(`- User-Agent: ${req.headers['user-agent']}`);
+    console.log(`- Received Auth: ${authHeader ? 'Bear *****' : 'None'}`);
+    console.log(`- Expected Secret: ${process.env.CRON_SECRET ? 'Defined' : 'UNDEFINED'}`);
+    console.log(`- Secret Match? ${authHeader === `Bearer ${process.env.CRON_SECRET}`}`);
+
     if (req.headers['user-agent'] !== 'vercel-cron/1.0' && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return res.status(401).json({ error: 'Unauthorized' });
+        console.error('❌ Authorization Failed');
+        return res.status(401).json({ error: 'Unauthorized', debug: 'Check Vercel logs' });
     }
 
     try {
