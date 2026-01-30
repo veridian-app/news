@@ -30,18 +30,25 @@ export const NewsImage = ({ src, alt, className, priority = false }: NewsImagePr
                     <span className="sr-only">Loading...</span>
                 </div>
             )}
-            <img
-                src={src}
-                alt={alt}
-                loading={priority ? "eager" : "lazy"}
-                className={cn(
-                    "w-full h-full object-cover transition-opacity duration-500",
-                    isLoaded ? "opacity-100" : "opacity-0",
-                    className
-                )}
-                onLoad={() => setIsLoaded(true)}
-                onError={() => setError(true)}
-            />
+
+            {error ? (
+                <div className="absolute inset-0 h-full w-full bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
+                    {/* Optional: Add a subtle pattern or icon if desired, for now keeping it clean */}
+                </div>
+            ) : (
+                <img
+                    src={src}
+                    alt={alt}
+                    loading={priority ? "eager" : "lazy"}
+                    className={cn(
+                        "w-full h-full object-cover transition-opacity duration-500",
+                        isLoaded ? "opacity-100" : "opacity-0",
+                        className
+                    )}
+                    onLoad={() => setIsLoaded(true)}
+                    onError={() => setError(true)}
+                />
+            )}
         </div>
     );
 };
