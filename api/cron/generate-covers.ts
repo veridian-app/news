@@ -143,11 +143,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                 const publicUrl = publicUrlData.publicUrl;
 
+                console.log(`📝 Attempting to update ${item.id} with URL: ${publicUrl}`);
+
                 // Update database record
-                const { error: updateError } = await supabase
+                const { data: updateData, error: updateError, count } = await supabase
                     .from('daily_news')
                     .update({ image: publicUrl })
-                    .eq('id', item.id);
+                    .eq('id', item.id)
+                    .select();
+
+                console.log(`📊 Update result for ${item.id}:`, {
+                    error: updateError?.message,
+                    data: updateData,
+                    count: count
+                });
 
                 if (updateError) throw updateError;
 
