@@ -58,15 +58,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             const publicUrl = publicUrlData.publicUrl;
 
-            // 4. Update the news record
-            const { error: updateError } = await supabase
+            // 4. Update the news record and return updated data
+            const { data: updateData, error: updateError } = await supabase
                 .from('daily_news')
                 .update({ image: publicUrl })
-                .eq('id', newsId);
+                .eq('id', newsId)
+                .select();
 
             if (updateError) {
                 console.error(`❌ Failed to update ${newsId}:`, updateError.message);
                 results.push({ id: newsId, status: 'error', error: updateError.message });
+            } else if (!updateData || updateData.length === 0) {
+                // No rows were updated - ID doesn't exist in database
+                console.log(`⚠️ No matching record for ${newsId} (image exists but news doesn't)`);
+                results.push({ id: newsId, status: 'no_match', url: publicUrl });
             } else {
                 console.log(`✅ Linked image for news ${newsId}`);
                 results.push({ id: newsId, status: 'success', url: publicUrl });
