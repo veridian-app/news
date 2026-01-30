@@ -205,6 +205,15 @@ export default async function handler(
       return response.status(200).json([]);
     }
 
+    // DEBUG: Log sample of raw data to see image field
+    console.log('📊 Sample raw data from DB:', dbNews.slice(0, 3).map((item: any) => ({
+      id: item.id,
+      title: item.title?.substring(0, 30),
+      image: item.image,
+      hasImage: !!item.image
+    })));
+    console.log(`📊 Total items with images: ${dbNews.filter((item: any) => item.image && item.image !== '' && item.image !== 'GENERATION_FAILED').length}/${dbNews.length}`);
+
     // Transformar datos de Supabase a formato NewsItem
     const news: NewsItem[] = dbNews.map((item: any) => ({
       id: item.id,
