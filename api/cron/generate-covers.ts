@@ -155,6 +155,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             } catch (err: any) {
                 console.error(`Failed to process item ${item.id}:`, err);
+
+                // If image generation failed (likely content filter), mark it with a placeholder
+                // so it doesn't keep retrying on every cron run
+                if (err.message.includes('No image data')) {
+                    console.log(`⚠️ Marking ${item.id} with placeholder due to content filter`);
+                    await supabase
+                        .from('daily_news')
+                        .update({ image: 'GENERATION_FAILED' })
+                        .eq('id', item.id);
+                }
+
                 results.push({ id: item.id, error: err.message });
             }
         }
