@@ -102,10 +102,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             return { error: { message: 'Supabase no configurado' } as AuthError };
         }
 
+        // Use production URL for redirects, fallback to current origin for local dev
+        const siteUrl = import.meta.env.VITE_SITE_URL || 'https://news-six-lilac.vercel.app';
+
         const { error } = await supabase.auth.signInWithOtp({
             email,
             options: {
-                emailRedirectTo: `${window.location.origin}/veridian-news`,
+                emailRedirectTo: `${siteUrl}/veridian-news`,
             },
         });
 
