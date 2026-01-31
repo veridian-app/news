@@ -120,43 +120,10 @@ export const CafeLayout = () => {
                 {/* Header Overlay */}
                 <div className="sticky top-0 z-40 p-6 flex justify-between items-start bg-gradient-to-b from-zinc-950/90 to-transparent pointer-events-none">
 
-                    {/* Coffee Passport Indicator */}
-                    <div className="pointer-events-auto bg-black/50 backdrop-blur-md px-4 py-2 rounded-full border border-green-500/20 flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                            <div className="relative">
-                                <Coffee className={cn("w-5 h-5", stamps === 10 ? "text-green-400 animate-bounce" : "text-zinc-500")} />
-                                {stamps === 10 && <div className="absolute -top-2 left-1 text-[10px] text-green-400 opacity-70 animate-pulse">~</div>}
-                            </div>
-                            <div className="flex flex-col">
-                                <span className={cn("text-[10px] font-bold uppercase tracking-widest leading-none mb-0.5", stamps === 10 ? "text-green-400" : "text-zinc-500")}>
-                                    Passport
-                                </span>
-                                <div className="flex gap-1">
-                                    {Array.from({ length: 10 }).map((_, i) => (
-                                        <div
-                                            key={i}
-                                            className={cn(
-                                                "w-1.5 h-1.5 rounded-full transition-all duration-300",
-                                                i < stamps ? "bg-green-500" : "bg-zinc-800",
-                                                i === stamps - 1 && "animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.5)]"
-                                            )}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        {stamps === 10 && (
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => setShowTicket(true)}
-                                className="h-6 px-2 text-[10px] bg-green-500/20 text-green-400 hover:bg-green-500/30 hover:text-green-300 uppercase tracking-widest animate-pulse"
-                            >
-                                <Ticket className="w-3 h-3 mr-1" />
-                                Claim
-                            </Button>
-                        )}
+                    {/* Café Veridian Label */}
+                    <div className="pointer-events-auto bg-black/50 backdrop-blur-md px-4 py-2 rounded-full border border-green-500/20 flex items-center gap-2">
+                        <Coffee className="w-5 h-5 text-green-400" />
+                        <span className="text-sm font-semibold text-white">Café Veridian</span>
                     </div>
 
                     <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full hover:bg-white/10 pointer-events-auto bg-black/50 backdrop-blur-md">

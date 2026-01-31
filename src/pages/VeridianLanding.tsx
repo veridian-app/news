@@ -1,11 +1,9 @@
 import { useNavigate } from "react-router-dom";
-import { useLanguage } from "@/hooks/useLanguage";
 import { Button } from "@/components/ui/button";
 import { Brain, Globe, Shield, Sparkles, ArrowRight } from "lucide-react";
 
 const VeridianLanding = () => {
   const navigate = useNavigate();
-  const { language, toggleLanguage } = useLanguage();
 
   const handleEnter = () => {
     navigate("/veridian-news");
@@ -31,18 +29,10 @@ const VeridianLanding = () => {
         </div>
         <div className="flex items-center gap-4">
           <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleLanguage}
-            className="text-white/70 hover:text-white hover:bg-white/10 rounded-full w-10 p-0"
-          >
-            {language === 'es' ? 'ES' : 'EN'}
-          </Button>
-          <Button
             onClick={handleEnter}
             className="bg-white text-black hover:bg-white/90 rounded-full px-6 font-medium transition-transform active:scale-95 flex items-center gap-2"
           >
-            {language === 'es' ? 'Entrar' : 'Enter'} <ArrowRight className="w-4 h-4" />
+            Entrar <ArrowRight className="w-4 h-4" />
           </Button>
         </div>
       </nav>
@@ -54,27 +44,23 @@ const VeridianLanding = () => {
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-8 animate-fade-in-up">
           <Sparkles className="w-4 h-4 text-green-300 fill-green-300/20" />
           <span className="text-sm font-medium text-white/90">
-            {language === 'es' ? 'Revolucionando el consumo de noticias' : 'Revolutionizing news consumption'}
+            Revolucionando el consumo de noticias
           </span>
         </div>
 
         {/* Title */}
         <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter leading-[1.1] mb-6 max-w-4xl bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent drop-shadow-sm">
-          {language === 'es' ? 'Noticias sin ruido.' : 'News without noise.'}
+          Noticias sin ruido.
           <br className="hidden md:block" />
-          <span className="text-white">
-            {language === 'es' ? 'Solo la verdad.' : 'Just the truth.'}
-          </span>
+          <span className="text-white">Solo la verdad.</span>
         </h1>
 
         {/* Subtitle */}
         <p className="text-lg md:text-xl text-white/60 max-w-2xl mb-12 leading-relaxed">
-          {language === 'es'
-            ? 'Únete a la primera plataforma diseñada para eliminar sesgos y devolverte el control. Inteligencia Artificial ética al servicio de tu criterio.'
-            : 'Join the first platform designed to eliminate bias and give you back control. Ethical AI at the service of your judgment.'}
+          Únete a la primera plataforma diseñada para eliminar sesgos y devolverte el control. Inteligencia Artificial ética al servicio de tu criterio.
         </p>
 
-        {/* Main Visual - Text Replacement */}
+        {/* Main Visual */}
         <div className="w-full max-w-4xl mx-auto mb-20 relative z-10 group">
           <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 to-emerald-500/10 blur-3xl -z-10 rounded-full opacity-50 group-hover:opacity-70 transition-opacity duration-700"></div>
 
@@ -82,14 +68,10 @@ const VeridianLanding = () => {
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-green-500 to-transparent opacity-50"></div>
 
             <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-white mb-6 leading-tight">
-              {language === 'es'
-                ? 'Deja de hacer scroll en el ruido.'
-                : 'Stop scrolling through noise.'}
+              Deja de hacer scroll en el ruido.
               <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500">
-                {language === 'es'
-                  ? 'Empieza a leer la verdad.'
-                  : 'Start reading the truth.'}
+                Empieza a leer la verdad.
               </span>
             </h2>
 
@@ -98,24 +80,24 @@ const VeridianLanding = () => {
                 <div className="w-10 h-10 rounded-full bg-green-900/30 flex items-center justify-center border border-green-500/30">
                   <Shield className="w-5 h-5 text-green-400" />
                 </div>
-                <h3 className="text-lg font-bold text-white">{language === 'es' ? 'Sin Sesgos' : 'Bias Free'}</h3>
-                <p className="text-sm text-white/60">{language === 'es' ? 'Algoritmos auditados para neutralidad total.' : 'Algorithms audited for total neutrality.'}</p>
+                <h3 className="text-lg font-bold text-white">Sin Sesgos</h3>
+                <p className="text-sm text-white/60">Algoritmos auditados para neutralidad total.</p>
               </div>
 
               <div className="flex flex-col gap-2">
                 <div className="w-10 h-10 rounded-full bg-emerald-900/30 flex items-center justify-center border border-emerald-500/30">
                   <Brain className="w-5 h-5 text-emerald-400" />
                 </div>
-                <h3 className="text-lg font-bold text-white">{language === 'es' ? 'Hechos Puros' : 'Pure Facts'}</h3>
-                <p className="text-sm text-white/60">{language === 'es' ? 'Sin opiniones disfrazadas de noticias.' : 'No opinions disguised as news.'}</p>
+                <h3 className="text-lg font-bold text-white">Hechos Puros</h3>
+                <p className="text-sm text-white/60">Sin opiniones disfrazadas de noticias.</p>
               </div>
 
               <div className="flex flex-col gap-2">
                 <div className="w-10 h-10 rounded-full bg-green-900/30 flex items-center justify-center border border-green-500/30">
                   <Globe className="w-5 h-5 text-green-400" />
                 </div>
-                <h3 className="text-lg font-bold text-white">{language === 'es' ? 'Control Total' : 'Total Control'}</h3>
-                <p className="text-sm text-white/60">{language === 'es' ? 'Tú decides qué te importa, no nosotros.' : 'You decide what matters, not us.'}</p>
+                <h3 className="text-lg font-bold text-white">Control Total</h3>
+                <p className="text-sm text-white/60">Tú decides qué te importa, no nosotros.</p>
               </div>
             </div>
           </div>
@@ -123,80 +105,63 @@ const VeridianLanding = () => {
 
         {/* Feature Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto w-full mb-32 px-4">
-          {/* Feature 1 */}
           <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm text-left hover:bg-white/10 transition-colors">
             <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center mb-4">
               <Shield className="w-6 h-6 text-green-400" />
             </div>
-            <h3 className="text-xl font-bold mb-2 text-white">
-              {language === 'es' ? '100% Objetivo' : '100% Objective'}
-            </h3>
+            <h3 className="text-xl font-bold mb-2 text-white">100% Objetivo</h3>
             <p className="text-white/60 text-sm leading-relaxed">
-              {language === 'es'
-                ? 'Nuestra IA analiza miles de fuentes para extraer solo los hechos verificados, eliminando opiniones y adjetivos sensacionalistas.'
-                : 'Our AI analyzes thousands of sources to extract only verified facts, eliminating opinions and sensationalist adjectives.'}
+              Nuestra IA analiza miles de fuentes para extraer solo los hechos verificados, eliminando opiniones y adjetivos sensacionalistas.
             </p>
           </div>
 
-          {/* Feature 2 */}
           <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm text-left hover:bg-white/10 transition-colors">
             <div className="w-12 h-12 rounded-lg bg-emerald-500/20 flex items-center justify-center mb-4">
               <Brain className="w-6 h-6 text-emerald-400" />
             </div>
             <h3 className="text-xl font-bold mb-2 text-white">Oraculus</h3>
             <p className="text-white/60 text-sm leading-relaxed">
-              {language === 'es'
-                ? 'Tu detector de mentiras personal. Pega cualquier enlace y descubre quién lo financia, qué sesgos tiene y qué es verdad.'
-                : 'Your personal lie detector. Paste any link and discover who funds it, what biases it has, and what is true.'}
+              Tu detector de mentiras personal. Pega cualquier enlace y descubre quién lo financia, qué sesgos tiene y qué es verdad.
             </p>
           </div>
 
-          {/* Feature 3 */}
           <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm text-left hover:bg-white/10 transition-colors md:col-span-2 lg:col-span-1">
             <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center mb-4">
               <Globe className="w-6 h-6 text-green-400" />
             </div>
-            <h3 className="text-xl font-bold mb-2 text-white">
-              {language === 'es' ? 'Cobertura Global' : 'Global Coverage'}
-            </h3>
+            <h3 className="text-xl font-bold mb-2 text-white">Cobertura Global</h3>
             <p className="text-white/60 text-sm leading-relaxed">
-              {language === 'es'
-                ? 'Acceso a fuentes de todo el mundo en tu idioma. Rompe la burbuja de información local.'
-                : 'Access sources from around the world in your language. Break the local information bubble.'}
+              Acceso a fuentes de todo el mundo en tu idioma. Rompe la burbuja de información local.
             </p>
           </div>
         </div>
 
-        {/* CTA Section (formerly Waitlist) */}
+        {/* CTA Section */}
         <div className="w-full max-w-xl mx-auto text-center px-4 relative z-20">
           <div className="absolute -inset-1 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl blur opacity-30"></div>
           <div className="relative bg-black border border-white/10 rounded-2xl p-8 md:p-12 shadow-2xl">
-            <h2 className="text-3xl font-bold mb-2 text-white">
-              {language === 'es' ? 'Empieza Ahora' : 'Start Now'}
-            </h2>
+            <h2 className="text-3xl font-bold mb-2 text-white">Empieza Ahora</h2>
             <p className="text-white/60 mb-8">
-              {language === 'es'
-                ? 'Accede a la plataforma y descubre la verdad.'
-                : 'Access the platform and discover the truth.'}
+              Accede a la plataforma y descubre la verdad.
             </p>
 
             <Button
               onClick={handleEnter}
               className="w-full sm:w-auto bg-white text-black hover:bg-white/90 rounded-full px-8 py-6 text-lg font-bold transition-transform active:scale-95 flex items-center justify-center gap-2 mx-auto"
             >
-              {language === 'es' ? 'Entrar a Veridian' : 'Enter Veridian'}
+              Entrar a Veridian
               <ArrowRight className="w-5 h-5" />
             </Button>
 
             <p className="text-xs text-white/40 mt-6">
-              {language === 'es' ? 'Sin registro. Gratis para todos.' : 'No registration. Free for everyone.'}
+              Sin registro. Gratis para todos.
             </p>
           </div>
         </div>
 
         {/* Footer */}
         <footer className="mt-32 pb-10 text-center text-white/20 text-sm">
-          <p>© 2025 Veridian Inc. {language === 'es' ? 'Todos los derechos reservados.' : 'All rights reserved.'}</p>
+          <p>© 2025 Veridian Inc. Todos los derechos reservados.</p>
         </footer>
 
       </section>
