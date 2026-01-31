@@ -21,16 +21,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     try {
-        // Get featured news for today's Café
-        // Criteria: news with images, ordered by likes/comments or most recent
-        const { data: featuredNews, error } = await supabase
+        const today = new Date().toISOString().split('T')[0];
+
+        // First, try to get curated news for today
+        let { data: featuredNews, error } = await supabase
             .from('daily_news')
-            .select('id, title, summary, content, image, published_at, source, url')
-            .not('image', 'is', null)
-            .neq('image', '')
-            .neq('image', 'GENERATION_FAILED')
-            .order('published_at', { ascending: false })
-            .limit(6);
+            .select('id, title, summary, content, image, published_at, source, url, cafe_featured_date')
+            .eq('cafe_featured_date', today)
+            .order('published_at', { ascending: false });
+
+        // If no curated news, fall back to recent news with images
+        if (!featuredNews || featuredNews.length === 0) {
+            console.log('No curated news for today, falling back to recent');
+            const result = await supabase
+                .from('daily_news')
+                .select('id, title, summary, content, image, published_at, source, url, cafe_featured_date')
+                .not('image', 'is', null)
+                .neq('image', '')
+                .neq('image', 'GENERATION_FAILED')
+                .order('published_at', { ascending: false })
+                .limit(6);
+
+            featuredNews = result.data;
+            error = result.error;
+        }
 
         if (error) throw error;
 
@@ -40,7 +54,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Transform to Café format
         const cafeNews = featuredNews.map((item, index) => {
-            // First item is headline, others are standard or compact
             if (index === 0) {
                 return {
                     id: item.id,
@@ -75,7 +88,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         });
 
-        return res.status(200).json({ news: cafeNews });
+        return res.status(200).json({
+            news: cafeNews,
+            curated: featuredNews.some(n => n.cafe_featured_date === today)
+        });
 
     } catch (error: any) {
         console.error('Featured news API error:', error);

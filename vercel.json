@@ -5,7 +5,7 @@
       "schedule": "0 6 * * *"
     },
     {
-      "path": "/api/cron/generate-polls",
+      "path": "/api/cron/curate-cafe",
       "schedule": "0 7 * * *"
     }
   ],
