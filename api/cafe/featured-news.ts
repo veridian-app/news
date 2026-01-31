@@ -23,11 +23,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         const today = new Date().toISOString().split('T')[0];
 
-        // First, try to get curated news for today
+        // First, try to get curated news for today (only with valid images)
         let { data: featuredNews, error } = await supabase
             .from('daily_news')
             .select('id, title, summary, content, image, published_at, source, url, cafe_featured_date')
             .eq('cafe_featured_date', today)
+            .not('image', 'is', null)
+            .neq('image', '')
+            .neq('image', 'GENERATION_FAILED')
             .order('published_at', { ascending: false });
 
         // If no curated news, fall back to recent news with images

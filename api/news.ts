@@ -192,6 +192,9 @@ export default async function handler(
     const { data: dbNews, error: dbError } = await supabase
       .from('daily_news')
       .select('*')
+      .not('image', 'is', null)
+      .neq('image', '')
+      .neq('image', 'GENERATION_FAILED')
       .order('published_at', { ascending: false })
       .range(from, to);
 
