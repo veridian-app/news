@@ -28,8 +28,8 @@ export const BottomDock = () => {
         {/* Central Café Button */}
         <div className="relative -top-6">
           <Link
-            to="/cafe-veridian"
-            className="flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-amber-600 to-orange-500 rounded-full shadow-lg shadow-orange-900/50 border-4 border-black active:scale-95 transition-transform"
+            to="/cafe"
+            className="flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-green-600 to-emerald-500 rounded-full shadow-lg shadow-green-900/50 border-4 border-black active:scale-95 transition-transform"
           >
             <Coffee className="text-white" size={26} />
           </Link>
