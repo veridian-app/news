@@ -721,12 +721,11 @@ const VeridianNews = () => {
       if (isLiked) {
         // Quitar like
         console.log('🗑️ Quitando like...');
-        const { error, data } = await supabase
+        const { error } = await supabase
           .from('news_likes')
           .delete()
           .eq('user_id', USER_ID)
-          .eq('news_id', item.id)
-          .select();
+          .eq('news_id', item.id);
 
         if (error) {
           console.error('❌ Error al quitar like:', error);
@@ -739,27 +738,27 @@ const VeridianNews = () => {
                 : n
             )
           );
-          throw error;
+          // Don't throw - just log and continue
+          console.warn('Like removal failed but app continues');
+          return;
         }
 
-        console.log('✅ Like quitado exitosamente:', data);
+        console.log('✅ Like quitado exitosamente');
       } else {
         // Agregar like
         console.log('➕ Agregando like...');
-        const { error, data } = await supabase
+        const { error } = await supabase
           .from('news_likes')
           .insert({
-            user_id: USER_ID, // userId anónimo generado desde localStorage
+            user_id: USER_ID,
             news_id: item.id,
             news_title: item.title,
             news_source: item.source,
             news_url: item.url || null
-          })
-          .select();
+          });
 
         if (error) {
           console.error('❌ Error al agregar like:', error);
-          console.error('❌ Detalles del error:', JSON.stringify(error, null, 2));
 
           // Revertir actualización optimista en caso de error
           setLikedNewsIds(prev => {
@@ -775,104 +774,23 @@ const VeridianNews = () => {
             )
           );
 
-          // Detectar si la tabla no existe o hay problema de schema cache
-          const isTableNotFound = error.message && (
-            error.message.includes('schema cache') ||
-            error.message.includes('Could not find the table') ||
-            error.message.includes('relation') && error.message.includes('does not exist')
-          );
-
-          if (isTableNotFound) {
-            console.log('🔄 Error de schema cache detectado, intentando múltiples reintentos con delays largos...');
-
-            // Intentar múltiples veces con delays más largos (el schema cache puede tardar)
-            for (let attempt = 1; attempt <= 5; attempt++) {
-              const delay = attempt * 3000; // 3s, 6s, 9s, 12s, 15s
-              console.log(`🔄 Intento ${attempt}/5: Esperando ${delay / 1000}s antes de reintentar insertar like...`);
-              await new Promise(resolve => setTimeout(resolve, delay));
-
-              // Reintentar el insert
-              const { error: retryError, data: retryData } = await supabase
-                .from('news_likes')
-                .insert({
-                  user_id: USER_ID,
-                  news_id: item.id,
-                  news_title: item.title,
-                  news_source: item.source,
-                  news_url: item.url || null
-                })
-                .select();
-
-              if (!retryError && retryData) {
-                console.log('✅ Like agregado exitosamente después del reintento!');
-                // Restaurar el estado optimista
-                setLikedNewsIds(prev => new Set([...prev, item.id]));
-                setTableExists(true);
-                setRawNews(prevNews =>
-                  prevNews.map(n =>
-                    n.id === item.id
-                      ? { ...n, likes: (n.likes || 0) + 1 }
-                      : n
-                  )
-                );
-                // Recargar preferencias después del éxito
-                setTimeout(() => {
-                  loadUserPreferences();
-                }, 1000);
-                return; // Éxito!
-              }
-
-              if (retryError && !retryError.message.includes('schema cache') && !retryError.message.includes('Could not find')) {
-                // Si el error cambió completamente, puede ser otro problema
-                console.warn('⚠️ Error diferente después del reintento:', retryError.message);
-                // Continuar intentando si aún es schema cache
-              }
-            }
-
-            // Si después de 5 intentos (hasta 45 segundos) sigue fallando
-            console.warn('⚠️ No se pudo agregar el like después de múltiples intentos');
-            setTableExists(false);
-            setError('⚠️ La tabla "news_likes" no se encuentra. Ejecuta este comando en Supabase SQL Editor: NOTIFY pgrst, \'reload schema\'; Luego espera 30s y recarga.');
-            setTimeout(() => setError(null), 12000);
-            return;
-          }
-
-          throw error;
+          // Show user-friendly error briefly
+          toast({ title: "Error", description: "No se pudo guardar el like", duration: 2000 });
+          return;
         }
 
-        console.log('✅ Like agregado exitosamente:', data);
-        setTableExists(true); // La tabla existe si pudimos insertar datos
+        console.log('✅ Like agregado exitosamente');
+        setTableExists(true);
 
-        // El trigger de Supabase actualizará automáticamente las preferencias
-        // Recargar preferencias después de dar like (con delay para que el trigger se ejecute)
+        // Recargar preferencias después de dar like (non-blocking)
         setTimeout(() => {
-          loadUserPreferences();
-        }, 1000); // Aumentado a 1 segundo para dar tiempo al trigger de Supabase
+          loadUserPreferences().catch(console.error);
+        }, 1000);
       }
     } catch (error: any) {
-      console.error('❌ Error al dar like:', error);
-      const errorMessage = error?.message || error?.error_description || 'Error desconocido al guardar el like';
-
-      // Si el error ya fue manejado en el bloque try (schema cache con reintentos), no hacer nada más
-      // Solo manejar errores que no fueron capturados en el bloque try
-      const isTableNotFound = errorMessage && (
-        errorMessage.includes('schema cache') ||
-        errorMessage.includes('Could not find the table') ||
-        errorMessage.includes('relation') && errorMessage.includes('does not exist')
-      );
-
-      if (isTableNotFound) {
-        // Ya se intentó con reintentos, solo mostrar mensaje final
-        console.warn('⚠️ Error de schema cache después de todos los reintentos');
-        setTableExists(false);
-        setError('⚠️ La tabla "news_likes" no se encuentra. Ejecuta: NOTIFY pgrst, \'reload schema\'; en Supabase SQL Editor, espera 30s y recarga.');
-        setTimeout(() => setError(null), 10000);
-        return;
-      }
-
-      // Otros errores (no relacionados con schema cache)
-      setError(`⚠️ Error: ${errorMessage}. Revisa la consola para más detalles.`);
-      setTimeout(() => setError(null), 7000);
+      console.error('❌ Error inesperado al dar like:', error);
+      // Catch-all to prevent app crash
+      toast({ title: "Error", description: "Error al procesar like", duration: 2000 });
     }
   };
 
