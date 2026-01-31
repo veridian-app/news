@@ -11,6 +11,7 @@ import { BottomDock } from "../components/BottomDock";
 import { NewsCard } from "@/components/NewsCard";
 import { StreakHeader } from "@/components/StreakHeader";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 
 interface NewsItem {
@@ -64,44 +65,19 @@ const mockNews: NewsItem[] = [
     url: undefined // Sin URL para que no aparezca el link
   }
 ];
-// Función para obtener o crear un userId persistente
+// Legacy fingerprint function - kept for backwards compatibility but now we use Supabase Auth
 const getOrCreateUserId = (): string => {
-  // Intentar obtener de localStorage
+  // This is now just a fallback - the real user ID comes from useAuth
   let userId = localStorage.getItem('veridian_userId');
-
-  // Si no existe, intentar obtener de cookies
   if (!userId) {
-    const cookies = document.cookie.split(';');
-    const userIdCookie = cookies.find(cookie => cookie.trim().startsWith('veridian_userId='));
-    if (userIdCookie) {
-      userId = userIdCookie.split('=')[1];
-    }
-  }
-
-  // Si aún no existe, crear uno nuevo
-  if (!userId) {
-    // Generar un ID único más robusto
-    userId = `user - ${Date.now()} -${Math.random().toString(36).substr(2, 9)} -${Math.random().toString(36).substr(2, 9)} `;
-
-    // Guardar en localStorage
+    userId = `anon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     localStorage.setItem('veridian_userId', userId);
-
-    // Guardar también en cookie (expira en 1 año)
-    const expires = new Date();
-    expires.setFullYear(expires.getFullYear() + 1);
-    document.cookie = `veridian_userId = ${userId}; expires = ${expires.toUTCString()}; path =/; SameSite=Lax`;
-  } else {
-    // Si existe, asegurarse de que también esté en ambos lugares
-    localStorage.setItem('veridian_userId', userId);
-    const expires = new Date();
-    expires.setFullYear(expires.getFullYear() + 1);
-    document.cookie = `veridian_userId=${userId}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
   }
-
   return userId;
 };
 
-const USER_ID = getOrCreateUserId();
+// Fallback for non-authenticated context (shouldn't happen with ProtectedRoute)
+const FALLBACK_USER_ID = getOrCreateUserId();
 
 // Funciones auxiliares - deben estar antes del componente para evitar errores de inicialización
 const shuffleNews = (newsArray: NewsItem[]) => {
@@ -274,6 +250,10 @@ const VeridianNews = () => {
   const isMobile = useIsMobile();
   const screenSize = useScreenSize();
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  // Use authenticated user ID, fallback to anonymous ID for backwards compatibility
+  const USER_ID = user?.id || FALLBACK_USER_ID;
 
 
   const [isLoading, setIsLoading] = useState(false); // Empezar en false

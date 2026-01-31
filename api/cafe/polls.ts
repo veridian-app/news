@@ -66,31 +66,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         } else if (req.method === 'POST') {
             // Register a vote
-            const { pollId, optionId, fingerprint } = req.body;
+            const { pollId, optionId, fingerprint, userId } = req.body;
 
-            if (!pollId || !optionId || !fingerprint) {
-                return res.status(400).json({ error: 'Missing pollId, optionId, or fingerprint' });
+            if (!pollId || !optionId || (!fingerprint && !userId)) {
+                return res.status(400).json({ error: 'Missing pollId, optionId, or identifier (fingerprint/userId)' });
             }
 
-            // Check if user already voted
-            const { data: existingVote } = await supabase
-                .from('poll_votes')
-                .select('id')
-                .eq('poll_id', pollId)
-                .eq('user_fingerprint', fingerprint)
-                .single();
+            // Check if user already voted (check both methods for backwards compatibility)
+            let existingVote = null;
+
+            if (userId) {
+                const { data } = await supabase
+                    .from('poll_votes')
+                    .select('id')
+                    .eq('poll_id', pollId)
+                    .eq('auth_user_id', userId)
+                    .single();
+                existingVote = data;
+            }
+
+            if (!existingVote && fingerprint) {
+                const { data } = await supabase
+                    .from('poll_votes')
+                    .select('id')
+                    .eq('poll_id', pollId)
+                    .eq('user_fingerprint', fingerprint)
+                    .single();
+                existingVote = data;
+            }
 
             if (existingVote) {
                 return res.status(409).json({ error: 'Already voted', voted: true });
             }
 
-            // Insert vote
+            // Insert vote with both identifiers
             const { error: voteError } = await supabase
                 .from('poll_votes')
                 .insert({
                     poll_id: pollId,
                     option_id: optionId,
-                    user_fingerprint: fingerprint
+                    user_fingerprint: fingerprint || null,
+                    auth_user_id: userId || null
                 });
 
             if (voteError) throw voteError;

@@ -1,13 +1,54 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Brain, Globe, Shield, Sparkles, ArrowRight } from "lucide-react";
+import { Brain, Shield, Sparkles, ArrowRight, Mail, Loader2, CheckCircle, Users, Zap, Eye } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const VeridianLanding = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, isLoading, signInWithMagicLink } = useAuth();
 
-  const handleEnter = () => {
-    navigate("/veridian-news");
+  const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSent, setIsSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      navigate('/veridian-news');
+    }
+  }, [isAuthenticated, isLoading, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!email || !email.includes('@')) {
+      setError('Introduce un email válido');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    const { error: authError } = await signInWithMagicLink(email);
+
+    setIsSubmitting(false);
+
+    if (authError) {
+      setError(authError.message);
+    } else {
+      setIsSent(true);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-green-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[100dvh] bg-black text-white relative overflow-x-hidden font-sans selection:bg-green-500/30 selection:text-green-200">
@@ -27,141 +68,145 @@ const VeridianLanding = () => {
           </div>
           <span className="font-bold text-xl tracking-tight hidden md:block">Veridian</span>
         </div>
-        <div className="flex items-center gap-4">
-          <Button
-            onClick={handleEnter}
-            className="bg-white text-black hover:bg-white/90 rounded-full px-6 font-medium transition-transform active:scale-95 flex items-center gap-2"
-          >
-            Entrar <ArrowRight className="w-4 h-4" />
-          </Button>
-        </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="relative z-10 pt-32 md:pt-48 pb-20 px-4 min-h-screen flex flex-col items-center text-center">
+      <section className="relative z-10 pt-24 md:pt-32 pb-20 px-4 min-h-screen flex flex-col items-center text-center">
 
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-8 animate-fade-in-up">
-          <Sparkles className="w-4 h-4 text-green-300 fill-green-300/20" />
-          <span className="text-sm font-medium text-white/90">
-            Revolucionando el consumo de noticias
+        {/* Social Proof Badge */}
+        <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-8 animate-fade-in-up">
+          <div className="flex -space-x-2">
+            <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-green-400 to-emerald-500 flex items-center justify-center text-[10px] font-bold">V</div>
+            <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-400 to-cyan-500 flex items-center justify-center text-[10px] font-bold">R</div>
+            <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-purple-400 to-pink-500 flex items-center justify-center text-[10px] font-bold">A</div>
+          </div>
+          <span className="text-sm text-white/80">
+            <span className="font-semibold text-white">2,847</span> personas leen sin sesgos
           </span>
         </div>
 
         {/* Title */}
-        <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter leading-[1.1] mb-6 max-w-4xl bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent drop-shadow-sm">
-          Noticias sin ruido.
-          <br className="hidden md:block" />
-          <span className="text-white">Solo la verdad.</span>
+        <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tighter leading-[1.1] mb-6 max-w-4xl">
+          <span className="bg-gradient-to-b from-white to-white/70 bg-clip-text text-transparent">
+            Noticias sin ruido.
+          </span>
+          <br />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500">
+            Solo la verdad.
+          </span>
         </h1>
 
         {/* Subtitle */}
-        <p className="text-lg md:text-xl text-white/60 max-w-2xl mb-12 leading-relaxed">
-          Únete a la primera plataforma diseñada para eliminar sesgos y devolverte el control. Inteligencia Artificial ética al servicio de tu criterio.
+        <p className="text-lg md:text-xl text-white/60 max-w-xl mb-10 leading-relaxed">
+          La primera plataforma de noticias diseñada para eliminar sesgos.
+          IA ética al servicio de tu criterio.
         </p>
 
-        {/* Main Visual */}
-        <div className="w-full max-w-4xl mx-auto mb-20 relative z-10 group">
-          <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 to-emerald-500/10 blur-3xl -z-10 rounded-full opacity-50 group-hover:opacity-70 transition-opacity duration-700"></div>
-
-          <div className="border border-white/10 bg-black/40 backdrop-blur-md rounded-3xl p-8 md:p-12 shadow-2xl overflow-hidden relative">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-green-500 to-transparent opacity-50"></div>
-
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-white mb-6 leading-tight">
-              Deja de hacer scroll en el ruido.
-              <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500">
-                Empieza a leer la verdad.
-              </span>
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10 text-left">
-              <div className="flex flex-col gap-2">
-                <div className="w-10 h-10 rounded-full bg-green-900/30 flex items-center justify-center border border-green-500/30">
-                  <Shield className="w-5 h-5 text-green-400" />
-                </div>
-                <h3 className="text-lg font-bold text-white">Sin Sesgos</h3>
-                <p className="text-sm text-white/60">Algoritmos auditados para neutralidad total.</p>
+        {/* Email Signup Form - THE MAIN CTA */}
+        <div className="w-full max-w-md mx-auto mb-16">
+          {!isSent ? (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tu@email.com"
+                  className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-green-500/50 focus:ring-2 focus:ring-green-500/20 transition-all text-lg"
+                  disabled={isSubmitting}
+                  autoFocus
+                />
               </div>
 
-              <div className="flex flex-col gap-2">
-                <div className="w-10 h-10 rounded-full bg-emerald-900/30 flex items-center justify-center border border-emerald-500/30">
-                  <Brain className="w-5 h-5 text-emerald-400" />
-                </div>
-                <h3 className="text-lg font-bold text-white">Hechos Puros</h3>
-                <p className="text-sm text-white/60">Sin opiniones disfrazadas de noticias.</p>
-              </div>
+              {error && (
+                <p className="text-red-400 text-sm">{error}</p>
+              )}
 
-              <div className="flex flex-col gap-2">
-                <div className="w-10 h-10 rounded-full bg-green-900/30 flex items-center justify-center border border-green-500/30">
-                  <Globe className="w-5 h-5 text-green-400" />
-                </div>
-                <h3 className="text-lg font-bold text-white">Control Total</h3>
-                <p className="text-sm text-white/60">Tú decides qué te importa, no nosotros.</p>
-              </div>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-6 rounded-xl transition-all text-lg flex items-center justify-center gap-2 shadow-lg shadow-green-500/25"
+              >
+                {isSubmitting ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <>
+                    Acceder gratis <ArrowRight className="w-5 h-5" />
+                  </>
+                )}
+              </Button>
+
+              <p className="text-white/40 text-sm text-center">
+                Sin contraseñas. Te enviamos un enlace mágico.
+              </p>
+            </form>
+          ) : (
+            <div className="bg-green-500/10 border border-green-500/20 rounded-2xl p-8 text-center">
+              <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-white mb-2">¡Revisa tu email!</h3>
+              <p className="text-white/60">
+                Hemos enviado un enlace mágico a<br />
+                <span className="text-white font-medium">{email}</span>
+              </p>
+              <p className="text-white/40 text-xs mt-4">
+                ¿No lo ves? Revisa spam
+              </p>
             </div>
+          )}
+        </div>
+
+        {/* Trust Indicators */}
+        <div className="flex flex-wrap justify-center gap-6 mb-16 text-sm text-white/50">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-green-400" />
+            <span>Acceso inmediato</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Shield className="w-4 h-4 text-green-400" />
+            <span>100% privado</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Eye className="w-4 h-4 text-green-400" />
+            <span>Sin anuncios</span>
           </div>
         </div>
 
-        {/* Feature Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto w-full mb-32 px-4">
-          <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm text-left hover:bg-white/10 transition-colors">
-            <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center mb-4">
-              <Shield className="w-6 h-6 text-green-400" />
+        {/* Features Grid - Compact */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto w-full mb-20 px-4">
+          <div className="p-5 rounded-xl bg-white/5 border border-white/10 text-left hover:bg-white/10 transition-colors">
+            <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center mb-3">
+              <Shield className="w-5 h-5 text-green-400" />
             </div>
-            <h3 className="text-xl font-bold mb-2 text-white">100% Objetivo</h3>
-            <p className="text-white/60 text-sm leading-relaxed">
-              Nuestra IA analiza miles de fuentes para extraer solo los hechos verificados, eliminando opiniones y adjetivos sensacionalistas.
-            </p>
+            <h3 className="font-bold mb-1 text-white">Sin Sesgos</h3>
+            <p className="text-white/50 text-sm">Algoritmos auditados para neutralidad total.</p>
           </div>
 
-          <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm text-left hover:bg-white/10 transition-colors">
-            <div className="w-12 h-12 rounded-lg bg-emerald-500/20 flex items-center justify-center mb-4">
-              <Brain className="w-6 h-6 text-emerald-400" />
+          <div className="p-5 rounded-xl bg-white/5 border border-white/10 text-left hover:bg-white/10 transition-colors">
+            <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center mb-3">
+              <Brain className="w-5 h-5 text-emerald-400" />
             </div>
-            <h3 className="text-xl font-bold mb-2 text-white">Oraculus</h3>
-            <p className="text-white/60 text-sm leading-relaxed">
-              Tu detector de mentiras personal. Pega cualquier enlace y descubre quién lo financia, qué sesgos tiene y qué es verdad.
-            </p>
+            <h3 className="font-bold mb-1 text-white">Solo Hechos</h3>
+            <p className="text-white/50 text-sm">Sin opiniones disfrazadas de noticias.</p>
           </div>
 
-          <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm text-left hover:bg-white/10 transition-colors md:col-span-2 lg:col-span-1">
-            <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center mb-4">
-              <Globe className="w-6 h-6 text-green-400" />
+          <div className="p-5 rounded-xl bg-white/5 border border-white/10 text-left hover:bg-white/10 transition-colors">
+            <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center mb-3">
+              <Users className="w-5 h-5 text-green-400" />
             </div>
-            <h3 className="text-xl font-bold mb-2 text-white">Cobertura Global</h3>
-            <p className="text-white/60 text-sm leading-relaxed">
-              Acceso a fuentes de todo el mundo en tu idioma. Rompe la burbuja de información local.
-            </p>
-          </div>
-        </div>
-
-        {/* CTA Section */}
-        <div className="w-full max-w-xl mx-auto text-center px-4 relative z-20">
-          <div className="absolute -inset-1 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl blur opacity-30"></div>
-          <div className="relative bg-black border border-white/10 rounded-2xl p-8 md:p-12 shadow-2xl">
-            <h2 className="text-3xl font-bold mb-2 text-white">Empieza Ahora</h2>
-            <p className="text-white/60 mb-8">
-              Accede a la plataforma y descubre la verdad.
-            </p>
-
-            <Button
-              onClick={handleEnter}
-              className="w-full sm:w-auto bg-white text-black hover:bg-white/90 rounded-full px-8 py-6 text-lg font-bold transition-transform active:scale-95 flex items-center justify-center gap-2 mx-auto"
-            >
-              Entrar a Veridian
-              <ArrowRight className="w-5 h-5" />
-            </Button>
-
-            <p className="text-xs text-white/40 mt-6">
-              Sin registro. Gratis para todos.
-            </p>
+            <h3 className="font-bold mb-1 text-white">Comunidad</h3>
+            <p className="text-white/50 text-sm">Debates y encuestas diarias en Café Veridian.</p>
           </div>
         </div>
 
         {/* Footer */}
-        <footer className="mt-32 pb-10 text-center text-white/20 text-sm">
-          <p>© 2025 Veridian Inc. Todos los derechos reservados.</p>
+        <footer className="mt-auto pb-10 text-center text-white/20 text-sm space-y-2">
+          <div className="flex justify-center gap-4">
+            <a href="/privacidad" className="hover:text-white/40 transition-colors">Privacidad</a>
+            <a href="/terminos" className="hover:text-white/40 transition-colors">Términos</a>
+            <a href="/aviso-legal" className="hover:text-white/40 transition-colors">Aviso Legal</a>
+          </div>
+          <p>© 2025 Veridian Inc.</p>
         </footer>
 
       </section>
