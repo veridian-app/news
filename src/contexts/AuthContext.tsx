@@ -44,9 +44,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 setSession(currentSession);
                 setUser(currentSession?.user ?? null);
 
-                // Create/update user profile if authenticated
+                // Create/update user profile if authenticated (non-blocking)
                 if (currentSession?.user) {
-                    await upsertUserProfile(currentSession.user);
+                    upsertUserProfile(currentSession.user).catch(console.error);
                 }
             } catch (error) {
                 console.error('Error getting session:', error);
@@ -63,12 +63,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 console.log('Auth state changed:', event);
                 setSession(currentSession);
                 setUser(currentSession?.user ?? null);
+                setIsLoading(false); // Set loading false immediately
 
                 if (event === 'SIGNED_IN' && currentSession?.user) {
-                    await upsertUserProfile(currentSession.user);
+                    // Non-blocking profile update
+                    upsertUserProfile(currentSession.user).catch(console.error);
                 }
-
-                setIsLoading(false);
             }
         );
 
