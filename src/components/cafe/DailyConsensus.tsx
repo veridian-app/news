@@ -6,22 +6,38 @@ import { cn } from "@/lib/utils";
 
 interface DailyConsensusProps {
     data: CafeConsensusPoll;
+    onVote?: (pollId: string, optionId: string) => Promise<void>;
 }
 
-export const DailyConsensus = ({ data }: DailyConsensusProps) => {
+export const DailyConsensus = ({ data, onVote }: DailyConsensusProps) => {
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
     const [hasVoted, setHasVoted] = useState(false);
+    const [isVoting, setIsVoting] = useState(false);
 
     // Calculate percentages (simulated for now based on static votes)
     const getPercentage = (votes: number) => {
-        return Math.round((votes / data.totalVotes) * 100);
+        const total = data.totalVotes + (hasVoted ? 1 : 0);
+        if (total === 0) return 0;
+        return Math.round((votes / total) * 100);
     };
 
-    const handleVote = (optionId: string) => {
-        if (hasVoted) return;
+    const handleVote = async (optionId: string) => {
+        if (hasVoted || isVoting) return;
+
+        setIsVoting(true);
         setSelectedOption(optionId);
-        setHasVoted(true);
-        // Here we would typically trigger an API call or haptic feedback
+
+        try {
+            if (onVote) {
+                await onVote(data.id, optionId);
+            }
+            setHasVoted(true);
+        } catch (error) {
+            console.error('Error voting:', error);
+            setSelectedOption(null);
+        } finally {
+            setIsVoting(false);
+        }
     };
 
     return (

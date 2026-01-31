@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect } from "react";
-import { CAFE_NEWS, DAILY_CONSENSUS } from "./data/cafeData";
+import { CAFE_NEWS, DAILY_CONSENSUS, CafeItem, CafeConsensusPoll } from "./data/cafeData";
 import { NewsBrewCard } from "./NewsBrewCard";
 import { LiquidProgressBar } from "./LiquidProgressBar";
 import { DailyConsensus } from "./DailyConsensus";
 import { CoffeeTicket } from "./CoffeeTicket";
 import { Button } from "@/components/ui/button";
-import { X, Coffee, Ticket } from "lucide-react";
+import { X, Coffee, Ticket, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { AnimatePresence, motion, useScroll, useSpring, useTransform } from "framer-motion";
+import { AnimatePresence, useScroll, useSpring, useTransform } from "framer-motion";
 import { useHaptic } from "@/hooks/use-haptic";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +17,12 @@ export const CafeLayout = () => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [showTicket, setShowTicket] = useState(false);
 
-    // Passport State (Simulate 9/10 days to show immediate reward effect soon)
+    // Data states
+    const [cafeNews, setCafeNews] = useState<CafeItem[]>(CAFE_NEWS);
+    const [dailyPolls, setDailyPolls] = useState<CafeConsensusPoll[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Passport State
     const [stamps, setStamps] = useState(9);
     const [hasConsensusVoted, setHasConsensusVoted] = useState(false);
 
@@ -26,14 +31,12 @@ export const CafeLayout = () => {
         container: containerRef,
     });
 
-    // Smooth progress bar
     const scaleX = useSpring(scrollYProgress, {
         stiffness: 100,
         damping: 30,
         restDelta: 0.001
     });
 
-    // Convert 0-1 to 0-100 for our component
     const progressPercent = useTransform(scaleX, value => value * 100);
     const [progress, setProgress] = useState(0);
 
@@ -42,15 +45,56 @@ export const CafeLayout = () => {
         return () => unsubscribe();
     }, [progressPercent]);
 
+    // Fetch real data on mount
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                // Fetch featured news
+                const newsResponse = await fetch('/api/cafe/featured-news');
+                if (newsResponse.ok) {
+                    const newsData = await newsResponse.json();
+                    if (newsData.news && newsData.news.length > 0) {
+                        setCafeNews(newsData.news);
+                    }
+                }
+
+                // Fetch polls
+                const pollsResponse = await fetch('/api/cafe/polls');
+                if (pollsResponse.ok) {
+                    const pollsData = await pollsResponse.json();
+                    if (pollsData.polls && pollsData.polls.length > 0) {
+                        // Transform API polls to component format
+                        const transformedPolls = pollsData.polls.map((poll: any) => ({
+                            id: poll.id,
+                            question: poll.question,
+                            options: poll.options.map((opt: any) => ({
+                                id: opt.id,
+                                label: opt.label,
+                                votes: poll.voteCounts?.[opt.id] || 0
+                            })),
+                            totalVotes: poll.totalVotes || 0
+                        }));
+                        setDailyPolls(transformedPolls);
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching café data:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchData();
+    }, []);
+
     const handleConsensusComplete = () => {
-        // When consensus is voted, increment stamp if not already done today
         if (!hasConsensusVoted) {
             setHasConsensusVoted(true);
             const newStamps = Math.min(stamps + 1, 10);
             setStamps(newStamps);
             if (newStamps === 10) {
                 triggerImpact('heavy');
-                setTimeout(() => setShowTicket(true), 1500); // Delay for surprise
+                setTimeout(() => setShowTicket(true), 1500);
             } else {
                 triggerImpact('medium');
             }
@@ -60,6 +104,9 @@ export const CafeLayout = () => {
     const handleClose = () => {
         navigate("/veridian-news");
     };
+
+    // Use first poll from API or fallback to mock
+    const activePoll = dailyPolls.length > 0 ? dailyPolls[0] : DAILY_CONSENSUS;
 
     return (
         <div className="fixed inset-0 bg-zinc-950 text-white flex z-50 overflow-hidden">
@@ -132,32 +179,59 @@ export const CafeLayout = () => {
                         </p>
                     </div>
 
-                    {CAFE_NEWS.map((item, index) => (
-                        <NewsBrewCard
-                            key={item.id}
-                            data={item}
-                            current={index + 1}
-                            total={CAFE_NEWS.length}
-                        />
-                    ))}
-
-                    {/* Consensus Section at the bottom */}
-                    <div className="mt-32 mb-20 scroll-mt-20">
-                        {/* Pass completion handler to trigger stamp logic */}
-                        <div onClick={handleConsensusComplete}>
-                            <DailyConsensus data={DAILY_CONSENSUS} />
+                    {isLoading ? (
+                        <div className="flex items-center justify-center py-20">
+                            <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
                         </div>
-                    </div>
+                    ) : (
+                        <>
+                            {cafeNews.map((item, index) => (
+                                <NewsBrewCard
+                                    key={item.id}
+                                    data={item}
+                                    current={index + 1}
+                                    total={cafeNews.length}
+                                />
+                            ))}
+
+                            {/* Consensus Section at the bottom */}
+                            <div className="mt-32 mb-20 scroll-mt-20">
+                                <div onClick={handleConsensusComplete}>
+                                    <DailyConsensus
+                                        data={activePoll}
+                                        onVote={async (pollId, optionId) => {
+                                            // Generate simple fingerprint
+                                            const fingerprint = `${navigator.userAgent}-${screen.width}x${screen.height}`;
+
+                                            try {
+                                                const response = await fetch('/api/cafe/polls', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ pollId, optionId, fingerprint })
+                                                });
+
+                                                if (response.ok) {
+                                                    const result = await response.json();
+                                                    console.log('Vote registered:', result);
+                                                }
+                                            } catch (error) {
+                                                console.error('Error voting:', error);
+                                            }
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 
-            {/* Right: Vertical Progress Bar (Full Height Tube) */}
+            {/* Right: Vertical Progress Bar */}
             <div className="w-14 md:w-20 bg-zinc-900 border-l border-white/5 relative h-full shrink-0 flex flex-col p-2 md:p-3">
                 <div className="relative flex-1 w-full bg-zinc-950/50 rounded-[2rem] shadow-inner">
                     <LiquidProgressBar progress={progress} orientation="vertical" />
                 </div>
             </div>
-
         </div>
     );
 };

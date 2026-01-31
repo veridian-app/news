@@ -1,4 +1,4 @@
-import { Home, Search, Plus, Bell, User } from "lucide-react";
+import { Home, Search, Coffee, Bell, User } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -25,11 +25,14 @@ export const BottomDock = () => {
         <DockItem icon={<Home size={24} />} path="/" isActive={isActive("/")} />
         <DockItem icon={<Search size={24} />} path="/trends" isActive={isActive("/trends")} />
 
-        {/* Central Add Button */}
+        {/* Central Café Button */}
         <div className="relative -top-6">
-          <button className="flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-blue-600 to-purple-600 rounded-full shadow-lg shadow-blue-900/50 border-4 border-black active:scale-95 transition-transform">
-            <Plus className="text-white" size={28} />
-          </button>
+          <Link
+            to="/cafe-veridian"
+            className="flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-amber-600 to-orange-500 rounded-full shadow-lg shadow-orange-900/50 border-4 border-black active:scale-95 transition-transform"
+          >
+            <Coffee className="text-white" size={26} />
+          </Link>
         </div>
 
         <DockItem icon={<Bell size={24} />} path="/notifications" isActive={isActive("/notifications")} />

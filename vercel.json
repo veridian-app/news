@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/generate-covers",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/generate-polls",
+      "schedule": "0 7 * * *"
     }
   ],
   "rewrites": [
