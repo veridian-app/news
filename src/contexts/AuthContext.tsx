@@ -103,7 +103,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         // Use production URL for redirects, fallback to current origin for local dev
-        const siteUrl = import.meta.env.VITE_SITE_URL || 'https://news-six-lilac.vercel.app';
+        const siteUrl = import.meta.env.VITE_SITE_URL || 'https://veridian.news';
 
         const { error } = await supabase.auth.signInWithOtp({
             email,
