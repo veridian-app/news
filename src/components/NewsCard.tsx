@@ -145,6 +145,7 @@ export const NewsCard = ({ item, isActive, index, onLike, onComment, onShare, on
                     icon={<Heart className={item.isLiked ? "fill-red-500 text-red-500" : "text-white"} />}
                     label={formatNumber(item.likes || 0)}
                     onClick={(e) => {
+                        e.preventDefault();
                         e.stopPropagation();
                         onLike();
                         haptic('light');
@@ -189,6 +190,7 @@ export const NewsCard = ({ item, isActive, index, onLike, onComment, onShare, on
 
 const ActionButton = ({ icon, label, onClick, isActive, delay }: { icon: React.ReactNode, label?: string, onClick: (e: any) => void, isActive: boolean, delay: number }) => (
     <motion.button
+        type="button"
         initial={{ opacity: 0, x: 20 }}
         animate={isActive ? { opacity: 1, x: 0 } : {}}
         transition={{ delay }}

@@ -1681,21 +1681,7 @@ const VeridianNews = () => {
                 index={index}
                 isActive={isActive}
                 onLike={() => {
-                  // Logic for like
-                  console.log('Like', item.id);
-                  const isLiked = likedNewsIds.has(item.id);
-                  if (isLiked) {
-                    likedNewsIds.delete(item.id);
-                    item.likes = (item.likes || 0) - 1;
-                    item.isLiked = false;
-                  } else {
-                    likedNewsIds.add(item.id);
-                    item.likes = (item.likes || 0) + 1;
-                    item.isLiked = true;
-                  }
-                  setLikedNewsIds(new Set(likedNewsIds));
-                  // Force update (quick hack for demo, should use better state management)
-                  setRawNews([...rawNews]);
+                  toggleLike(item);
                 }}
                 onComment={() => {
                   setSelectedNews(item);
