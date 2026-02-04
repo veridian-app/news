@@ -12,6 +12,7 @@ import { NewsCard } from "@/components/NewsCard";
 import { StreakHeader } from "@/components/StreakHeader";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useReadNews } from "@/hooks/use-read-news";
 
 
 interface NewsItem {
@@ -278,6 +279,9 @@ const VeridianNews = () => {
   const loadingProgressRef = useRef<HTMLDivElement>(null);
 
   const [sortBy, setSortBy] = useState<'recommended' | 'recent'>('recommended');
+
+  // Read news tracking
+  const { isRead, toggleRead, sortByReadStatus } = useReadNews();
 
   // Calcular noticias recomendadas basándose en preferencias
   const news = useMemo(() => {
@@ -1677,7 +1681,7 @@ const VeridianNews = () => {
           return (
             <div key={item.id} data-index={index} className="news-card h-[100dvh] w-full snap-start">
               <NewsCard
-                item={item}
+                item={{ ...item, isRead: isRead(item.id) }}
                 index={index}
                 isActive={isActive}
                 onLike={() => {
@@ -1704,6 +1708,7 @@ const VeridianNews = () => {
                   }
                 }}
                 onReadMore={() => openFullContent(item)}
+                onMarkAsRead={() => toggleRead(item.id)}
               />
             </div>
           );

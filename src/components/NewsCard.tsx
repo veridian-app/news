@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { NewsImage } from "./NewsImage";
 import { cn } from "@/lib/utils";
-import { Heart, Share2, Bookmark, X } from "lucide-react";
+import { Heart, Share2, Bookmark, X, CheckCircle } from "lucide-react";
 import { DoubleTapOverlay } from "./DoubleTapOverlay";
 import { useHaptic } from "@/hooks/use-haptic";
 import { toast } from "@/hooks/use-toast";
@@ -21,6 +21,7 @@ export interface NewsItem {
     comments?: number;
     isLiked?: boolean;
     isSaved?: boolean;
+    isRead?: boolean;
 }
 
 interface NewsCardProps {
@@ -31,6 +32,7 @@ interface NewsCardProps {
     onComment: () => void;
     onShare: () => void;
     onReadMore: () => void;
+    onMarkAsRead?: () => void;
 }
 
 // Share modal component
@@ -178,7 +180,7 @@ const ShareModal = ({ isOpen, onClose, item }: { isOpen: boolean; onClose: () =>
     );
 };
 
-export const NewsCard = ({ item, isActive, index, onLike, onComment, onShare, onReadMore }: NewsCardProps) => {
+export const NewsCard = ({ item, isActive, index, onLike, onComment, onShare, onReadMore, onMarkAsRead }: NewsCardProps) => {
     // Logic for double tap
     const lastTap = useRef<number>(0);
     const [showDoubleTapHeart, setShowDoubleTapHeart] = useState(false);
@@ -235,6 +237,15 @@ export const NewsCard = ({ item, isActive, index, onLike, onComment, onShare, on
         e.stopPropagation();
         haptic('light');
         setShowShareModal(true);
+    };
+
+    const handleMarkAsRead = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        haptic('light');
+        if (onMarkAsRead) {
+            onMarkAsRead();
+        }
     };
 
     return (
@@ -312,8 +323,8 @@ export const NewsCard = ({ item, isActive, index, onLike, onComment, onShare, on
                     </motion.p>
                 </div>
 
-                {/* Side Actions (Like TikTok) - 3 buttons now */}
-                <div className="absolute right-2 bottom-24 md:right-8 md:bottom-32 z-20 flex flex-col gap-3 md:gap-5 items-center w-12 md:w-16">
+                {/* Side Actions (Like TikTok) - 4 buttons now */}
+                <div className="absolute right-2 bottom-24 md:right-8 md:bottom-32 z-20 flex flex-col gap-2.5 md:gap-4 items-center w-12 md:w-16">
                     <ActionButton
                         icon={<Heart className={item.isLiked ? "fill-red-500 text-red-500" : "text-white"} />}
                         label={formatNumber(item.likes || 0)}
@@ -331,6 +342,13 @@ export const NewsCard = ({ item, isActive, index, onLike, onComment, onShare, on
                         label="Guardar"
                         onClick={handleSave}
                         delay={0.5}
+                        isActive={isActive}
+                    />
+                    <ActionButton
+                        icon={<CheckCircle className={item.isRead ? "fill-emerald-500 text-emerald-500" : "text-white"} />}
+                        label={item.isRead ? "Leído" : "Marcar"}
+                        onClick={handleMarkAsRead}
+                        delay={0.55}
                         isActive={isActive}
                     />
                     <ActionButton
