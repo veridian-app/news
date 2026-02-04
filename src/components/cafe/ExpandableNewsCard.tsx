@@ -120,14 +120,20 @@ export const ExpandableNewsCard = ({ item, index }: ExpandableNewsCardProps) => 
                             className="overflow-hidden"
                         >
                             <div className="px-4 pb-5 pt-2">
-                                {/* Summary */}
-                                <p className="text-zinc-400 text-sm leading-relaxed mb-4 border-l-2 border-green-500/40 pl-3 italic">
-                                    {item.summary}
-                                </p>
+                                {/* Summary - only show if exists */}
+                                {item.summary && item.summary.trim() && (
+                                    <p className="text-zinc-400 text-sm leading-relaxed mb-4 border-l-2 border-green-500/40 pl-3 italic">
+                                        {item.summary}
+                                    </p>
+                                )}
 
                                 {/* Full content */}
                                 <div className="text-zinc-300 text-sm leading-relaxed">
-                                    <RichText content={item.content} />
+                                    {item.content && item.content.trim() ? (
+                                        <RichText content={item.content} />
+                                    ) : (
+                                        <p className="text-zinc-500 italic">Esta noticia no tiene contenido expandido disponible.</p>
+                                    )}
                                 </div>
 
                                 {/* Read more link if URL exists */}

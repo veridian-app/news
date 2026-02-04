@@ -82,11 +82,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             } else {
                 return {
                     id: item.id,
-                    type: 'compact-item',
+                    type: 'standard',  // Changed from compact-item to standard so it works with cards
                     title: item.title,
                     summary: item.summary?.substring(0, 80) + '...',
                     category: 'Breve',
-                    time: 'Dato'
+                    readTime: '1 min',
+                    content: item.content || item.summary || 'Noticia breve sin contenido adicional.',
+                    imageUrl: item.image
                 };
             }
         });
