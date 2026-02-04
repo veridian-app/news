@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { NewsImage } from "./NewsImage";
 import { cn } from "@/lib/utils";
@@ -6,6 +6,7 @@ import { Heart, Share2, Bookmark, X } from "lucide-react";
 import { DoubleTapOverlay } from "./DoubleTapOverlay";
 import { useHaptic } from "@/hooks/use-haptic";
 import { toast } from "@/hooks/use-toast";
+import { useDockVisibility } from "@/contexts/DockVisibilityContext";
 
 export interface NewsItem {
     id: string;
@@ -184,6 +185,16 @@ export const NewsCard = ({ item, isActive, index, onLike, onComment, onShare, on
     const [tapPosition, setTapPosition] = useState({ x: 0, y: 0 });
     const [showShareModal, setShowShareModal] = useState(false);
     const { trigger: haptic } = useHaptic();
+    const { hideDock, showDock } = useDockVisibility();
+
+    // Hide dock when share modal opens, show when it closes
+    useEffect(() => {
+        if (showShareModal) {
+            hideDock();
+        } else {
+            showDock();
+        }
+    }, [showShareModal, hideDock, showDock]);
 
     const handleTap = (e: React.MouseEvent | React.TouchEvent) => {
         const now = Date.now();
@@ -250,8 +261,8 @@ export const NewsCard = ({ item, isActive, index, onLike, onComment, onShare, on
                     <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent via-50% to-black/90 to-90%" />
                 </div>
 
-                {/* Content Layer */}
-                <div className="absolute bottom-0 left-0 right-0 z-10 p-4 pb-24 md:p-8 md:pb-32 flex flex-col gap-3 md:gap-5 max-w-full mx-auto pr-16 md:pr-24">
+                {/* Content Layer - adjusted padding for smaller dock */}
+                <div className="absolute bottom-0 left-0 right-0 z-10 p-4 pb-20 md:p-8 md:pb-28 flex flex-col gap-3 md:gap-5 max-w-full mx-auto pr-16 md:pr-24">
                     {/* Source Pill */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -302,7 +313,7 @@ export const NewsCard = ({ item, isActive, index, onLike, onComment, onShare, on
                 </div>
 
                 {/* Side Actions (Like TikTok) - 3 buttons now */}
-                <div className="absolute right-2 bottom-20 md:right-8 md:bottom-28 z-20 flex flex-col gap-4 md:gap-6 items-center w-12 md:w-16">
+                <div className="absolute right-2 bottom-16 md:right-8 md:bottom-24 z-20 flex flex-col gap-3 md:gap-5 items-center w-12 md:w-16">
                     <ActionButton
                         icon={<Heart className={item.isLiked ? "fill-red-500 text-red-500" : "text-white"} />}
                         label={formatNumber(item.likes || 0)}
