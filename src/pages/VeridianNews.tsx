@@ -1681,7 +1681,7 @@ const VeridianNews = () => {
           return (
             <div key={item.id} data-index={index} className="news-card h-[100dvh] w-full snap-start">
               <NewsCard
-                item={{ ...item, isRead: isRead(item.id) }}
+                item={{ ...item, isRead: isRead(item.id), isLiked: likedNewsIds.has(item.id) }}
                 index={index}
                 isActive={isActive}
                 onLike={() => {
