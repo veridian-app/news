@@ -326,7 +326,7 @@ export const NewsCard = ({ item, isActive, index, onLike, onComment, onShare, on
                 {/* Side Actions (Like TikTok) - 4 buttons now */}
                 <div className="absolute right-2 bottom-24 md:right-8 md:bottom-32 z-20 flex flex-col gap-2.5 md:gap-4 items-center w-12 md:w-16">
                     <ActionButton
-                        icon={<Heart className={item.isLiked ? "fill-red-500 text-red-500" : "text-white"} />}
+                        icon={<Heart className={item.isLiked ? "fill-emerald-500 text-emerald-500" : "text-white"} />}
                         label={formatNumber(item.likes || 0)}
                         onClick={(e) => {
                             e.preventDefault();
@@ -336,6 +336,7 @@ export const NewsCard = ({ item, isActive, index, onLike, onComment, onShare, on
                         }}
                         delay={0.4}
                         isActive={isActive}
+                        animate={item.isLiked}
                     />
                     <ActionButton
                         icon={<Bookmark className={item.isSaved ? "fill-yellow-500 text-yellow-500" : "text-white"} />}
@@ -371,18 +372,28 @@ export const NewsCard = ({ item, isActive, index, onLike, onComment, onShare, on
     );
 };
 
-const ActionButton = ({ icon, label, onClick, isActive, delay }: { icon: React.ReactNode, label?: string, onClick: (e: any) => void, isActive: boolean, delay: number }) => (
+const ActionButton = ({ icon, label, onClick, isActive, delay, animate }: { icon: React.ReactNode, label?: string, onClick: (e: any) => void, isActive: boolean, delay: number, animate?: boolean }) => (
     <motion.button
         type="button"
         initial={{ opacity: 0, x: 20 }}
-        animate={isActive ? { opacity: 1, x: 0 } : {}}
-        transition={{ delay }}
+        animate={isActive ? {
+            opacity: 1,
+            x: 0,
+            scale: animate ? [1, 1.2, 1] : 1
+        } : {}}
+        transition={{
+            delay,
+            scale: { duration: 0.3, ease: "easeOut" }
+        }}
         onClick={onClick}
         className="flex flex-col items-center gap-1 group"
     >
-        <div className="p-3 rounded-full bg-white/10 backdrop-blur-md border border-white/10 active:scale-90 transition-transform hover:bg-white/20">
+        <motion.div
+            className="p-3 rounded-full bg-white/10 backdrop-blur-md border border-white/10 active:scale-90 transition-all hover:bg-white/20"
+            whileTap={{ scale: 0.85 }}
+        >
             {icon}
-        </div>
+        </motion.div>
         {label && <span className="text-[10px] font-medium text-white drop-shadow-md">{label}</span>}
     </motion.button>
 );
