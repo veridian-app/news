@@ -32,7 +32,7 @@ export const BottomDock = () => {
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           className="fixed bottom-3 inset-x-0 z-50 flex justify-center pb-[env(safe-area-inset-bottom)]"
         >
-          <div className="flex items-center justify-between px-4 py-2.5 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl">
+          <div className="flex items-center justify-between px-6 py-2.5 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl min-w-[280px] max-w-[340px] w-[85vw]">
             <DockItem icon={<Home size={20} />} path="/" isActive={isActive("/")} />
             <DockItem icon={<Search size={20} />} path="/trends" isActive={isActive("/trends")} />
 
