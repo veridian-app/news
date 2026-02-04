@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { CAFE_NEWS, DAILY_CONSENSUS, CafeItem, CafeConsensusPoll } from "./data/cafeData";
-import { NewsBrewCard } from "./NewsBrewCard";
+import { ExpandableNewsCard, ExpandableNewsItem } from "./ExpandableNewsCard";
 import { LiquidProgressBar } from "./LiquidProgressBar";
 import { DailyConsensus } from "./DailyConsensus";
 import { CoffeeTicket } from "./CoffeeTicket";
@@ -10,6 +10,31 @@ import { useNavigate } from "react-router-dom";
 import { AnimatePresence, useScroll, useSpring, useTransform } from "framer-motion";
 import { useHaptic } from "@/hooks/use-haptic";
 import { cn } from "@/lib/utils";
+
+// Transform CafeItem to ExpandableNewsItem format
+const transformToExpandable = (items: CafeItem[]): ExpandableNewsItem[] => {
+    const result: ExpandableNewsItem[] = [];
+
+    for (const item of items) {
+        const anyItem = item as any;
+
+        // Skip compact type items for now
+        if (item.type === 'compact') continue;
+
+        result.push({
+            id: anyItem.id || `item-${Math.random()}`,
+            title: anyItem.title || 'Sin título',
+            summary: anyItem.subtitle || anyItem.caption || '',
+            content: anyItem.content || '',
+            imageUrl: anyItem.imageUrl || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800',
+            category: anyItem.category || 'Noticias',
+            readTime: anyItem.readTime || '2 min',
+            source: anyItem.author || anyItem.source,
+        });
+    }
+
+    return result;
+};
 
 export const CafeLayout = () => {
     const navigate = useNavigate();
@@ -152,12 +177,12 @@ export const CafeLayout = () => {
                         </div>
                     ) : (
                         <>
-                            {cafeNews.map((item, index) => (
-                                <NewsBrewCard
+                            {/* Transform and render all news as expandable cards */}
+                            {transformToExpandable(cafeNews).map((item, index) => (
+                                <ExpandableNewsCard
                                     key={item.id}
-                                    data={item}
-                                    current={index + 1}
-                                    total={cafeNews.length}
+                                    item={item}
+                                    index={index}
                                 />
                             ))}
 
