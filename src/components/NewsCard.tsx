@@ -345,7 +345,7 @@ export const NewsCard = ({ item, isActive, index, onLike, onComment, onShare, on
                         isActive={isActive}
                     />
                     <ActionButton
-                        icon={<CheckCircle className={item.isRead ? "fill-emerald-500 text-emerald-500" : "text-white"} />}
+                        icon={<CheckCircle className={item.isRead ? "text-emerald-400" : "text-white"} fill={item.isRead ? "rgba(16,185,129,0.3)" : "none"} />}
                         label={item.isRead ? "Leído" : "Marcar"}
                         onClick={handleMarkAsRead}
                         delay={0.55}
