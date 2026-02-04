@@ -313,7 +313,7 @@ export const NewsCard = ({ item, isActive, index, onLike, onComment, onShare, on
                 </div>
 
                 {/* Side Actions (Like TikTok) - 3 buttons now */}
-                <div className="absolute right-2 bottom-16 md:right-8 md:bottom-24 z-20 flex flex-col gap-3 md:gap-5 items-center w-12 md:w-16">
+                <div className="absolute right-2 bottom-24 md:right-8 md:bottom-32 z-20 flex flex-col gap-3 md:gap-5 items-center w-12 md:w-16">
                     <ActionButton
                         icon={<Heart className={item.isLiked ? "fill-red-500 text-red-500" : "text-white"} />}
                         label={formatNumber(item.likes || 0)}
