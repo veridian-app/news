@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/curate-cafe",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/generate-polls",
+      "schedule": "30 7 * * *"
     }
   ],
   "rewrites": [

@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             // Get today's polls with vote counts
             const today = new Date().toISOString().split('T')[0];
 
-            const { data: polls, error: pollsError } = await supabase
+            let { data: polls, error: pollsError } = await supabase
                 .from('daily_polls')
                 .select('*')
                 .gte('created_at', `${today}T00:00:00`)
@@ -29,8 +29,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             if (pollsError) throw pollsError;
 
+            // Si no hay polls de hoy, obtener los más recientes
             if (!polls || polls.length === 0) {
-                return res.status(200).json({ polls: [], message: 'No polls for today' });
+                const { data: recentPolls, error: recentError } = await supabase
+                    .from('daily_polls')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(2);
+
+                if (recentError) throw recentError;
+                polls = recentPolls;
+            }
+
+            if (!polls || polls.length === 0) {
+                return res.status(200).json({ polls: [], message: 'No polls available' });
             }
 
             // Get vote counts for each poll
