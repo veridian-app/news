@@ -6,7 +6,7 @@ import { NewsImage } from "../components/NewsImage";
 import "./VeridianNews.css";
 import { supabase, isSupabaseConfigured } from "../integrations/supabase/client";
 import { useIsMobile, useScreenSize } from "../hooks/use-mobile";
-import { Clock, Brain, ThumbsUp, ThumbsDown, X, ExternalLink } from "lucide-react";
+import { Clock, Brain, ThumbsUp, ThumbsDown, X, ExternalLink, Search } from "lucide-react";
 import { motion } from "framer-motion";
 import { BottomDock } from "../components/BottomDock";
 import { NewsCard } from "@/components/NewsCard";
@@ -281,10 +281,14 @@ const VeridianNews = () => {
 
   const [sortBy, setSortBy] = useState<'recommended' | 'recent'>('recommended');
 
+  // Estado de búsqueda
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchModal, setShowSearchModal] = useState(false);
+
   // Read news tracking
   const { isRead, toggleRead, sortByReadStatus } = useReadNews();
 
-  // Calcular noticias recomendadas basándose en preferencias
+  // Calcular noticias recomendadas basándose en preferencias y búsqueda
   const news = useMemo(() => {
     console.log('📰 Calculando noticias, rawNews.length:', rawNews.length);
     // Solo usar noticias del Excel, no usar mockNews
@@ -293,23 +297,36 @@ const VeridianNews = () => {
       return [];
     }
 
+    // Primero filtrar por búsqueda si hay query
+    let filteredNews = rawNews;
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filteredNews = rawNews.filter(item =>
+        item.title.toLowerCase().includes(query) ||
+        item.summary?.toLowerCase().includes(query) ||
+        item.source?.toLowerCase().includes(query) ||
+        item.content?.toLowerCase().includes(query)
+      );
+      console.log(`🔍 Búsqueda "${searchQuery}": ${filteredNews.length} resultados`);
+    }
+
     // Si el usuario elige "Recientes", forzar orden cronológico
     if (sortBy === 'recent') {
       console.log('📅 Ordenando por fecha (Recientes)');
-      return [...rawNews].sort((a, b) => {
+      return [...filteredNews].sort((a, b) => {
         return new Date(b.date).getTime() - new Date(a.date).getTime();
       });
     }
 
     if (userPreferences.size === 0) {
-      const shuffled = shuffleNews([...rawNews]);
+      const shuffled = shuffleNews([...filteredNews]);
       console.log('✅ Noticias mezcladas:', shuffled.length);
       return shuffled;
     }
-    const recommended = recommendNews([...rawNews], userPreferences, likedNewsIds);
+    const recommended = recommendNews([...filteredNews], userPreferences, likedNewsIds);
     console.log('✅ Noticias recomendadas:', recommended.length);
     return recommended;
-  }, [rawNews, userPreferences, likedNewsIds, sortBy]);
+  }, [rawNews, userPreferences, likedNewsIds, sortBy, searchQuery]);
 
   useEffect(() => {
     // No usar mockNews - solo cargar del Excel
@@ -1661,7 +1678,93 @@ const VeridianNews = () => {
             {sortBy === 'recent' ? 'Recientes' : 'Relevantes'}
           </span>
         </button>
+
+        {/* Botón de Búsqueda */}
+        <button
+          onClick={() => setShowSearchModal(true)}
+          className={cn(
+            "flex items-center gap-2 px-3 py-1.5 backdrop-blur-md border rounded-full shadow-[0_0_15px_rgba(0,0,0,0.3)] transition-all duration-300 mt-2",
+            searchQuery
+              ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-200"
+              : "bg-black/30 border-white/10 text-white/70 hover:bg-white/10"
+          )}
+        >
+          <Search className="w-4 h-4" />
+          <span className="text-xs font-medium">
+            {searchQuery ? `"${searchQuery.substring(0, 12)}${searchQuery.length > 12 ? '...' : ''}"` : 'Buscar'}
+          </span>
+        </button>
       </div>
+
+      {/* Modal de Búsqueda */}
+      {showSearchModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[60] flex items-start justify-center pt-20 bg-black/80 backdrop-blur-sm"
+          onClick={() => setShowSearchModal(false)}
+        >
+          <motion.div
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="w-full max-w-md mx-4 bg-zinc-900/95 backdrop-blur-xl rounded-2xl p-4 border border-white/10 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <Search className="w-5 h-5 text-white/50" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar noticias..."
+                autoFocus
+                className="flex-1 bg-transparent border-none text-white text-lg placeholder:text-white/40 focus:outline-none"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setShowSearchModal(false);
+                    if (feedContainerRef.current) {
+                      feedContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                  }
+                }}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                >
+                  <X className="w-4 h-4 text-white/70" />
+                </button>
+              )}
+            </div>
+
+            <div className="text-xs text-white/40 mb-3">
+              Busca por título, fuente o contenido
+            </div>
+
+            {searchQuery && (
+              <div className="flex items-center justify-between pt-3 border-t border-white/10">
+                <span className="text-sm text-white/60">
+                  {news.length} resultado{news.length !== 1 ? 's' : ''}
+                </span>
+                <button
+                  onClick={() => {
+                    setShowSearchModal(false);
+                    if (feedContainerRef.current) {
+                      feedContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                  }}
+                  className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 rounded-full text-emerald-300 text-sm font-medium transition-colors"
+                >
+                  Ver resultados
+                </button>
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
 
       <main
         ref={feedContainerRef}
