@@ -37,10 +37,14 @@ interface NewsCardProps {
 
 // Share modal component
 const ShareModal = ({ isOpen, onClose, item }: { isOpen: boolean; onClose: () => void; item: NewsItem }) => {
-    const shareUrl = `https://veridian.news/noticia/${item.id}`;
+    // Usar la URL original de la noticia si existe, si no, usar la URL de Veridian
+    const shareUrl = item.url || `https://veridian.news/veridian-news`;
     const shareTitle = item.title;
-    const shareText = `${item.title}\n\nLee más en Veridian - Noticias sin sesgos`;
+    const shareText = `${item.title}\n\nVía Veridian News`;
     const shareTextTwitter = `${item.title.substring(0, 200)}${item.title.length > 200 ? '...' : ''}\n\n📰 @VeridianNews`;
+
+    // Detectar si estamos en móvil
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
     const shareOptions = [
         {
@@ -48,7 +52,11 @@ const ShareModal = ({ isOpen, onClose, item }: { isOpen: boolean; onClose: () =>
             icon: "https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg",
             color: "bg-[#25D366]",
             action: () => {
-                const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + '\n\n' + shareUrl)}`;
+                const text = encodeURIComponent(`${shareText}\n\n${shareUrl}`);
+                // WhatsApp deep link funciona mejor en móvil
+                const url = isMobile
+                    ? `whatsapp://send?text=${text}`
+                    : `https://api.whatsapp.com/send?text=${text}`;
                 window.open(url, '_blank');
             }
         },
@@ -57,8 +65,10 @@ const ShareModal = ({ isOpen, onClose, item }: { isOpen: boolean; onClose: () =>
             icon: "https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg",
             color: "bg-[#128C7E]",
             action: () => {
-                // WhatsApp doesn't have a direct status API, but we can share the image URL
-                const url = `https://api.whatsapp.com/send?text=${encodeURIComponent('📰 ' + shareTitle + '\n\n' + shareUrl)}`;
+                const text = encodeURIComponent(`📰 ${shareTitle}\n\n${shareUrl}`);
+                const url = isMobile
+                    ? `whatsapp://send?text=${text}`
+                    : `https://api.whatsapp.com/send?text=${text}`;
                 window.open(url, '_blank');
             }
         },
@@ -67,12 +77,16 @@ const ShareModal = ({ isOpen, onClose, item }: { isOpen: boolean; onClose: () =>
             icon: "https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg",
             color: "bg-gradient-to-br from-[#833AB4] via-[#FD1D1D] to-[#F77737]",
             action: () => {
-                // Instagram doesn't support direct web sharing, copy link instead
-                navigator.clipboard.writeText(shareUrl);
+                // Instagram no permite compartir links directamente, copiamos y avisamos
+                navigator.clipboard.writeText(`${shareTitle}\n\n${shareUrl}`);
                 toast({
-                    title: "📋 Enlace copiado",
+                    title: "📋 Texto copiado",
                     description: "Abre Instagram y pégalo en tu historia o publicación",
                 });
+                // Intentar abrir Instagram en móvil
+                if (isMobile) {
+                    window.location.href = 'instagram://';
+                }
                 onClose();
             }
         },
@@ -81,7 +95,12 @@ const ShareModal = ({ isOpen, onClose, item }: { isOpen: boolean; onClose: () =>
             icon: "https://upload.wikimedia.org/wikipedia/commons/c/ce/X_logo_2023.svg",
             color: "bg-black",
             action: () => {
-                const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareTextTwitter)}&url=${encodeURIComponent(shareUrl)}`;
+                const text = encodeURIComponent(shareTextTwitter);
+                const urlParam = encodeURIComponent(shareUrl);
+                // Deep link para X/Twitter en móvil
+                const url = isMobile
+                    ? `twitter://post?message=${text}%20${urlParam}`
+                    : `https://twitter.com/intent/tweet?text=${text}&url=${urlParam}`;
                 window.open(url, '_blank');
             }
         },
@@ -90,8 +109,18 @@ const ShareModal = ({ isOpen, onClose, item }: { isOpen: boolean; onClose: () =>
             icon: "https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png",
             color: "bg-[#1877F2]",
             action: () => {
-                const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareTitle)}`;
-                window.open(url, '_blank');
+                const urlParam = encodeURIComponent(shareUrl);
+                // Deep link para Facebook en móvil
+                if (isMobile) {
+                    // Intentar abrir en app de Facebook
+                    window.location.href = `fb://share/?link=${urlParam}`;
+                    // Fallback después de un pequeño delay
+                    setTimeout(() => {
+                        window.open(`https://www.facebook.com/sharer/sharer.php?u=${urlParam}`, '_blank');
+                    }, 500);
+                } else {
+                    window.open(`https://www.facebook.com/sharer/sharer.php?u=${urlParam}`, '_blank');
+                }
             }
         },
         {
