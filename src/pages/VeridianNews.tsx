@@ -6,7 +6,8 @@ import { NewsImage } from "../components/NewsImage";
 import "./VeridianNews.css";
 import { supabase, isSupabaseConfigured } from "../integrations/supabase/client";
 import { useIsMobile, useScreenSize } from "../hooks/use-mobile";
-import { Clock, Brain, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Clock, Brain, ThumbsUp, ThumbsDown, X, ExternalLink } from "lucide-react";
+import { motion } from "framer-motion";
 import { BottomDock } from "../components/BottomDock";
 import { NewsCard } from "@/components/NewsCard";
 import { StreakHeader } from "@/components/StreakHeader";
@@ -1728,56 +1729,195 @@ const VeridianNews = () => {
       {/* Modals (Keep existing ones intact for now, just ensure z-index is high enough) */}
       {/* Modal de Contenido Completo */}
       {showContentModal && selectedNews && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col animate-in slide-in-from-bottom duration-300">
-          {/* Simple custom header for article view */}
-          <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/50 backdrop-blur-md sticky top-0 z-10">
-            <h2 className="text-white font-bold truncate max-w-[80%]">{selectedNews.title}</h2>
-            <button onClick={() => setShowContentModal(false)} className="p-2 rounded-full bg-white/10 text-white">
-              ✕
+        <motion.div
+          className="fixed inset-0 z-50 bg-zinc-950 flex flex-col"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          {/* Header elegante con gradiente */}
+          <div className="flex items-center justify-between p-4 border-b border-white/10 bg-gradient-to-b from-zinc-900/95 to-transparent backdrop-blur-xl sticky top-0 z-10">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-white text-sm font-bold">
+                V
+              </div>
+              <span className="text-white/60 text-sm font-medium">Veridian News</span>
+            </div>
+            <button
+              onClick={() => setShowContentModal(false)}
+              className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all duration-200 hover:scale-105"
+            >
+              <X className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6 text-white pb-32">
-            <h1 className="text-3xl font-bold mb-6">{selectedNews.title}</h1>
-
-            <div className="flex items-center gap-3 mb-8 text-sm text-white/60">
-              <span>{selectedNews.source}</span>
-              <span>•</span>
-              <span>{new Date(selectedNews.date).toLocaleDateString()}</span>
-            </div>
-
+          <div className="flex-1 overflow-y-auto pb-32">
+            {/* Imagen hero con gradiente overlay */}
             {selectedNews.image && (
-              <div className="mb-8 rounded-xl overflow-hidden aspect-video w-full">
-                <img src={selectedNews.image} alt="" className="w-full h-full object-cover" />
-              </div>
+              <motion.div
+                className="relative w-full aspect-[16/9] md:aspect-[21/9]"
+                initial={{ scale: 1.05 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: 0.6 }}
+              >
+                <img
+                  src={selectedNews.image}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent" />
+              </motion.div>
             )}
 
-            <div className="prose prose-invert prose-lg max-w-none">
-              {selectedNews.content && selectedNews.content.trim().length > 30 && !selectedNews.content.toLowerCase().includes("sin contenido") ? (
-                selectedNews.content.split('\n').map((p, i) => (
-                  <p key={i} className="mb-4 text-gray-300 leading-relaxed">
-                    {p}
-                  </p>
-                ))
-              ) : (
-                <p className="mb-4 text-gray-300 leading-relaxed text-lg">
-                  {selectedNews.summary}
-                </p>
+            <div className="px-5 md:px-8 lg:px-12 max-w-3xl mx-auto">
+              {/* Metadata con estilo editorial */}
+              <motion.div
+                className="flex items-center gap-3 text-sm py-6"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 font-medium border border-emerald-500/30">
+                  {selectedNews.source}
+                </span>
+                <span className="text-white/40">•</span>
+                <span className="text-white/50">{new Date(selectedNews.date).toLocaleDateString('es-ES', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric'
+                })}</span>
+              </motion.div>
+
+              {/* Título con animación */}
+              <motion.h1
+                className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight mb-8 tracking-tight"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15, duration: 0.4 }}
+              >
+                {selectedNews.title}
+              </motion.h1>
+
+              {/* Contenido con formato premium */}
+              <div className="space-y-6">
+                {selectedNews.content && selectedNews.content.trim().length > 30 && !selectedNews.content.toLowerCase().includes("sin contenido") ? (
+                  selectedNews.content.split('\n').filter((p: string) => p.trim()).map((paragraph: string, idx: number) => {
+                    const isFirstParagraph = idx === 0;
+                    const showDivider = idx > 0 && idx % 4 === 0;
+
+                    // Detectar texto entre ** para destacar
+                    const renderFormattedText = (text: string) => {
+                      const parts = text.split(/(\*\*.*?\*\*)/);
+                      return parts.map((part, i) => {
+                        if (part.startsWith('**') && part.endsWith('**')) {
+                          return (
+                            <span
+                              key={i}
+                              className="font-semibold text-white bg-gradient-to-r from-emerald-500/15 to-green-500/15 px-1.5 py-0.5 rounded border-l-2 border-emerald-500/50"
+                            >
+                              {part.slice(2, -2)}
+                            </span>
+                          );
+                        }
+                        return part;
+                      });
+                    };
+
+                    return (
+                      <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          delay: 0.2 + (idx * 0.08),
+                          duration: 0.4,
+                          ease: [0.25, 0.1, 0.25, 1]
+                        }}
+                      >
+                        {/* Separador decorativo cada 4 párrafos */}
+                        {showDivider && (
+                          <div className="flex items-center justify-center py-8 opacity-40">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
+                              <div className="w-2 h-2 rounded-full bg-emerald-500/60" />
+                              <div className="w-12 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
+                            </div>
+                          </div>
+                        )}
+
+                        <p className={cn(
+                          "text-zinc-300 text-lg leading-loose tracking-wide",
+                          isFirstParagraph && "text-xl text-zinc-200"
+                        )}>
+                          {/* Drop Cap para el primer párrafo */}
+                          {isFirstParagraph && paragraph.length > 0 ? (
+                            <>
+                              <span className="float-left text-6xl font-bold text-emerald-400 leading-none mr-3 mt-1.5 font-serif">
+                                {paragraph.charAt(0)}
+                              </span>
+                              {renderFormattedText(paragraph.slice(1))}
+                            </>
+                          ) : (
+                            renderFormattedText(paragraph)
+                          )}
+                        </p>
+                      </motion.div>
+                    );
+                  })
+                ) : (
+                  <motion.p
+                    className="text-zinc-300 text-lg leading-loose"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    <span className="float-left text-6xl font-bold text-emerald-400 leading-none mr-3 mt-1.5 font-serif">
+                      {selectedNews.summary.charAt(0)}
+                    </span>
+                    {selectedNews.summary.slice(1)}
+                  </motion.p>
+                )}
+              </div>
+
+              {/* Footer con acciones */}
+              {selectedNews.url && (
+                <motion.div
+                  className="mt-12 pt-8 border-t border-white/10"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  <a
+                    href={selectedNews.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2.5 px-6 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 rounded-full text-emerald-400 hover:text-emerald-300 font-medium transition-all duration-300 group"
+                  >
+                    <span>Leer fuente original</span>
+                    <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </a>
+                </motion.div>
               )}
             </div>
           </div>
 
-          {/* Floating AI Button in Article */}
+          {/* Floating AI Button - diseño mejorado */}
           <div className="absolute bottom-8 right-6">
-            <button
+            <motion.button
               onClick={() => openAIChat(selectedNews)}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-3 rounded-full shadow-lg shadow-blue-900/50 font-medium transition-all"
+              className="flex items-center gap-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-6 py-3.5 rounded-full shadow-lg shadow-blue-900/50 font-medium transition-all duration-300 group"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.4, type: "spring", stiffness: 200 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
-              <Brain className="w-5 h-5" />
+              <Brain className="w-5 h-5 group-hover:rotate-12 transition-transform" />
               <span>Analizar con IA</span>
-            </button>
+            </motion.button>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Other modals (Comments, AI, etc) - keeping minimal logic for brevity but ensuring they render */}

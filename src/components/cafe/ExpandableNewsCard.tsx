@@ -20,20 +20,87 @@ interface ExpandableNewsCardProps {
     index: number;
 }
 
-const RichText = ({ content, className }: { content: string; className?: string }) => (
-    <div className={cn("space-y-4", className)}>
-        {content.split('\n\n').map((paragraph, idx) => (
-            <p key={idx} className="leading-relaxed">
-                {paragraph.split(/(\*\*.*?\*\*)/).map((part, i) => {
-                    if (part.startsWith('**') && part.endsWith('**')) {
-                        return <span key={i} className="text-white font-medium">{part.slice(2, -2)}</span>;
-                    }
-                    return part;
-                })}
-            </p>
-        ))}
+// Separador decorativo minimalista
+const DecorativeDivider = () => (
+    <div className="flex items-center justify-center py-6 opacity-40">
+        <div className="flex items-center gap-3">
+            <div className="w-8 h-px bg-gradient-to-r from-transparent via-green-500/50 to-transparent" />
+            <div className="w-1.5 h-1.5 rounded-full bg-green-500/60" />
+            <div className="w-8 h-px bg-gradient-to-r from-transparent via-green-500/50 to-transparent" />
+        </div>
     </div>
 );
+
+// Componente para renderizar texto con formato (negrita, etc.)
+const FormattedText = ({ text, isFirstParagraph }: { text: string; isFirstParagraph?: boolean }) => {
+    const parts = text.split(/(\*\*.*?\*\*)/);
+
+    return (
+        <>
+            {parts.map((part, i) => {
+                if (part.startsWith('**') && part.endsWith('**')) {
+                    // Texto en negrita con estilo destacado
+                    return (
+                        <span
+                            key={i}
+                            className="font-semibold text-white bg-gradient-to-r from-green-500/10 to-emerald-500/10 px-1.5 py-0.5 rounded-md border-l-2 border-green-500/40"
+                        >
+                            {part.slice(2, -2)}
+                        </span>
+                    );
+                }
+                // Para el primer párrafo, aplicar Drop Cap al primer carácter
+                if (isFirstParagraph && i === 0 && part.length > 0) {
+                    const firstChar = part.charAt(0);
+                    const rest = part.slice(1);
+                    return (
+                        <span key={i}>
+                            <span className="float-left text-5xl font-bold text-green-400 leading-none mr-2 mt-1 font-serif">
+                                {firstChar}
+                            </span>
+                            {rest}
+                        </span>
+                    );
+                }
+                return part;
+            })}
+        </>
+    );
+};
+
+const RichText = ({ content, className }: { content: string; className?: string }) => {
+    const paragraphs = content.split('\n\n').filter(p => p.trim());
+
+    return (
+        <div className={cn("space-y-6", className)}>
+            {paragraphs.map((paragraph, idx) => {
+                const isFirstParagraph = idx === 0;
+                const showDivider = idx > 0 && idx % 3 === 0; // Divisor cada 3 párrafos
+
+                return (
+                    <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                            duration: 0.4,
+                            delay: idx * 0.08,
+                            ease: [0.25, 0.1, 0.25, 1]
+                        }}
+                    >
+                        {showDivider && <DecorativeDivider />}
+                        <p className={cn(
+                            "leading-loose text-zinc-300 tracking-wide",
+                            isFirstParagraph && "text-base first-letter:text-transparent" // Hide default first-letter when using Drop Cap
+                        )}>
+                            <FormattedText text={paragraph} isFirstParagraph={isFirstParagraph} />
+                        </p>
+                    </motion.div>
+                );
+            })}
+        </div>
+    );
+};
 
 export const ExpandableNewsCard = ({ item, index }: ExpandableNewsCardProps) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -119,16 +186,23 @@ export const ExpandableNewsCard = ({ item, index }: ExpandableNewsCardProps) => 
                             transition={{ duration: 0.3, ease: "easeInOut" }}
                             className="overflow-hidden"
                         >
-                            <div className="px-4 pb-5 pt-2">
-                                {/* Summary - only show if exists */}
+                            <div className="px-5 pb-6 pt-4">
+                                {/* Summary/Lead - estilo editorial destacado */}
                                 {item.summary && item.summary.trim() && (
-                                    <p className="text-zinc-400 text-sm leading-relaxed mb-4 border-l-2 border-green-500/40 pl-3 italic">
-                                        {item.summary}
-                                    </p>
+                                    <motion.div
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ duration: 0.3 }}
+                                        className="mb-6"
+                                    >
+                                        <p className="text-zinc-200 text-base leading-relaxed font-medium border-l-3 border-green-500 pl-4 py-2 bg-gradient-to-r from-green-500/5 to-transparent rounded-r-lg">
+                                            {item.summary}
+                                        </p>
+                                    </motion.div>
                                 )}
 
                                 {/* Full content */}
-                                <div className="text-zinc-300 text-sm leading-relaxed">
+                                <div className="text-zinc-300 text-[15px]">
                                     {item.content && item.content.trim() ? (
                                         <RichText content={item.content} />
                                     ) : (
@@ -136,18 +210,21 @@ export const ExpandableNewsCard = ({ item, index }: ExpandableNewsCardProps) => 
                                     )}
                                 </div>
 
-                                {/* Read more link if URL exists */}
+                                {/* Read more link if URL exists - diseño mejorado */}
                                 {item.url && (
-                                    <a
+                                    <motion.a
                                         href={item.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         onClick={(e) => e.stopPropagation()}
-                                        className="inline-flex items-center gap-1.5 text-green-400 text-sm font-medium mt-4 hover:text-green-300 transition-colors"
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.3, delay: 0.2 }}
+                                        className="inline-flex items-center gap-2 mt-8 px-5 py-2.5 bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 hover:border-green-500/50 rounded-full text-green-400 hover:text-green-300 text-sm font-medium transition-all duration-300 backdrop-blur-sm group"
                                     >
                                         <span>Leer fuente original</span>
-                                        <ExternalLink className="w-3.5 h-3.5" />
-                                    </a>
+                                        <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                                    </motion.a>
                                 )}
                             </div>
                         </motion.div>
