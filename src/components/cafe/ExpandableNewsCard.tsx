@@ -22,78 +22,69 @@ interface ExpandableNewsCardProps {
 
 // Separador decorativo minimalista
 const DecorativeDivider = () => (
-    <div className="flex items-center justify-center py-6 opacity-40">
-        <div className="flex items-center gap-3">
-            <div className="w-8 h-px bg-gradient-to-r from-transparent via-green-500/50 to-transparent" />
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500/60" />
-            <div className="w-8 h-px bg-gradient-to-r from-transparent via-green-500/50 to-transparent" />
-        </div>
+    <div className="flex items-center justify-center py-5">
+        <div className="w-12 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
     </div>
 );
 
-// Componente para renderizar texto con formato (negrita, etc.)
-const FormattedText = ({ text, isFirstParagraph }: { text: string; isFirstParagraph?: boolean }) => {
-    const parts = text.split(/(\*\*.*?\*\*)/);
+// Función para dividir texto largo en párrafos legibles
+const formatTextIntoParagraphs = (text: string): string[] => {
+    // Si ya tiene saltos de línea dobles, usarlos
+    if (text.includes('\n\n')) {
+        return text.split('\n\n').filter(p => p.trim().length > 0);
+    }
+    // Si tiene saltos simples, usarlos
+    if (text.includes('\n')) {
+        return text.split('\n').filter(p => p.trim().length > 0);
+    }
 
-    return (
-        <>
-            {parts.map((part, i) => {
-                if (part.startsWith('**') && part.endsWith('**')) {
-                    // Texto en negrita con estilo destacado
-                    return (
-                        <span
-                            key={i}
-                            className="font-semibold text-white bg-gradient-to-r from-green-500/10 to-emerald-500/10 px-1.5 py-0.5 rounded-md border-l-2 border-green-500/40"
-                        >
-                            {part.slice(2, -2)}
-                        </span>
-                    );
-                }
-                // Para el primer párrafo, aplicar Drop Cap al primer carácter
-                if (isFirstParagraph && i === 0 && part.length > 0) {
-                    const firstChar = part.charAt(0);
-                    const rest = part.slice(1);
-                    return (
-                        <span key={i}>
-                            <span className="float-left text-5xl font-bold text-green-400 leading-none mr-2 mt-1 font-serif">
-                                {firstChar}
-                            </span>
-                            {rest}
-                        </span>
-                    );
-                }
-                return part;
-            })}
-        </>
-    );
+    // Si no, dividir inteligentemente por oraciones (cada 2-3 oraciones = 1 párrafo)
+    const sentences = text.split(/(?<=[.!?])\s+/);
+    const paragraphs: string[] = [];
+    let currentParagraph: string[] = [];
+
+    sentences.forEach((sentence) => {
+        currentParagraph.push(sentence);
+        if (currentParagraph.length >= 3 ||
+            (currentParagraph.length >= 2 && currentParagraph.join(' ').length > 350)) {
+            paragraphs.push(currentParagraph.join(' '));
+            currentParagraph = [];
+        }
+    });
+
+    if (currentParagraph.length > 0) {
+        paragraphs.push(currentParagraph.join(' '));
+    }
+
+    return paragraphs;
 };
 
 const RichText = ({ content, className }: { content: string; className?: string }) => {
-    const paragraphs = content.split('\n\n').filter(p => p.trim());
+    const paragraphs = formatTextIntoParagraphs(content);
 
     return (
         <div className={cn("space-y-6", className)}>
             {paragraphs.map((paragraph, idx) => {
                 const isFirstParagraph = idx === 0;
-                const showDivider = idx > 0 && idx % 3 === 0; // Divisor cada 3 párrafos
+                const showDivider = idx > 0 && idx % 3 === 0;
 
                 return (
                     <motion.div
                         key={idx}
-                        initial={{ opacity: 0, y: 12 }}
+                        initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{
-                            duration: 0.4,
-                            delay: idx * 0.08,
+                            duration: 0.35,
+                            delay: idx * 0.06,
                             ease: [0.25, 0.1, 0.25, 1]
                         }}
                     >
                         {showDivider && <DecorativeDivider />}
                         <p className={cn(
-                            "leading-loose text-zinc-300 tracking-wide",
-                            isFirstParagraph && "text-base first-letter:text-transparent" // Hide default first-letter when using Drop Cap
+                            "text-zinc-300 leading-[1.85] tracking-wide",
+                            isFirstParagraph ? "text-[15px] text-zinc-200 font-medium" : "text-sm"
                         )}>
-                            <FormattedText text={paragraph} isFirstParagraph={isFirstParagraph} />
+                            {paragraph}
                         </p>
                     </motion.div>
                 );

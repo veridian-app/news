@@ -1799,85 +1799,79 @@ const VeridianNews = () => {
                 {selectedNews.title}
               </motion.h1>
 
-              {/* Contenido con formato premium */}
-              <div className="space-y-6">
-                {selectedNews.content && selectedNews.content.trim().length > 30 && !selectedNews.content.toLowerCase().includes("sin contenido") ? (
-                  selectedNews.content.split('\n').filter((p: string) => p.trim()).map((paragraph: string, idx: number) => {
-                    const isFirstParagraph = idx === 0;
-                    const showDivider = idx > 0 && idx % 4 === 0;
+              {/* Contenido con formato automático */}
+              <div className="space-y-8">
+                {(() => {
+                  const rawContent = selectedNews.content && selectedNews.content.trim().length > 30 && !selectedNews.content.toLowerCase().includes("sin contenido")
+                    ? selectedNews.content
+                    : selectedNews.summary;
 
-                    // Detectar texto entre ** para destacar
-                    const renderFormattedText = (text: string) => {
-                      const parts = text.split(/(\*\*.*?\*\*)/);
-                      return parts.map((part, i) => {
-                        if (part.startsWith('**') && part.endsWith('**')) {
-                          return (
-                            <span
-                              key={i}
-                              className="font-semibold text-white bg-gradient-to-r from-emerald-500/15 to-green-500/15 px-1.5 py-0.5 rounded border-l-2 border-emerald-500/50"
-                            >
-                              {part.slice(2, -2)}
-                            </span>
-                          );
-                        }
-                        return part;
-                      });
-                    };
+                  // Función para dividir texto largo en párrafos legibles
+                  const formatTextIntoParagraphs = (text: string): string[] => {
+                    // Si ya tiene saltos de línea, usarlos
+                    if (text.includes('\n')) {
+                      return text.split('\n').filter(p => p.trim().length > 0);
+                    }
+
+                    // Si no, dividir inteligentemente por oraciones (cada 2-3 oraciones = 1 párrafo)
+                    const sentences = text.split(/(?<=[.!?])\s+/);
+                    const paragraphs: string[] = [];
+                    let currentParagraph: string[] = [];
+
+                    sentences.forEach((sentence, i) => {
+                      currentParagraph.push(sentence);
+                      // Crear nuevo párrafo cada 2-3 oraciones o si la oración es muy larga
+                      if (currentParagraph.length >= 3 ||
+                        (currentParagraph.length >= 2 && currentParagraph.join(' ').length > 400)) {
+                        paragraphs.push(currentParagraph.join(' '));
+                        currentParagraph = [];
+                      }
+                    });
+
+                    // Añadir el último párrafo si queda algo
+                    if (currentParagraph.length > 0) {
+                      paragraphs.push(currentParagraph.join(' '));
+                    }
+
+                    return paragraphs;
+                  };
+
+                  const paragraphs = formatTextIntoParagraphs(rawContent);
+
+                  return paragraphs.map((paragraph, idx) => {
+                    const isFirstParagraph = idx === 0;
+                    const showDivider = idx > 0 && idx % 3 === 0;
 
                     return (
                       <motion.div
                         key={idx}
-                        initial={{ opacity: 0, y: 15 }}
+                        initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{
-                          delay: 0.2 + (idx * 0.08),
-                          duration: 0.4,
+                          delay: 0.15 + (idx * 0.06),
+                          duration: 0.35,
                           ease: [0.25, 0.1, 0.25, 1]
                         }}
                       >
-                        {/* Separador decorativo cada 4 párrafos */}
+                        {/* Separador minimalista cada 3 párrafos */}
                         {showDivider && (
-                          <div className="flex items-center justify-center py-8 opacity-40">
-                            <div className="flex items-center gap-3">
-                              <div className="w-12 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
-                              <div className="w-2 h-2 rounded-full bg-emerald-500/60" />
-                              <div className="w-12 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
-                            </div>
+                          <div className="flex items-center justify-center py-6 mb-6">
+                            <div className="w-16 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
                           </div>
                         )}
 
                         <p className={cn(
-                          "text-zinc-300 text-lg leading-loose tracking-wide",
-                          isFirstParagraph && "text-xl text-zinc-200"
+                          "text-zinc-300 leading-[1.9] tracking-wide",
+                          isFirstParagraph
+                            ? "text-[17px] md:text-lg text-zinc-200 font-medium"
+                            : "text-base md:text-[17px]"
                         )}>
-                          {/* Drop Cap para el primer párrafo */}
-                          {isFirstParagraph && paragraph.length > 0 ? (
-                            <>
-                              <span className="float-left text-6xl font-bold text-emerald-400 leading-none mr-3 mt-1.5 font-serif">
-                                {paragraph.charAt(0)}
-                              </span>
-                              {renderFormattedText(paragraph.slice(1))}
-                            </>
-                          ) : (
-                            renderFormattedText(paragraph)
-                          )}
+                          {paragraph}
                         </p>
                       </motion.div>
                     );
-                  })
-                ) : (
-                  <motion.p
-                    className="text-zinc-300 text-lg leading-loose"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                  >
-                    <span className="float-left text-6xl font-bold text-emerald-400 leading-none mr-3 mt-1.5 font-serif">
-                      {selectedNews.summary.charAt(0)}
-                    </span>
-                    {selectedNews.summary.slice(1)}
-                  </motion.p>
-                )}
+                  });
+                })()}
               </div>
 
               {/* Footer con acciones */}
