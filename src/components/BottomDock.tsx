@@ -2,6 +2,7 @@ import { Home, Search, Coffee, Bell, User } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useDockVisibility } from "@/contexts/DockVisibilityContext";
+import { useSearch } from "@/contexts/SearchContext";
 import { motion, AnimatePresence } from "framer-motion";
 
 const DockItem = ({ icon, path, isActive }: { icon: React.ReactNode, path: string, isActive: boolean }) => (
@@ -16,9 +17,30 @@ const DockItem = ({ icon, path, isActive }: { icon: React.ReactNode, path: strin
   </Link>
 );
 
+// Botón de búsqueda que abre el modal
+const SearchButton = ({ isActive }: { isActive: boolean }) => {
+  const { openSearch, searchQuery } = useSearch();
+
+  return (
+    <button
+      onClick={openSearch}
+      className={cn(
+        "relative p-1.5 transition-all duration-300",
+        isActive || searchQuery ? "text-white scale-110" : "text-white/40 hover:text-white/80"
+      )}
+    >
+      <Search size={20} />
+      {(isActive || searchQuery) && (
+        <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-emerald-500 rounded-full shadow-[0_0_6px_2px_rgba(16,185,129,0.5)]" />
+      )}
+    </button>
+  );
+};
+
 export const BottomDock = () => {
   const location = useLocation();
   const { isVisible } = useDockVisibility();
+  const { showSearchModal } = useSearch();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -34,7 +56,7 @@ export const BottomDock = () => {
         >
           <div className="flex items-center justify-between px-6 py-2.5 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl min-w-[280px] max-w-[340px] w-[85vw]">
             <DockItem icon={<Home size={20} />} path="/" isActive={isActive("/")} />
-            <DockItem icon={<Search size={20} />} path="/trends" isActive={isActive("/trends")} />
+            <SearchButton isActive={showSearchModal} />
 
             {/* Central Café Button */}
             <div className="relative -top-4">

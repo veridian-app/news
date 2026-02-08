@@ -14,6 +14,7 @@ import { StreakHeader } from "@/components/StreakHeader";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useReadNews } from "@/hooks/use-read-news";
+import { useSearch } from "@/contexts/SearchContext";
 
 
 interface NewsItem {
@@ -281,9 +282,18 @@ const VeridianNews = () => {
 
   const [sortBy, setSortBy] = useState<'recommended' | 'recent'>('recommended');
 
-  // Estado de búsqueda
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showSearchModal, setShowSearchModal] = useState(false);
+  // Búsqueda desde contexto compartido
+  const { searchQuery, setSearchQuery, showSearchModal, closeSearch } = useSearch();
+
+  // Debounced search query para evitar colapso de UI
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300); // 300ms debounce
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Read news tracking
   const { isRead, toggleRead, sortByReadStatus } = useReadNews();
@@ -297,17 +307,17 @@ const VeridianNews = () => {
       return [];
     }
 
-    // Primero filtrar por búsqueda si hay query
+    // Primero filtrar por búsqueda si hay query (usando debounced para performance)
     let filteredNews = rawNews;
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
+    if (debouncedSearchQuery.trim()) {
+      const query = debouncedSearchQuery.toLowerCase().trim();
       filteredNews = rawNews.filter(item =>
         item.title.toLowerCase().includes(query) ||
         item.summary?.toLowerCase().includes(query) ||
         item.source?.toLowerCase().includes(query) ||
         item.content?.toLowerCase().includes(query)
       );
-      console.log(`🔍 Búsqueda "${searchQuery}": ${filteredNews.length} resultados`);
+      console.log(`🔍 Búsqueda "${debouncedSearchQuery}": ${filteredNews.length} resultados`);
     }
 
     // Si el usuario elige "Recientes", forzar orden cronológico
@@ -326,7 +336,7 @@ const VeridianNews = () => {
     const recommended = recommendNews([...filteredNews], userPreferences, likedNewsIds);
     console.log('✅ Noticias recomendadas:', recommended.length);
     return recommended;
-  }, [rawNews, userPreferences, likedNewsIds, sortBy, searchQuery]);
+  }, [rawNews, userPreferences, likedNewsIds, sortBy, debouncedSearchQuery]);
 
   useEffect(() => {
     // No usar mockNews - solo cargar del Excel
@@ -1678,22 +1688,6 @@ const VeridianNews = () => {
             {sortBy === 'recent' ? 'Recientes' : 'Relevantes'}
           </span>
         </button>
-
-        {/* Botón de Búsqueda */}
-        <button
-          onClick={() => setShowSearchModal(true)}
-          className={cn(
-            "flex items-center gap-2 px-3 py-1.5 backdrop-blur-md border rounded-full shadow-[0_0_15px_rgba(0,0,0,0.3)] transition-all duration-300 mt-2",
-            searchQuery
-              ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-200"
-              : "bg-black/30 border-white/10 text-white/70 hover:bg-white/10"
-          )}
-        >
-          <Search className="w-4 h-4" />
-          <span className="text-xs font-medium">
-            {searchQuery ? `"${searchQuery.substring(0, 12)}${searchQuery.length > 12 ? '...' : ''}"` : 'Buscar'}
-          </span>
-        </button>
       </div>
 
       {/* Modal de Búsqueda */}
@@ -1703,7 +1697,7 @@ const VeridianNews = () => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[60] flex items-start justify-center pt-20 bg-black/80 backdrop-blur-sm"
-          onClick={() => setShowSearchModal(false)}
+          onClick={() => closeSearch()}
         >
           <motion.div
             initial={{ y: -20, opacity: 0 }}
@@ -1723,7 +1717,7 @@ const VeridianNews = () => {
                 className="flex-1 bg-transparent border-none text-white text-lg placeholder:text-white/40 focus:outline-none"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    setShowSearchModal(false);
+                    closeSearch();
                     if (feedContainerRef.current) {
                       feedContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
                     }
@@ -1751,7 +1745,7 @@ const VeridianNews = () => {
                 </span>
                 <button
                   onClick={() => {
-                    setShowSearchModal(false);
+                    closeSearch();
                     if (feedContainerRef.current) {
                       feedContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
                     }

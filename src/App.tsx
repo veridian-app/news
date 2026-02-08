@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import { AuthProvider } from "./contexts/AuthContext";
 import { DockVisibilityProvider } from "./contexts/DockVisibilityContext";
+import { SearchProvider } from "./contexts/SearchContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
 import VeridianLanding from "./pages/VeridianLanding";
@@ -27,40 +28,42 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <DockVisibilityProvider>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/" element={<VeridianLanding />} />
-              <Route path="/privacidad" element={<PrivacyPolicy />} />
-              <Route path="/terminos" element={<TermsAndConditions />} />
-              <Route path="/aviso-legal" element={<LegalNotice />} />
+          <SearchProvider>
+            <DockVisibilityProvider>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/" element={<VeridianLanding />} />
+                <Route path="/privacidad" element={<PrivacyPolicy />} />
+                <Route path="/terminos" element={<TermsAndConditions />} />
+                <Route path="/aviso-legal" element={<LegalNotice />} />
 
-              {/* Protected routes - require authentication */}
-              <Route path="/veridian-news" element={
-                <ProtectedRoute>
-                  <VeridianNews />
-                </ProtectedRoute>
-              } />
-              <Route path="/library" element={
-                <ProtectedRoute>
-                  <LibraryView />
-                </ProtectedRoute>
-              } />
-              <Route path="/profile" element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              } />
-              <Route path="/cafe" element={
-                <ProtectedRoute>
-                  <CafeVeridian />
-                </ProtectedRoute>
-              } />
+                {/* Protected routes - require authentication */}
+                <Route path="/veridian-news" element={
+                  <ProtectedRoute>
+                    <VeridianNews />
+                  </ProtectedRoute>
+                } />
+                <Route path="/library" element={
+                  <ProtectedRoute>
+                    <LibraryView />
+                  </ProtectedRoute>
+                } />
+                <Route path="/profile" element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                } />
+                <Route path="/cafe" element={
+                  <ProtectedRoute>
+                    <CafeVeridian />
+                  </ProtectedRoute>
+                } />
 
-              {/* Catch-all */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </DockVisibilityProvider>
+                {/* Catch-all */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </DockVisibilityProvider>
+          </SearchProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
