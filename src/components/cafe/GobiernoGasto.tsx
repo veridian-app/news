@@ -29,7 +29,6 @@ interface GobiernoGastoProps {
 }
 
 // Formatea número a moneda española
-// Formatea número a moneda española
 const formatMoney = (amount: number | undefined | null): string => {
     if (amount == null) return '0€';
     if (amount >= 1000000) {
@@ -95,7 +94,7 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
                         id: item.id,
                         date: item.boe_date || item.fecha_concesion || item.fecha_publicacion,
                         beneficiario: item.beneficiario || item.organo_contratacion,
-                        importe: item.importe_total || item.importe,
+                        importe: item.importe_total || item.importe || 0,
                         moneda: item.moneda || 'EUR',
                         organismo: item.organismo_pagador || item.organo_contratacion,
                         tipo: item.tipo_adjudicacion || 'Contrato',
@@ -116,7 +115,7 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
                             id: h.id,
                             date: h.boe_date || h.fecha_concesion || h.fecha_publicacion,
                             beneficiario: h.beneficiario || h.organo_contratacion,
-                            importe: h.importe_total || h.importe,
+                            importe: h.importe_total || h.importe || 0,
                             moneda: h.moneda || 'EUR',
                             organismo: h.organismo_pagador || h.organo_contratacion,
                             tipo: h.tipo_adjudicacion || 'Contrato',
@@ -266,19 +265,11 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
                 </div>
 
                 {/* Column 3: Today's Feed (Browsable) */}
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between px-1">
-                        <h3 className="text-zinc-400 text-xs uppercase tracking-wider font-semibold">Gasto de Hoy {expenses.length > 0 && `(${expenses.length})`}</h3>
-                        {expenses.length > 1 && (
-                            <div className="flex items-center gap-1">
-                                <button onClick={prevExpense} className="p-1 hover:bg-white/10 rounded-full transition-colors"><ChevronLeft className="w-4 h-4 text-zinc-400" /></button>
-                                <button onClick={nextExpense} className="p-1 hover:bg-white/10 rounded-full transition-colors"><ChevronRight className="w-4 h-4 text-zinc-400" /></button>
-                            </div>
-                        )}
-                    </div>
+                <div className="space-y-4 flex flex-col h-full">
+                    <h3 className="text-zinc-400 text-xs uppercase tracking-wider font-semibold px-1">Gasto de Hoy {expenses.length > 0 && `(${expenses.length})`}</h3>
 
                     {!isLoading && currentExpense && (
-                        <div className="relative h-full">
+                        <div className="relative flex-1">
                             <AnimatePresence mode="wait">
                                 <motion.div
                                     key={currentExpense.id}
@@ -286,7 +277,7 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: -10 }}
                                     transition={{ duration: 0.2 }}
-                                    className="bg-zinc-900/80 backdrop-blur-sm border border-orange-500/20 rounded-2xl overflow-hidden h-full flex flex-col"
+                                    className="bg-zinc-900/80 backdrop-blur-sm border border-orange-500/20 rounded-2xl overflow-hidden h-full flex flex-col relative z-20 group"
                                 >
                                     <div className="bg-gradient-to-r from-orange-500/20 via-red-500/10 to-transparent px-5 py-4 border-b border-white/5">
                                         <div className="flex justify-between items-start">
@@ -303,12 +294,12 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
                                         </span>
                                     </div>
 
-                                    <div className="p-5 flex-1 flex flex-col">
+                                    <div className="p-5 flex-1 flex flex-col relative">
                                         <p className="text-white text-sm font-medium leading-relaxed mb-4 flex-1">
                                             "{currentExpense.resumen}"
                                         </p>
 
-                                        <div className="space-y-2 mb-4">
+                                        <div className="space-y-2 mb-12">
                                             <div className="bg-white/5 rounded-lg p-2.5">
                                                 <span className="text-[10px] text-zinc-500 block mb-0.5 uppercase tracking-wide">Beneficiario</span>
                                                 <span className="text-zinc-200 text-xs font-medium block truncate">{currentExpense.beneficiario}</span>
@@ -319,15 +310,39 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
                                             </div>
                                         </div>
 
-                                        {currentExpense.url ? (
-                                            <a href={currentExpense.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1.5 py-2 w-full bg-white/5 hover:bg-white/10 rounded-lg text-xs text-zinc-400 transition-colors">
-                                                <ExternalLink className="w-3 h-3" /> Ver fuente oficial
-                                            </a>
-                                        ) : (
-                                            <div className="flex items-center justify-center gap-1.5 py-2 w-full bg-white/5 rounded-lg text-xs text-zinc-500 cursor-default">
-                                                <Info className="w-3 h-3" /> Fuente: {currentExpense.source}
+                                        <div className="absolute bottom-4 left-0 right-0 px-5 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                {currentExpense.url ? (
+                                                    <a href={currentExpense.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-orange-400 transition-colors">
+                                                        <ExternalLink className="w-3.5 h-3.5" /> Fuente
+                                                    </a>
+                                                ) : (
+                                                    <span className="flex items-center gap-1.5 text-xs text-zinc-500">
+                                                        <Info className="w-3.5 h-3.5" /> {currentExpense.source}
+                                                    </span>
+                                                )}
                                             </div>
-                                        )}
+
+                                            {expenses.length > 1 && (
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); prevExpense(); }}
+                                                        className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                                                    >
+                                                        <ChevronLeft className="w-4 h-4" />
+                                                    </button>
+                                                    <span className="text-[10px] text-zinc-500 min-w-[30px] text-center">
+                                                        {currentIndex + 1}/{expenses.length}
+                                                    </span>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); nextExpense(); }}
+                                                        className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                                                    >
+                                                        <ChevronRight className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </motion.div>
                             </AnimatePresence>
