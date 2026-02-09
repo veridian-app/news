@@ -189,25 +189,42 @@ async function fetchBOESummary(date: ReturnType<typeof getTodayBOEDate>): Promis
             }
         }
 
-        // Alternativa: Si no hay items, intentar parsear formato HTML
-        if (entries.length === 0) {
-            console.log('📄 Intentando parseo HTML alternativo...');
+        // Parseo HTML directo - más confiable que el XML
+        console.log('📄 Parseando HTML del BOE...');
 
-            // Descargar versión HTML
-            const htmlUrl = `https://www.boe.es/boe/dias/${date.year}/${date.month}/${date.day}/`;
-            const htmlResponse = await fetch(htmlUrl);
+        const htmlUrl = `https://www.boe.es/boe/dias/${date.year}/${date.month}/${date.day}/`;
+        const htmlResponse = await fetch(htmlUrl, {
+            headers: {
+                'User-Agent': 'Veridian-BOE-Analyzer/1.0 (periodismo de datos)'
+            }
+        });
 
-            if (htmlResponse.ok) {
-                const htmlText = await htmlResponse.text();
+        if (htmlResponse.ok) {
+            const htmlText = await htmlResponse.text();
 
-                // Buscar links a disposiciones
-                const linkRegex = /<a[^>]*href="([^"]*\.pdf)"[^>]*>([^<]+)<\/a>/gi;
-                while ((match = linkRegex.exec(htmlText)) !== null) {
+            // Extraer todos los párrafos con contenido (dentro de <li> o <p>)
+            const paragraphRegex = /<(?:li|p)[^>]*>([\s\S]*?)<\/(?:li|p)>/gi;
+            let pMatch;
+
+            while ((pMatch = paragraphRegex.exec(htmlText)) !== null) {
+                const content = pMatch[1]
+                    .replace(/<[^>]*>/g, ' ') // Quitar HTML tags
+                    .replace(/\s+/g, ' ')     // Normalizar espacios
+                    .trim();
+
+                // Solo incluir si tiene contenido sustancial (más de 50 caracteres)
+                if (content.length > 50) {
+                    // Buscar link asociado
+                    const linkMatch = pMatch[0].match(/href="([^"]+)"/i);
+                    const url = linkMatch ?
+                        (linkMatch[1].startsWith('http') ? linkMatch[1] : `https://www.boe.es${linkMatch[1]}`)
+                        : '';
+
                     entries.push({
-                        titulo: match[2].trim(),
-                        texto: match[2].trim(),
+                        titulo: content.substring(0, 200),
+                        texto: content,
                         seccion: 'HTML',
-                        url: match[1].startsWith('http') ? match[1] : `https://www.boe.es${match[1]}`
+                        url
                     });
                 }
             }
