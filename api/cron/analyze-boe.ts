@@ -250,6 +250,7 @@ interface ExpenseAnalysis {
     organismo_pagador: string;
     tipo_adjudicacion: string;
     resumen_veridian: string;
+    contexto_detallado: string; // Explicación más larga del qué y por qué
 }
 
 /**
@@ -271,35 +272,40 @@ async function analyzeWithAI(entry: BOEEntry): Promise<ExpenseAnalysis | null> {
     else if (esSubvencion) tipoDetectado = 'Subvención';
 
     const systemPrompt = `Eres un periodista de investigación especializado en gasto público español. 
-Tu tarea es extraer datos clave de anuncios del BOE y reescribirlos en lenguaje ciudadano.
+Tu tarea es extraer datos clave de anuncios del BOE y explicarlos en lenguaje ciudadano.
 
 CONTEXTO: Este es un ${tipoDetectado} del BOE.
 
 EXTRACCIÓN DE DATOS:
-1. OBJETO: ¿Qué se está contratando/financiando? Resume en 1 frase simple.
-2. ORGANISMO: ¿Quién paga? (Ministerio, Ayuntamiento, empresa pública)
-3. BENEFICIARIO: ¿Quién recibe el dinero? Si es una licitación abierta, pon "Pendiente de adjudicación"
-4. IMPORTE: Busca números seguidos de "euros", "€", o expresiones como "X millones". Si no hay importe explícito, usa 0.
-5. TIPO: 
-   - "Licitación" si está abierto a empresas
-   - "Contrato" si ya está adjudicado
-   - "Subvención" si es ayuda directa
-   - "A dedo" si es designación directa sin concurso
+1. IMPORTE: Busca números seguidos de "euros", "€", o "millones". CRÍTICO: Si no hay importe claro, devuelve 0 y se descartará.
+2. BENEFICIARIO: ¿Quién recibe el dinero? (empresa, entidad, persona)
+3. ORGANISMO: ¿Quién paga? (Ministerio, Ayuntamiento, empresa pública)
+4. TIPO: "Licitación" | "Contrato" | "Subvención" | "A dedo"
 
-RESUMEN VERIDIAN (CRÍTICO):
-- MÁXIMO 12 palabras
-- Lenguaje directo, sin jerga burocrática
-- Tono: informativo pero incisivo (no insultante)
-- Ejemplo: "360.000€ para modernizar el jardín de Zarzuela"
+RESUMEN VERIDIAN (titular):
+- MÁXIMO 15 palabras
+- Incluye el importe si existe
+- Directo, sin jerga burocrática
+- Ejemplo: "300M€ a AXIS para el fondo europeo de startups tecnológicas"
+
+CONTEXTO DETALLADO (explicación):
+- 2-3 frases que expliquen:
+  * ¿Qué es exactamente?
+  * ¿Para qué sirve?
+  * ¿Por qué es relevante para el ciudadano?
+- Lenguaje claro, como si lo explicaras a un amigo
+- NO copies jerga del BOE, tradúcela
+- Ejemplo: "El Estado destina 300 millones de euros a un fondo de inversión para startups europeas de tecnología. Este fondo busca competir con las inversiones de capital riesgo de EEUU y China. En la práctica, es dinero público que irá a empresas tecnológicas que el gobierno considera estratégicas."
 
 RESPONDE SOLO EN JSON:
 {
-  "beneficiario": "Nombre de empresa/persona/entidad o 'Pendiente de adjudicación'",
+  "beneficiario": "Nombre de empresa/entidad",
   "importe_total": 123456.78,
   "moneda": "EUR",
   "organismo_pagador": "Quién paga",
   "tipo_adjudicacion": "Licitación | Contrato | Subvención | A dedo",
-  "resumen_veridian": "Frase corta explicando el gasto"
+  "resumen_veridian": "Titular corto con importe",
+  "contexto_detallado": "Explicación de 2-3 frases sobre qué es, para qué sirve y por qué importa"
 }`;
 
     const prompt = `Analiza este anuncio del BOE y extrae los datos:
@@ -319,8 +325,8 @@ Genera el JSON con los datos extraídos.`;
                     contents: [{ parts: [{ text: prompt }] }],
                     systemInstruction: { parts: [{ text: systemPrompt }] },
                     generationConfig: {
-                        temperature: 0.3, // Bajo para consistencia
-                        maxOutputTokens: 512 // Límite estricto (ahorro)
+                        temperature: 0.4,
+                        maxOutputTokens: 800 // Aumentado para contexto detallado
                     }
                 })
             }
@@ -428,7 +434,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ==========================================================================
     const authHeader = req.headers['authorization'];
     const isVercelCron = req.headers['user-agent'] === 'vercel-cron/1.0';
-    const isAuthorized = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+    const isAuthorized = authHeader === `Bearer ${process.env.CRON_SECRET} `;
 
     if (!isVercelCron && !isAuthorized) {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -445,9 +451,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         date = getTodayBOEDate();
     }
 
-    console.log(`\n${'='.repeat(60)}`);
-    console.log(`🏛️ ANALIZADOR BOE - ${date.formatted}`);
-    console.log(`${'='.repeat(60)}\n`);
+    console.log(`\n${'='.repeat(60)} `);
+    console.log(`🏛️ ANALIZADOR BOE - ${date.formatted} `);
+    console.log(`${'='.repeat(60)} \n`);
 
     try {
         // 1. EXTRACCIÓN GRATUITA: Descargar sumario
@@ -466,7 +472,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const moneyEntries = entries
             .filter(entry => {
-                const fullText = `${entry.titulo} ${entry.texto}`;
+                const fullText = `${entry.titulo} ${entry.texto} `;
                 return containsMoney(fullText);
             })
             .sort((a, b) => {
@@ -502,8 +508,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             console.log(`   IA respondió:`, analysis ? `${analysis.beneficiario} - ${analysis.importe_total}€` : 'null');
 
-            // Guardar si hay análisis válido (aunque importe sea 0)
-            if (analysis && analysis.beneficiario) {
+            // SOLO guardar si tiene importe real > 0 (filtro de calidad)
+            if (analysis && analysis.importe_total > 0 && analysis.beneficiario && analysis.beneficiario !== 'No aplica') {
                 // 4. GUARDAR EN DB
                 const { error } = await supabase
                     .from('boe_expenses')
@@ -517,6 +523,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         organismo_pagador: analysis.organismo_pagador,
                         tipo_adjudicacion: analysis.tipo_adjudicacion,
                         resumen_veridian: analysis.resumen_veridian,
+                        contexto_detallado: analysis.contexto_detallado || '',
                         texto_original: entry.texto.substring(0, 2000),
                         titulo_original: entry.titulo
                     });

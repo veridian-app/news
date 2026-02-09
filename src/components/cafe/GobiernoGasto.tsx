@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, ExternalLink, TrendingUp, Building2, Banknote } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, TrendingUp, Building2, Banknote, ChevronDown, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface BOEExpense {
@@ -19,6 +19,7 @@ interface BOEExpense {
     organismo_pagador: string;
     tipo_adjudicacion: string;
     resumen_veridian: string;
+    contexto_detallado?: string;
     boe_url?: string;
 }
 
@@ -62,6 +63,7 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [totalToday, setTotalToday] = useState(0);
+    const [isExpanded, setIsExpanded] = useState(false);
 
     useEffect(() => {
         const fetchExpenses = async () => {
@@ -84,10 +86,12 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
 
     const nextExpense = () => {
         setCurrentIndex((prev) => (prev + 1) % expenses.length);
+        setIsExpanded(false);
     };
 
     const prevExpense = () => {
         setCurrentIndex((prev) => (prev - 1 + expenses.length) % expenses.length);
+        setIsExpanded(false);
     };
 
     const currentExpense = expenses[currentIndex];
@@ -214,6 +218,44 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
                                         <span>Ver en BOE oficial</span>
                                     </a>
                                 )}
+
+                                {/* Botón Expandir - Solo si hay contexto detallado */}
+                                {currentExpense.contexto_detallado && (
+                                    <button
+                                        onClick={() => setIsExpanded(!isExpanded)}
+                                        className="flex items-center gap-2 w-full py-3 px-4 mt-3 bg-white/5 hover:bg-white/10 rounded-xl transition-colors border border-white/5"
+                                    >
+                                        <Info className="w-4 h-4 text-blue-400" />
+                                        <span className="text-zinc-300 text-sm font-medium flex-1 text-left">
+                                            {isExpanded ? 'Ocultar explicación' : '¿Por qué es relevante?'}
+                                        </span>
+                                        <ChevronDown
+                                            className={cn(
+                                                "w-4 h-4 text-zinc-500 transition-transform duration-200",
+                                                isExpanded && "rotate-180"
+                                            )}
+                                        />
+                                    </button>
+                                )}
+
+                                {/* Contexto Detallado Expandible */}
+                                <AnimatePresence>
+                                    {isExpanded && currentExpense.contexto_detallado && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="pt-3 mt-3 border-t border-white/5">
+                                                <p className="text-zinc-300 text-sm leading-relaxed">
+                                                    {currentExpense.contexto_detallado}
+                                                </p>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
 
                             {/* Navegación */}
