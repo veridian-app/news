@@ -301,7 +301,7 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
                                 ) : (
                                     <div className="flex items-center gap-1.5 text-xs text-zinc-500">
                                         <Info className="w-3.5 h-3.5" />
-                                        <span>Fuente: Base de Datos Nacional de Subvenciones</span>
+                                        <span>Fuente: {currentExpense.source === 'BDNS' ? 'Base de Datos Nacional de Subvenciones' : currentExpense.source === 'PLACSP' ? 'Plataforma de Contratación' : 'Boletín Oficial del Estado'}</span>
                                     </div>
                                 )}
 

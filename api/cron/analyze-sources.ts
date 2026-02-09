@@ -132,27 +132,50 @@ async function processBOE(dateStr?: string) {
 
     // Analyze top 15 candidates
     for (const entry of moneyEntries.slice(0, 15)) {
+        // Deep Scrape: Fetch the detail page to get the full text and accurate amount
+        let fullText = entry.texto;
+        try {
+            if (entry.url) {
+                const detailRes = await fetch(entry.url, { headers: { 'User-Agent': 'Veridian-BOE/1.0' } });
+                if (detailRes.ok) {
+                    const detailHtml = await detailRes.text();
+                    // Extract text from the main container (usually <div id="textoxslt"> or similar)
+                    // Simplified regex to capture the main content block
+                    const contentMatch = detailHtml.match(/<div[^>]*id="textoxslt"[^>]*>([\s\S]*?)<\/div>/i) || detailHtml.match(/<div[^>]*class="texto"[^>]*>([\s\S]*?)<\/div>/i);
+                    if (contentMatch) {
+                        fullText = contentMatch[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+                    }
+                }
+            }
+        } catch (e) {
+            console.error(`Error fetching detail for ${entry.url}`, e);
+        }
+
         const systemPrompt = `Eres experto en gasto público. Extrae datos de este anuncio del BOE.
+        IMPORTANTE: Busca cifras explícitas como "Valor estimado", "Presupuesto base de licitación" o "Importe".
+        Si hay varias cifras, prioriza el "Valor estimado" o el "Importe total/adjudicación".
+        Si no encuentras una cifra explícita, usa 0.
+        
         JSON: { "beneficiario": string, "importe_total": number, "moneda": "EUR", "organismo_pagador": string, "tipo_adjudicacion": string, "resumen_veridian": string (max 15 words), "contexto_detallado": string }`;
 
         const analysis = await geminiAnalysis(
-            `Analiza: ${entry.texto}`,
+            `Analiza este texto completo del anuncio: ${fullText.substring(0, 10000)}`, // Limit length for token safety
             systemPrompt
         );
 
-        if (analysis && analysis.importe_total > 0 && analysis.beneficiario) {
+        if (analysis && analysis.importe_total > 0) {
             const { error } = await supabase.from('boe_expenses').insert({
                 boe_date: date.formatted,
                 boe_section: entry.seccion,
                 boe_url: entry.url,
-                beneficiario: analysis.beneficiario,
+                beneficiario: analysis.beneficiario || 'No especificado',
                 importe_total: analysis.importe_total,
                 moneda: analysis.moneda || 'EUR',
                 organismo_pagador: analysis.organismo_pagador,
                 tipo_adjudicacion: analysis.tipo_adjudicacion,
                 resumen_veridian: analysis.resumen_veridian,
                 contexto_detallado: analysis.contexto_detallado,
-                texto_original: entry.texto.substring(0, 2000),
+                texto_original: entry.texto.substring(0, 2000), // Keep original summary
                 titulo_original: entry.titulo
             });
             if (!error) {
@@ -160,7 +183,7 @@ async function processBOE(dateStr?: string) {
                 results.push(analysis);
             }
         }
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise(r => setTimeout(r, 500)); // Increased delay for politeness
     }
     return { saved, count: entries.length, money_candidates: moneyEntries.length };
 }
