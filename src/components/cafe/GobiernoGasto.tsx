@@ -21,7 +21,7 @@ interface PublicExpense {
     resumen: string;
     contexto?: string;
     url?: string;
-    source: 'BOE' | 'BDNS';
+    source: 'BOE' | 'BDNS' | 'PLACSP';
 }
 
 interface GobiernoGastoProps {
@@ -46,6 +46,7 @@ const getTypeEmoji = (tipo: string): string => {
     if (t.includes('dedo')) return '👉';
     if (t.includes('concurso') || t.includes('licitación')) return '🏆';
     if (t.includes('subvención') || t.includes('beca')) return '🎁';
+    if (t.includes('contrato')) return '📄';
     return '💰';
 };
 
@@ -56,6 +57,7 @@ const getTypeColor = (tipo: string): string => {
     if (t.includes('dedo')) return 'text-red-400 bg-red-500/10 border-red-500/20';
     if (t.includes('concurso') || t.includes('licitación')) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
     if (t.includes('subvención') || t.includes('beca')) return 'text-blue-400 bg-blue-500/10 border-blue-500/20';
+    if (t.includes('contrato')) return 'text-purple-400 bg-purple-500/10 border-purple-500/20';
     return 'text-orange-400 bg-orange-500/10 border-orange-500/20';
 };
 
@@ -69,9 +71,10 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [boeRes, bdnsRes] = await Promise.all([
+                const [boeRes, bdnsRes, placspRes] = await Promise.all([
                     fetch('/api/cron/analyze-boe?limit=10'),
-                    fetch('/api/cron/analyze-bdns?limit=10').catch(() => null) // Fallback si falla
+                    fetch('/api/cron/analyze-bdns?limit=10').catch(() => null),
+                    fetch('/api/cron/analyze-placsp?limit=10').catch(() => null)
                 ]);
 
                 let allExpenses: PublicExpense[] = [];
@@ -110,10 +113,30 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
                         tipo: 'Subvención',
                         resumen: item.resumen_veridian,
                         contexto: item.contexto_detallado,
-                        url: null, // BDNS API no da URL directa fácil
+                        url: null,
                         source: 'BDNS' as const
                     }));
                     allExpenses = [...allExpenses, ...bdnsItems];
+                    total += data.stats?.importe_total || 0;
+                }
+
+                // Procesar PLACSP
+                if (placspRes && placspRes.ok) {
+                    const data = await placspRes.json();
+                    const placspItems = (data.contratos || []).map((item: any) => ({
+                        id: item.id,
+                        date: item.fecha_publicacion,
+                        beneficiario: 'Licitación Pública', // En fase de anuncio no siempre hay beneficiario
+                        importe: item.importe,
+                        moneda: 'EUR',
+                        organismo: item.organo_contratacion,
+                        tipo: 'Licitación',
+                        resumen: item.resumen_veridian,
+                        contexto: item.contexto_detallado,
+                        url: item.link_licitacion,
+                        source: 'PLACSP' as const
+                    }));
+                    allExpenses = [...allExpenses, ...placspItems];
                     total += data.stats?.importe_total || 0;
                 }
 
