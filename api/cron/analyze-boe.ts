@@ -257,35 +257,57 @@ interface ExpenseAnalysis {
  * Usa Gemini Flash (modelo barato y rápido)
  */
 async function analyzeWithAI(entry: BOEEntry): Promise<ExpenseAnalysis | null> {
-    const systemPrompt = `Eres un auditor ciudadano cínico y directo. Tu trabajo es traducir la jerga burocrática del BOE a lenguaje que entienda un niño de 10 años.
+    // Detectar tipo de anuncio
+    const textoLower = entry.texto.toLowerCase();
+    const esLicitacion = textoLower.includes('anuncio de licitación');
+    const esFormalizacion = textoLower.includes('formalización de contrato');
+    const esAdjudicacion = textoLower.includes('adjudicación');
+    const esSubvencion = textoLower.includes('subvención') || textoLower.includes('subvencion');
 
-TAREA:
-1. Extrae los datos clave del texto
-2. Reescribe el 'Objeto' del gasto sin jerga
-3. Identifica quién paga y quién cobra
+    let tipoDetectado = 'Desconocido';
+    if (esLicitacion) tipoDetectado = 'Licitación';
+    else if (esFormalizacion) tipoDetectado = 'Contrato formalizado';
+    else if (esAdjudicacion) tipoDetectado = 'Adjudicación';
+    else if (esSubvencion) tipoDetectado = 'Subvención';
 
-REGLAS CRÍTICAS:
-- resumen_veridian: MÁXIMO 10 palabras, irónico pero veraz
-- Si no hay importe claro, usa 0
-- tipo_adjudicacion: "A dedo" si es designación directa, "Concurso" si hay competencia, "Subvención" si es ayuda
+    const systemPrompt = `Eres un periodista de investigación especializado en gasto público español. 
+Tu tarea es extraer datos clave de anuncios del BOE y reescribirlos en lenguaje ciudadano.
 
-Responde SOLO en JSON válido:
+CONTEXTO: Este es un ${tipoDetectado} del BOE.
+
+EXTRACCIÓN DE DATOS:
+1. OBJETO: ¿Qué se está contratando/financiando? Resume en 1 frase simple.
+2. ORGANISMO: ¿Quién paga? (Ministerio, Ayuntamiento, empresa pública)
+3. BENEFICIARIO: ¿Quién recibe el dinero? Si es una licitación abierta, pon "Pendiente de adjudicación"
+4. IMPORTE: Busca números seguidos de "euros", "€", o expresiones como "X millones". Si no hay importe explícito, usa 0.
+5. TIPO: 
+   - "Licitación" si está abierto a empresas
+   - "Contrato" si ya está adjudicado
+   - "Subvención" si es ayuda directa
+   - "A dedo" si es designación directa sin concurso
+
+RESUMEN VERIDIAN (CRÍTICO):
+- MÁXIMO 12 palabras
+- Lenguaje directo, sin jerga burocrática
+- Tono: informativo pero incisivo (no insultante)
+- Ejemplo: "360.000€ para modernizar el jardín de Zarzuela"
+
+RESPONDE SOLO EN JSON:
 {
-  "beneficiario": "Quién recibe el dinero",
-  "importe_total": 12345.67,
+  "beneficiario": "Nombre de empresa/persona/entidad o 'Pendiente de adjudicación'",
+  "importe_total": 123456.78,
   "moneda": "EUR",
-  "organismo_pagador": "Quién paga (ministerio, comunidad, etc.)",
-  "tipo_adjudicacion": "A dedo | Concurso | Subvención",
-  "resumen_veridian": "Frase corta e irónica que explique el gasto"
+  "organismo_pagador": "Quién paga",
+  "tipo_adjudicacion": "Licitación | Contrato | Subvención | A dedo",
+  "resumen_veridian": "Frase corta explicando el gasto"
 }`;
 
-    const prompt = `Analiza este texto del BOE:
+    const prompt = `Analiza este anuncio del BOE y extrae los datos:
 
-TÍTULO: ${entry.titulo}
+TEXTO COMPLETO:
+${entry.texto}
 
-TEXTO: ${entry.texto}
-
-Extrae los datos de gasto público y genera el JSON.`;
+Genera el JSON con los datos extraídos.`;
 
     try {
         const response = await fetch(
@@ -439,11 +461,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
         }
 
-        // 2. FILTRO TACAÑO: Solo procesar los que mencionan dinero
-        const moneyEntries = entries.filter(entry => {
-            const fullText = `${entry.titulo} ${entry.texto}`;
-            return containsMoney(fullText);
-        });
+        // 2. FILTRO INTELIGENTE: Priorizar licitaciones y contratos
+        const priorityKeywords = ['licitación', 'formalización de contrato', 'adjudicación', 'importe'];
+
+        const moneyEntries = entries
+            .filter(entry => {
+                const fullText = `${entry.titulo} ${entry.texto}`;
+                return containsMoney(fullText);
+            })
+            .sort((a, b) => {
+                // Priorizar los que tienen palabras clave de contratos
+                const textA = a.texto.toLowerCase();
+                const textB = b.texto.toLowerCase();
+                const priorityA = priorityKeywords.filter(k => textA.includes(k)).length;
+                const priorityB = priorityKeywords.filter(k => textB.includes(k)).length;
+                return priorityB - priorityA;
+            });
 
         console.log(`💰 Filtro tacaño: ${moneyEntries.length}/${entries.length} entradas contienen dinero`);
 
