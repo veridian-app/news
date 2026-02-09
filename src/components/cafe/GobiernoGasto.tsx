@@ -10,17 +10,18 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, ExternalLink, TrendingUp, Building2, Banknote, ChevronDown, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface BOEExpense {
+interface PublicExpense {
     id: string;
-    boe_date: string;
+    date: string;
     beneficiario: string;
-    importe_total: number;
+    importe: number;
     moneda: string;
-    organismo_pagador: string;
-    tipo_adjudicacion: string;
-    resumen_veridian: string;
-    contexto_detallado?: string;
-    boe_url?: string;
+    organismo: string;
+    tipo: string;
+    resumen: string;
+    contexto?: string;
+    url?: string;
+    source: 'BOE' | 'BDNS';
 }
 
 interface GobiernoGastoProps {
@@ -40,48 +41,95 @@ const formatMoney = (amount: number): string => {
 
 // Obtiene emoji según tipo de adjudicación
 const getTypeEmoji = (tipo: string): string => {
-    switch (tipo?.toLowerCase()) {
-        case 'a dedo': return '👉';
-        case 'concurso': return '🏆';
-        case 'subvención': return '🎁';
-        default: return '💰';
-    }
+    if (!tipo) return '💰';
+    const t = tipo.toLowerCase();
+    if (t.includes('dedo')) return '👉';
+    if (t.includes('concurso') || t.includes('licitación')) return '🏆';
+    if (t.includes('subvención') || t.includes('beca')) return '🎁';
+    return '💰';
 };
 
 // Obtiene color según tipo
 const getTypeColor = (tipo: string): string => {
-    switch (tipo?.toLowerCase()) {
-        case 'a dedo': return 'text-red-400 bg-red-500/10 border-red-500/20';
-        case 'concurso': return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
-        case 'subvención': return 'text-blue-400 bg-blue-500/10 border-blue-500/20';
-        default: return 'text-orange-400 bg-orange-500/10 border-orange-500/20';
-    }
+    if (!tipo) return 'text-orange-400 bg-orange-500/10 border-orange-500/20';
+    const t = tipo.toLowerCase();
+    if (t.includes('dedo')) return 'text-red-400 bg-red-500/10 border-red-500/20';
+    if (t.includes('concurso') || t.includes('licitación')) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+    if (t.includes('subvención') || t.includes('beca')) return 'text-blue-400 bg-blue-500/10 border-blue-500/20';
+    return 'text-orange-400 bg-orange-500/10 border-orange-500/20';
 };
 
 export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
-    const [expenses, setExpenses] = useState<BOEExpense[]>([]);
+    const [expenses, setExpenses] = useState<PublicExpense[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [totalToday, setTotalToday] = useState(0);
     const [isExpanded, setIsExpanded] = useState(false);
 
     useEffect(() => {
-        const fetchExpenses = async () => {
+        const fetchData = async () => {
             try {
-                const response = await fetch('/api/cron/analyze-boe?limit=10');
-                if (response.ok) {
-                    const data = await response.json();
-                    setExpenses(data.expenses || []);
-                    setTotalToday(data.stats?.gasto_total || 0);
+                const [boeRes, bdnsRes] = await Promise.all([
+                    fetch('/api/cron/analyze-boe?limit=10'),
+                    fetch('/api/cron/analyze-bdns?limit=10').catch(() => null) // Fallback si falla
+                ]);
+
+                let allExpenses: PublicExpense[] = [];
+                let total = 0;
+
+                // Procesar BOE
+                if (boeRes.ok) {
+                    const data = await boeRes.json();
+                    const boeItems = (data.expenses || []).map((item: any) => ({
+                        id: item.id,
+                        date: item.boe_date,
+                        beneficiario: item.beneficiario,
+                        importe: item.importe_total,
+                        moneda: item.moneda,
+                        organismo: item.organismo_pagador,
+                        tipo: item.tipo_adjudicacion,
+                        resumen: item.resumen_veridian,
+                        contexto: item.contexto_detallado,
+                        url: item.boe_url,
+                        source: 'BOE' as const
+                    }));
+                    allExpenses = [...allExpenses, ...boeItems];
+                    total += data.stats?.gasto_total || 0;
                 }
+
+                // Procesar BDNS
+                if (bdnsRes && bdnsRes.ok) {
+                    const data = await bdnsRes.json();
+                    const bdnsItems = (data.subvenciones || []).map((item: any) => ({
+                        id: item.id,
+                        date: item.fecha_concesion,
+                        beneficiario: item.beneficiario,
+                        importe: item.importe,
+                        moneda: 'EUR',
+                        organismo: item.administracion + (item.departamento ? ` - ${item.departamento}` : ''),
+                        tipo: 'Subvención',
+                        resumen: item.resumen_veridian,
+                        contexto: item.contexto_detallado,
+                        url: null, // BDNS API no da URL directa fácil
+                        source: 'BDNS' as const
+                    }));
+                    allExpenses = [...allExpenses, ...bdnsItems];
+                    total += data.stats?.importe_total || 0;
+                }
+
+                // Ordenar por importe descendente
+                allExpenses.sort((a, b) => b.importe - a.importe);
+
+                setExpenses(allExpenses);
+                setTotalToday(total);
             } catch (error) {
-                console.error('Error fetching BOE expenses:', error);
+                console.error('Error fetching expenses:', error);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        fetchExpenses();
+        fetchData();
     }, []);
 
     const nextExpense = () => {
@@ -165,17 +213,27 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
                             <div className="bg-gradient-to-r from-orange-500/20 via-red-500/10 to-transparent px-5 py-4 border-b border-white/5">
                                 <div className="flex items-center justify-between">
                                     <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className={cn(
+                                                "text-[10px] font-bold px-1.5 py-0.5 rounded border",
+                                                currentExpense.source === 'BOE'
+                                                    ? "bg-zinc-800 text-zinc-300 border-zinc-700"
+                                                    : "bg-blue-900/30 text-blue-300 border-blue-500/30"
+                                            )}>
+                                                {currentExpense.source}
+                                            </span>
+                                        </div>
                                         <span className="text-4xl font-bold text-white">
-                                            {formatMoney(currentExpense.importe_total)}
+                                            {formatMoney(currentExpense.importe)}
                                         </span>
                                         <span className="ml-2 text-zinc-400 text-sm">{currentExpense.moneda}</span>
                                     </div>
                                     <div className={cn(
                                         "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium",
-                                        getTypeColor(currentExpense.tipo_adjudicacion)
+                                        getTypeColor(currentExpense.tipo)
                                     )}>
-                                        <span>{getTypeEmoji(currentExpense.tipo_adjudicacion)}</span>
-                                        <span>{currentExpense.tipo_adjudicacion}</span>
+                                        <span>{getTypeEmoji(currentExpense.tipo)}</span>
+                                        <span>{currentExpense.tipo}</span>
                                     </div>
                                 </div>
                             </div>
@@ -184,7 +242,7 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
                             <div className="p-5 space-y-4">
                                 {/* Resumen Veridian - La frase irónica */}
                                 <p className="text-white text-lg font-medium leading-relaxed">
-                                    "{currentExpense.resumen_veridian}"
+                                    "{currentExpense.resumen}"
                                 </p>
 
                                 {/* Detalles */}
@@ -201,15 +259,15 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
                                         <Building2 className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
                                         <div>
                                             <span className="text-zinc-500 text-xs block">Organismo pagador</span>
-                                            <span className="text-zinc-200 text-sm">{currentExpense.organismo_pagador}</span>
+                                            <span className="text-zinc-200 text-sm">{currentExpense.organismo}</span>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Link BOE */}
-                                {currentExpense.boe_url && (
+                                {/* Link BOE / Fuente */}
+                                {currentExpense.url ? (
                                     <a
-                                        href={currentExpense.boe_url}
+                                        href={currentExpense.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-orange-400 transition-colors"
@@ -217,10 +275,15 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
                                         <ExternalLink className="w-3.5 h-3.5" />
                                         <span>Ver en BOE oficial</span>
                                     </a>
+                                ) : (
+                                    <div className="flex items-center gap-1.5 text-xs text-zinc-500">
+                                        <Info className="w-3.5 h-3.5" />
+                                        <span>Fuente: Base de Datos Nacional de Subvenciones</span>
+                                    </div>
                                 )}
 
                                 {/* Botón Expandir - Solo si hay contexto detallado */}
-                                {currentExpense.contexto_detallado && (
+                                {currentExpense.contexto && (
                                     <button
                                         onClick={() => setIsExpanded(!isExpanded)}
                                         className="flex items-center gap-2 w-full py-3 px-4 mt-3 bg-white/5 hover:bg-white/10 rounded-xl transition-colors border border-white/5"
@@ -240,7 +303,7 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
 
                                 {/* Contexto Detallado Expandible */}
                                 <AnimatePresence>
-                                    {isExpanded && currentExpense.contexto_detallado && (
+                                    {isExpanded && currentExpense.contexto && (
                                         <motion.div
                                             initial={{ height: 0, opacity: 0 }}
                                             animate={{ height: 'auto', opacity: 1 }}
@@ -250,7 +313,7 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
                                         >
                                             <div className="pt-3 mt-3 border-t border-white/5">
                                                 <p className="text-zinc-300 text-sm leading-relaxed">
-                                                    {currentExpense.contexto_detallado}
+                                                    {currentExpense.contexto}
                                                 </p>
                                             </div>
                                         </motion.div>
@@ -302,7 +365,7 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
             {/* Footer con fecha */}
             {!isLoading && expenses.length > 0 && (
                 <p className="text-center text-zinc-600 text-xs mt-4">
-                    Fuente: BOE {currentExpense?.boe_date ? new Date(currentExpense.boe_date).toLocaleDateString('es-ES', {
+                    Fuente: {currentExpense?.source === 'BOE' ? 'BOE' : 'BDNS'} {currentExpense?.date ? new Date(currentExpense.date).toLocaleDateString('es-ES', {
                         day: 'numeric',
                         month: 'long',
                         year: 'numeric'
