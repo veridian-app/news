@@ -395,7 +395,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const date = getTodayBOEDate();
+    // Permitir fecha personalizada para testing (ej: ?boe_date=2026-02-06)
+    const customDate = req.query.boe_date as string | undefined;
+    let date: { year: string; month: string; day: string; formatted: string };
+
+    if (customDate && /^\d{4}-\d{2}-\d{2}$/.test(customDate)) {
+        const [year, month, day] = customDate.split('-');
+        date = { year, month, day, formatted: customDate };
+    } else {
+        date = getTodayBOEDate();
+    }
 
     console.log(`\n${'='.repeat(60)}`);
     console.log(`🏛️ ANALIZADOR BOE - ${date.formatted}`);
