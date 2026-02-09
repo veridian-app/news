@@ -13,15 +13,15 @@
       "schedule": "30 7 * * *"
     },
     {
-      "path": "/api/cron/analyze-boe",
+      "path": "/api/cron/analyze-sources?source=boe",
       "schedule": "0 9 * * 1-5"
     },
     {
-      "path": "/api/cron/analyze-bdns",
+      "path": "/api/cron/analyze-sources?source=bdns",
       "schedule": "30 9 * * *"
     },
     {
-      "path": "/api/cron/analyze-placsp",
+      "path": "/api/cron/analyze-sources?source=placsp",
       "schedule": "0 10 * * *"
     }
   ],

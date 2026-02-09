@@ -29,7 +29,6 @@ interface NewsCardProps {
     isActive: boolean;
     index: number;
     onLike: () => void;
-    onComment: () => void;
     onShare: () => void;
     onReadMore: () => void;
     onMarkAsRead?: () => void;
@@ -209,7 +208,7 @@ const ShareModal = ({ isOpen, onClose, item }: { isOpen: boolean; onClose: () =>
     );
 };
 
-export const NewsCard = ({ item, isActive, index, onLike, onComment, onShare, onReadMore, onMarkAsRead }: NewsCardProps) => {
+export const NewsCard = ({ item, isActive, index, onLike, onShare, onReadMore, onMarkAsRead }: NewsCardProps) => {
     // Logic for double tap
     const lastTap = useRef<number>(0);
     const [showDoubleTapHeart, setShowDoubleTapHeart] = useState(false);

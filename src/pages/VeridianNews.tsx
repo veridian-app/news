@@ -264,15 +264,8 @@ const VeridianNews = () => {
   const [tableExists, setTableExists] = useState<boolean | null>(null); // null = desconocido, true = existe, false = no existe
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
   const [showContentModal, setShowContentModal] = useState(false);
-  const [showCommentsModal, setShowCommentsModal] = useState(false);
-  const [showChatModal, setShowChatModal] = useState(false);
-  const [comments, setComments] = useState<any[]>([]);
-  const [chatMessages, setChatMessages] = useState<any[]>([]);
-  const [commentInput, setCommentInput] = useState("");
-  const [chatInput, setChatInput] = useState("");
   const [currentVisibleNews, setCurrentVisibleNews] = useState<NewsItem | null>(null);
   const [showAIPanel, setShowAIPanel] = useState(false);
-  const [isGeneratingComment, setIsGeneratingComment] = useState(false);
   const [likedNewsIds, setLikedNewsIds] = useState<Set<string>>(new Set());
   const [userPreferences, setUserPreferences] = useState<Map<string, number>>(new Map());
   // Inicializar vacío - solo mostrar noticias del Excel
@@ -452,12 +445,10 @@ const VeridianNews = () => {
   };
 
   const openAIChat = (item: NewsItem) => {
-    setSelectedNews(item);
-    setShowAIPanel(true);
-    setChatMessages([{
-      type: 'bot',
-      text: 'Hola! Puedo responder preguntas sobre esta noticia y también investigar información adicional relacionada, buscar artículos relacionados y consultar fuentes externas. ¿Qué te gustaría saber?'
-    }]);
+    toast({
+      title: "Próximamente",
+      description: "El asistente IA estará disponible muy pronto para responder tus dudas.",
+    });
   };
 
 
@@ -912,318 +903,11 @@ const VeridianNews = () => {
   };
 
 
-  const openComments = async (item: NewsItem) => {
-    setSelectedNews(item);
-    setShowCommentsModal(true);
-    await loadComments(item.id);
-  };
-
-  const loadComments = async (newsId: string) => {
-    try {
-      // Intentar cargar desde la API primero
-      const response = await fetch(`${API_BASE}/api/news/${newsId}/comments`);
-      if (response.ok) {
-        const commentsData = await response.json();
-        setComments(commentsData);
-        console.log(`✅ Cargados ${commentsData.length} comentarios desde API`);
-        return;
-      }
-
-      // Si la API falla, intentar cargar desde Supabase directamente
-      if (isSupabaseConfigured()) {
-        // Cargar comentarios
-        // @ts-ignore - Supabase types might be outdated for news_comments
-        const { data: commentsData, error: commentsError } = await (supabase
-          .from('news_comments' as any)
-          .select('*')
-          .eq('news_id', newsId)
-          .order('created_at', { ascending: true }));
-
-        if (commentsError) throw commentsError;
-
-        if (commentsData) {
-          const formattedComments = (commentsData as any[]).map((comment: any) => ({
-            id: comment.id,
-            user: comment.username || 'Usuario anónimo',
-            text: comment.text,
-            date: new Date(comment.created_at).toLocaleDateString(),
-            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.user_id}`
-          }));
-          setComments(formattedComments);
-          console.log(`✅ Cargados ${commentsData.length} comentarios desde Supabase`);
-          return;
-        }
-      }
-
-      // Si todo falla, usar array vacío
-      console.warn('⚠️ No se pudieron cargar comentarios');
-      setComments([]);
-    } catch (error) {
-      console.error('❌ Error cargando comentarios:', error);
-      setComments([]);
-    }
-  };
-
-  const generateAIComment = async () => {
-    if (!selectedNews) return;
-
-    setIsGeneratingComment(true);
-    setError(null);
-
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 segundos timeout
-
-      const response = await fetch(`${API_BASE}/api/news/${selectedNews.id}/generate-comment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          newsData: {
-            title: selectedNews.title,
-            content: selectedNews.content || '',
-            summary: selectedNews.summary || '',
-            source: selectedNews.source || '',
-            date: selectedNews.date || '',
-            url: selectedNews.url || ''
-          },
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Error desconocido' }));
-        throw new Error(errorData.message || errorData.error || `Error ${response.status}`);
-      }
-
-      const data = await response.json();
-      const suggestedComment = data.comment || '';
-
-      // Poner el comentario sugerido en el input
-      if (suggestedComment.trim()) {
-        setCommentInput(suggestedComment.trim());
-        console.log('✅ Comentario sugerido generado con IA');
-      } else {
-        throw new Error('No se pudo generar un comentario sugerido');
-      }
-    } catch (error: any) {
-      console.error('❌ Error generando comentario con IA:', error);
-
-      let errorMessage = 'No se pudo generar un comentario sugerido.';
-
-      if (error.name === 'AbortError') {
-        errorMessage = 'La petición tardó demasiado. Por favor, intenta de nuevo.';
-      } else if (error.message) {
-        if (error.message.includes('API key') || error.message.includes('configurada')) {
-          errorMessage = '⚠️ La función de IA no está configurada. Configura OPENAI_API_KEY, ANTHROPIC_API_KEY o GEMINI_API_KEY en Vercel.';
-        } else {
-          errorMessage = `Error: ${error.message}`;
-        }
-      }
-
-      setError(errorMessage);
-      setTimeout(() => setError(null), 5000);
-    } finally {
-      setIsGeneratingComment(false);
-    }
-  };
-
-  const submitComment = async () => {
-    if (!commentInput.trim() || !selectedNews) return;
-
-    const commentText = commentInput.trim();
-
-    // Validar longitud antes de enviar
-    if (commentText.length > 500) {
-      setError('⚠️ El comentario no puede exceder 500 caracteres');
-      setTimeout(() => setError(null), 5000);
-      return;
-    }
-
-    setCommentInput(''); // Limpiar input inmediatamente para mejor UX
-
-    try {
-      // Intentar guardar en la API primero
-      const response = await fetch(`${API_BASE}/api/news/${selectedNews.id}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: USER_ID, text: commentText }),
-      });
-
-      if (response.ok) {
-        const newComment = await response.json();
-        // Agregar el comentario a la lista inmediatamente para mejor UX
-        setComments(prev => [newComment, ...prev]);
-        // Actualizar el conteo de comentarios en la noticia localmente
-        setRawNews(prevNews =>
-          prevNews.map(n =>
-            n.id === selectedNews.id
-              ? { ...n, comments: (n.comments || 0) + 1 }
-              : n
-          )
-        );
-        console.log('✅ Comentario guardado en API');
-        return;
-      }
-
-      // Si la API falla, intentar guardar directamente en Supabase
-      if (isSupabaseConfigured()) {
-        // @ts-ignore - Supabase types might be outdated
-        const { data, error } = await (supabase
-          .from('news_comments' as any)
-          .insert({
-            news_id: selectedNews.id,
-            user_id: USER_ID,
-            text: commentText,
-            username: USER_ID === 'anonymous' ? 'Anónimo' : USER_ID.substring(0, 20),
-          })
-          .select()
-          .single());
-
-
-        if (!error && data) {
-          // Agregar el comentario a la lista inmediatamente
-          const commentData = data as any; // Force any cast to fix missing type definition
-          const newComment = {
-            id: commentData.id,
-            newsId: commentData.news_id,
-            userId: commentData.user_id,
-            text: commentData.text,
-            timestamp: commentData.created_at,
-            username: commentData.username || (commentData.user_id === 'anonymous' ? 'Anónimo' : commentData.user_id.substring(0, 20)),
-          };
-          setComments(prev => [newComment, ...prev]);
-          // Actualizar el conteo de comentarios en la noticia localmente
-          setRawNews(prevNews =>
-            prevNews.map(n =>
-              n.id === selectedNews.id
-                ? { ...n, comments: (n.comments || 0) + 1 }
-                : n
-            )
-          );
-          console.log('✅ Comentario guardado en Supabase');
-          return;
-        } else {
-          throw error || new Error('Error al guardar en Supabase');
-        }
-      }
-
-      // Si llegamos aquí, ni la API ni Supabase funcionaron
-      const errorData = await response.json().catch(() => ({ message: 'Error desconocido' }));
-      throw new Error(errorData.message || errorData.error || 'No se pudo guardar el comentario. Verifica la configuración de Supabase.');
-    } catch (error: any) {
-      console.error('❌ Error al guardar comentario:', error);
-      setError(`⚠️ Error al guardar comentario: ${error.message || 'Error desconocido'}`);
-      setTimeout(() => setError(null), 5000);
-      // Restaurar el texto del comentario si falló
-      setCommentInput(commentText);
-    }
-  };
-
   const openChat = (item: NewsItem) => {
-    setSelectedNews(item);
-    setShowChatModal(true);
-    setChatMessages([{
-      type: 'bot',
-      text: 'Hola! Puedo responder preguntas sobre esta noticia y también investigar información adicional relacionada, buscar artículos relacionados y consultar fuentes externas. ¿Qué te gustaría saber?'
-    }]);
-  };
-
-  const submitChatMessage = async () => {
-    if (!chatInput.trim() || !selectedNews) return;
-
-    const userMessage = { type: 'user', text: chatInput.trim() };
-    setChatMessages(prev => [...prev, userMessage]);
-    const currentQuestion = chatInput.trim();
-    setChatInput('');
-
-    const loadingMessage = { type: 'bot', text: 'Pensando...', loading: true };
-    setChatMessages(prev => [...prev, loadingMessage]);
-
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 35000); // 35 segundos timeout
-
-      const chatUrl = `${API_BASE}/api/news/${selectedNews.id}/chat`;
-      console.log('🔗 Llamando a:', chatUrl);
-
-      const response = await fetch(chatUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: currentQuestion,
-          newsData: {
-            title: selectedNews.title,
-            content: selectedNews.content || '',
-            summary: selectedNews.summary || '',
-            source: selectedNews.source || '',
-            date: selectedNews.date || '',
-            url: selectedNews.url || ''
-          },
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      console.log('📡 Respuesta del servidor:', response.status, response.statusText);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Error del servidor:', errorText);
-        let errorData;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch {
-          errorData = { message: errorText || `Error ${response.status}` };
-        }
-        throw new Error(errorData.message || errorData.error || `Error ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      setChatMessages(prev => {
-        const filtered = prev.filter(m => !m.loading);
-        return [...filtered, { type: 'bot', text: data.response || 'No se pudo generar una respuesta.' }];
-      });
-    } catch (error: any) {
-      console.error('❌ Error en chat:', error);
-      console.error('❌ Error details:', {
-        name: error?.name,
-        message: error?.message,
-        stack: error?.stack,
-        API_BASE: API_BASE,
-        newsId: selectedNews?.id
-      });
-
-      let errorMessage = 'Lo siento, no pude procesar tu pregunta en este momento.';
-
-      if (error.name === 'AbortError') {
-        errorMessage = 'La petición tardó demasiado. Por favor, intenta con una pregunta más corta o vuelve a intentarlo.';
-      } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        errorMessage = '⚠️ No se pudo conectar con el servidor. Verifica que el endpoint /api/news/[newsId]/chat esté desplegado correctamente en Vercel.';
-      } else if (error.message) {
-        if (error.message.includes('API key') || error.message.includes('configurada')) {
-          errorMessage = '⚠️ La función de IA no está configurada correctamente. Por favor, configura OPENAI_API_KEY, ANTHROPIC_API_KEY o GEMINI_API_KEY en las variables de entorno de Vercel.';
-        } else if (error.message.includes('404') || error.message.includes('Not Found')) {
-          errorMessage = '⚠️ El endpoint de chat no se encontró. Verifica que el archivo /api/news/[newsId]/chat.ts esté desplegado en Vercel.';
-        } else if (error.message.includes('500') || error.message.includes('Error interno')) {
-          errorMessage = '⚠️ Error en el servidor. Revisa los logs de Vercel para más detalles. Puede ser que OPENAI_API_KEY no esté configurada correctamente.';
-        } else {
-          errorMessage = `Error: ${error.message}`;
-        }
-      }
-
-      setChatMessages(prev => {
-        const filtered = prev.filter(m => !m.loading);
-        return [...filtered, {
-          type: 'bot',
-          text: errorMessage,
-          error: true
-        }];
-      });
-    }
+    toast({
+      title: "Próximamente",
+      description: "La función de chat con IA estará disponible muy pronto.",
+    });
   };
 
   // Función para feedback háptico sutil
@@ -1826,10 +1510,6 @@ const VeridianNews = () => {
                 onLike={() => {
                   toggleLike(item);
                 }}
-                onComment={() => {
-                  setSelectedNews(item);
-                  setShowCommentsModal(true);
-                }}
                 onShare={() => {
                   if (navigator.share) {
                     navigator.share({
@@ -2053,55 +1733,7 @@ const VeridianNews = () => {
       )}
 
       {/* Other modals (Comments, AI, etc) - keeping minimal logic for brevity but ensuring they render */}
-      {showCommentsModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-zinc-900 w-full sm:max-w-md h-[80dvh] sm:h-[600px] sm:rounded-2xl rounded-t-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
-            <div className="p-4 border-b border-white/10 flex justify-between items-center">
-              <h3 className="text-white font-bold">Comentarios</h3>
-              <button onClick={() => setShowCommentsModal(false)} className="text-white/60 hover:text-white">✕</button>
-            </div>
-            <div className="flex-1 flex items-center justify-center text-white/40">
-              <p>Funcionalidad de comentarios en construcción para esta demo.</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showAIPanel && selectedNews && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col animate-in fade-in duration-200">
-          <div className="p-4 border-b border-white/10 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-blue-400">
-              <Brain className="w-6 h-6" />
-              <span className="font-bold text-lg">Veridian AI</span>
-            </div>
-            <button onClick={() => setShowAIPanel(false)} className="bg-white/10 p-2 rounded-full text-white">✕</button>
-          </div>
-          <div className="flex-1 p-6 overflow-y-auto">
-            <div className="bg-zinc-800/50 p-4 rounded-xl text-white/90 mb-4 border border-white/5">
-              <p className="font-medium mb-2 text-blue-300">Análisis de la noticia:</p>
-              <p>Esta noticia sobre "{selectedNews.title}" presenta información relevante. Como asistente IA, puedo profundizar en los hechos, detectar posibles sesgos (actualmente: Neutral) y buscar fuentes adicionales.</p>
-            </div>
-            {chatMessages.map((msg, i) => (
-              <div key={i} className={`mb-4 p-3 rounded-lg max-w-[85%] ${msg.type === 'user' ? 'bg-blue-600 ml-auto' : 'bg-zinc-800'}`}>
-                <p className="text-white text-sm">{msg.text}</p>
-              </div>
-            ))}
-          </div>
-          <div className="p-4 border-t border-white/10 bg-zinc-900">
-            <div className="flex gap-2">
-              <input
-                value={chatInput}
-                onChange={e => setChatInput(e.target.value)}
-                className="flex-1 bg-zinc-800 border-none rounded-full px-4 text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                placeholder="Pregunta algo..."
-              />
-              <button onClick={submitChatMessage} className="bg-blue-600 p-3 rounded-full text-white">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modals removed */}
     </div>
   );
 };
