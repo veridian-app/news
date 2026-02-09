@@ -72,9 +72,9 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
         const fetchData = async () => {
             try {
                 const [boeRes, bdnsRes, placspRes] = await Promise.all([
-                    fetch('/api/cron/analyze-sources?source=boe&limit=10'),
-                    fetch('/api/cron/analyze-sources?source=bdns&limit=10').catch(() => null),
-                    fetch('/api/cron/analyze-sources?source=placsp&limit=10').catch(() => null)
+                    fetch('/api/public-expenses?source=boe&limit=10'),
+                    fetch('/api/public-expenses?source=bdns&limit=10').catch(() => null),
+                    fetch('/api/public-expenses?source=placsp&limit=10').catch(() => null)
                 ]);
 
                 let allExpenses: PublicExpense[] = [];
