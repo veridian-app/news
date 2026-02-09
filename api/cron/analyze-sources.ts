@@ -169,21 +169,52 @@ async function processBOE(dateStr?: string) {
 
         // Regex Fallback for Amount (Before AI)
         let fallbackAmount = 0;
-        const moneyRegex = /(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?)\s*(?:€|euros)/i;
+        // Improved regex to catch: 1.234,56 / 1234,56 / 1.234 / 1234
+        const moneyRegex = /([\d\.]+(?:,\d+)?)\s*(?:€|euros|eur)/i;
         const matchMoney = fullText.match(moneyRegex);
         if (matchMoney) {
-            fallbackAmount = parseFloat(matchMoney[1].replace(/\./g, '').replace(',', '.'));
+            // Clean string: remove dots (thousands), replace comma with dot (decimal)
+            // But be careful with 1.234 (1234) vs 1.234,56
+            // Heuristic: if comma exists, it's decimal separator. If dots exist, they are thousands.
+            let cleanRaw = matchMoney[1];
+            if (cleanRaw.includes(',')) {
+                cleanRaw = cleanRaw.replace(/\./g, '').replace(',', '.');
+            } else {
+                // If only dots, assume thousands (Spain), unless it looks like 10.50 (rare in BOE mixed with thousands)
+                // BOE usually uses 1.000 for thousand.
+                cleanRaw = cleanRaw.replace(/\./g, '');
+            }
+            fallbackAmount = parseFloat(cleanRaw);
         }
 
         const systemPrompt = `Eres experto en gasto público. Extrae datos de este anuncio del BOE.
-        IMPORTANTE: Busca cifras explícitas como "Valor estimado", "Presupuesto base de licitación" o "Importe".
-        Si hay varias cifras, prioriza el "Valor estimado" o el "Importe total/adjudicación".
-        Si no encuentras una cifra explícita, usa el valor: ${fallbackAmount > 0 ? fallbackAmount : 0}.
         
-        JSON: { "beneficiario": string, "importe_total": number, "moneda": "EUR", "organismo_pagador": string, "tipo_adjudicacion": string, "resumen_veridian": string (max 15 words), "contexto_detallado": string }`;
+        OBJETIVO: Identificar quién recibe el dinero (Beneficiario) y cuánto (Importe).
+        
+        PARA BENEFICIARIO:
+        - Busca "Adjudicatario", "Contratista", "Beneficiario" o el nombre de la empresa/persona que gana la licitación.
+        - Si es una UTE, indícalo.
+        - Si no aparece explícitamente, intenta inferirlo del contexto ("adjudicado a...").
+        
+        PARA IMPORTE:
+        - Busca cifras explícitas como "Valor estimado", "Importe de adjudicación", "Presupuesto base".
+        - Si hay varias, PREFIERE el "Importe de adjudicación" (lo que realmente se paga).
+        - Si no encuentras nada, usa el valor: ${fallbackAmount > 0 ? fallbackAmount : 0}.
+        
+        SALIDA JSON: { 
+            "beneficiario": string (Nombre limpio, sin CIF si es posible), 
+            "importe_total": number (sin moneda), 
+            "moneda": "EUR", 
+            "organismo_pagador": string, 
+            "tipo_adjudicacion": string, 
+            "resumen_veridian": string (max 15 words, estilo periodístico directo), 
+            "contexto_detallado": string 
+        }`;
 
         const analysis = await geminiAnalysis(
-            `Analiza este texto completo del anuncio: ${fullText.substring(0, 12000)}`,
+            `Analiza este texto. Si está vacío, usa el título.
+            TITULO: ${entry.titulo}
+            TEXTO COMPLETO: ${fullText.substring(0, 15000)}`,
             systemPrompt
         );
 
