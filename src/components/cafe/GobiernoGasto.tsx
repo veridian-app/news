@@ -1,7 +1,7 @@
 /**
  * GobiernoGasto - Sección "¿En qué se ha gastado el gobierno tu dinero hoy?"
  * 
- * Muestra los gastos públicos extraídos del BOE en formato de carrusel
+ * Muestra los gastos públicos extraídos del BOE en formato de dashboard
  * con estilo Café Veridian (cínico, irónico, pero veraz)
  */
 
@@ -67,84 +67,83 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
     const [isLoading, setIsLoading] = useState(true);
     const [totalToday, setTotalToday] = useState(0);
     const [isExpanded, setIsExpanded] = useState(false);
+    const [highlights, setHighlights] = useState<{ day: PublicExpense | null, week: PublicExpense | null, month: PublicExpense | null }>({ day: null, week: null, month: null });
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 const [boeRes, bdnsRes, placspRes] = await Promise.all([
-                    fetch('/api/public-expenses?source=boe&limit=10'),
-                    fetch('/api/public-expenses?source=bdns&limit=10').catch(() => null),
-                    fetch('/api/public-expenses?source=placsp&limit=10').catch(() => null)
+                    fetch('/api/public-expenses?source=boe&limit=20'),
+                    fetch('/api/public-expenses?source=bdns&limit=20').catch(() => null),
+                    fetch('/api/public-expenses?source=placsp&limit=20').catch(() => null)
                 ]);
 
                 let allExpenses: PublicExpense[] = [];
-                let total = 0;
+                let totalAmount = 0;
+                let dailyHighlight: PublicExpense | null = null;
+                let weeklyHighlight: PublicExpense | null = null;
+                let monthlyHighlight: PublicExpense | null = null;
 
-                // Procesar BOE
-                if (boeRes.ok) {
-                    const data = await boeRes.json();
-                    const boeItems = (data.expenses || []).map((item: any) => ({
+                const processSource = async (res: Response | null, sourceName: string) => {
+                    if (!res || !res.ok) return;
+                    const data = await res.json();
+
+                    // Add to main list
+                    const items = (data.expenses || data.subvenciones || data.contratos || []).map((item: any) => ({
                         id: item.id,
-                        date: item.boe_date,
-                        beneficiario: item.beneficiario,
-                        importe: item.importe_total,
-                        moneda: item.moneda,
-                        organismo: item.organismo_pagador,
-                        tipo: item.tipo_adjudicacion,
-                        resumen: item.resumen_veridian,
+                        date: item.boe_date || item.fecha_concesion || item.fecha_publicacion,
+                        beneficiario: item.beneficiario || item.organo_contratacion,
+                        importe: item.importe_total || item.importe,
+                        moneda: item.moneda || 'EUR',
+                        organismo: item.organismo_pagador || item.organo_contratacion,
+                        tipo: item.tipo_adjudicacion || 'Contrato',
+                        resumen: item.resumen_veridian || item.titulo,
                         contexto: item.contexto_detallado,
-                        url: item.boe_url,
-                        source: 'BOE' as const
+                        url: item.boe_url || item.link_licitacion,
+                        source: sourceName
                     }));
-                    allExpenses = [...allExpenses, ...boeItems];
-                    total += data.stats?.gasto_total || 0;
-                }
+                    allExpenses = [...allExpenses, ...items];
 
-                // Procesar BDNS
-                if (bdnsRes && bdnsRes.ok) {
-                    const data = await bdnsRes.json();
-                    const bdnsItems = (data.subvenciones || []).map((item: any) => ({
-                        id: item.id,
-                        date: item.fecha_concesion,
-                        beneficiario: item.beneficiario,
-                        importe: item.importe,
-                        moneda: 'EUR',
-                        organismo: item.administracion + (item.departamento ? ` - ${item.departamento}` : ''),
-                        tipo: 'Subvención',
-                        resumen: item.resumen_veridian,
-                        contexto: item.contexto_detallado,
-                        url: null,
-                        source: 'BDNS' as const
-                    }));
-                    allExpenses = [...allExpenses, ...bdnsItems];
-                    total += data.stats?.importe_total || 0;
-                }
+                    // Add to stats
+                    if (data.stats?.gasto_total) totalAmount += data.stats.gasto_total;
+                    if (data.stats?.importe_total) totalAmount += data.stats.importe_total;
 
-                // Procesar PLACSP
-                if (placspRes && placspRes.ok) {
-                    const data = await placspRes.json();
-                    const placspItems = (data.contratos || []).map((item: any) => ({
-                        id: item.id,
-                        date: item.fecha_publicacion,
-                        beneficiario: 'Licitación Pública', // En fase de anuncio no siempre hay beneficiario
-                        importe: item.importe,
-                        moneda: 'EUR',
-                        organismo: item.organo_contratacion,
-                        tipo: 'Licitación',
-                        resumen: item.resumen_veridian,
-                        contexto: item.contexto_detallado,
-                        url: item.link_licitacion,
-                        source: 'PLACSP' as const
-                    }));
-                    allExpenses = [...allExpenses, ...placspItems];
-                    total += data.stats?.importe_total || 0;
-                }
+                    // Check highlights
+                    if (data.highlights) {
+                        const mapHighlight = (h: any) => h ? ({
+                            id: h.id,
+                            date: h.boe_date || h.fecha_concesion || h.fecha_publicacion,
+                            beneficiario: h.beneficiario || h.organo_contratacion,
+                            importe: h.importe_total || h.importe,
+                            moneda: h.moneda || 'EUR',
+                            organismo: h.organismo_pagador || h.organo_contratacion,
+                            tipo: h.tipo_adjudicacion || 'Contrato',
+                            resumen: h.resumen_veridian || h.titulo,
+                            url: h.boe_url || h.link_licitacion,
+                            source: sourceName
+                        }) : null;
 
-                // Ordenar por importe descendente
-                allExpenses.sort((a, b) => b.importe - a.importe);
+                        const d = mapHighlight(data.highlights.day);
+                        const w = mapHighlight(data.highlights.week);
+                        const m = mapHighlight(data.highlights.month);
+
+                        if (d && (!dailyHighlight || d.importe > dailyHighlight.importe)) dailyHighlight = d;
+                        if (w && (!weeklyHighlight || w.importe > weeklyHighlight.importe)) weeklyHighlight = w;
+                        if (m && (!monthlyHighlight || m.importe > monthlyHighlight.importe)) monthlyHighlight = m;
+                    }
+                };
+
+                await processSource(boeRes, 'BOE');
+                await processSource(bdnsRes, 'BDNS');
+                await processSource(placspRes, 'PLACSP');
+
+                // Sort by date desc (recent first)
+                allExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
                 setExpenses(allExpenses);
-                setTotalToday(total);
+                setTotalToday(totalAmount);
+                setHighlights({ day: dailyHighlight, week: weeklyHighlight, month: monthlyHighlight });
+
             } catch (error) {
                 console.error('Error fetching expenses:', error);
             } finally {
@@ -180,221 +179,165 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
                 <p className="text-zinc-400 text-sm">
                     ¿En qué se ha gastado el gobierno tu dinero hoy?
                 </p>
-
                 {/* Total del día */}
                 {totalToday > 0 && (
-                    <div className="mt-3 flex items-center gap-2">
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 border border-orange-500/20 rounded-full">
-                            <TrendingUp className="w-4 h-4 text-orange-400" />
-                            <span className="text-orange-300 font-semibold text-sm">
+                    <div className="mt-2 flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 px-3 py-1 bg-orange-500/10 border border-orange-500/20 rounded-full">
+                            <TrendingUp className="w-3 h-3 text-orange-400" />
+                            <span className="text-orange-300 font-semibold text-xs">
                                 {formatMoney(totalToday)} hoy
                             </span>
                         </div>
-                        <span className="text-zinc-500 text-xs">
-                            en {expenses.length} partidas
-                        </span>
                     </div>
                 )}
             </div>
 
-            {/* Loading State */}
-            {isLoading && (
-                <div className="h-48 flex items-center justify-center">
-                    <div className="flex flex-col items-center gap-3">
-                        <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-                        <span className="text-zinc-500 text-sm">Cargando gastos del BOE...</span>
+            {/* Dashboard Grid Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                {/* Column 1: Highlight of the Month */}
+                <div className="space-y-4">
+                    <h3 className="text-zinc-400 text-xs uppercase tracking-wider font-semibold px-1">Destacado del Mes</h3>
+                    {highlights.month ? (
+                        <div className="relative h-full">
+                            <div className="bg-zinc-900/80 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden h-full flex flex-col">
+                                <div className="bg-gradient-to-r from-purple-500/20 to-transparent px-5 py-4 border-b border-white/5">
+                                    <div className="flex justify-between items-start">
+                                        <span className={cn(
+                                            "text-[10px] font-bold px-1.5 py-0.5 rounded border mb-2 inline-block",
+                                            highlights.month.source === 'BOE' ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-blue-900/30 text-blue-300 border-blue-500/30"
+                                        )}>{highlights.month.source}</span>
+                                    </div>
+                                    <span className="text-3xl font-bold text-white block truncate" title={formatMoney(highlights.month.importe)}>
+                                        {formatMoney(highlights.month.importe)}
+                                    </span>
+                                </div>
+                                <div className="p-5 flex-1 flex flex-col">
+                                    <p className="text-zinc-200 text-sm font-medium line-clamp-3 mb-4 flex-1">
+                                        "{highlights.month.resumen}"
+                                    </p>
+                                    <div className="text-xs text-zinc-500 space-y-1">
+                                        <p className="flex items-center gap-1"><Building2 className="w-3 h-3" /> {highlights.month.beneficiario}</p>
+                                        <p className="flex items-center gap-1"><Banknote className="w-3 h-3" /> {highlights.month.tipo}</p>
+                                        <p className="text-[10px] mt-2 opacity-60">{new Date(highlights.month.date).toLocaleDateString()}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="h-48 bg-white/5 rounded-2xl flex items-center justify-center text-zinc-500 text-xs">Sin datos del mes</div>
+                    )}
+                </div>
+
+                {/* Column 2: Highlight of the Week */}
+                <div className="space-y-4">
+                    <h3 className="text-zinc-400 text-xs uppercase tracking-wider font-semibold px-1">Destacado de la Semana</h3>
+                    {highlights.week ? (
+                        <div className="relative h-full">
+                            <div className="bg-zinc-900/80 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden h-full flex flex-col">
+                                <div className="bg-gradient-to-r from-blue-500/20 to-transparent px-5 py-4 border-b border-white/5">
+                                    <div className="flex justify-between items-start">
+                                        <span className={cn(
+                                            "text-[10px] font-bold px-1.5 py-0.5 rounded border mb-2 inline-block",
+                                            highlights.week.source === 'BOE' ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-blue-900/30 text-blue-300 border-blue-500/30"
+                                        )}>{highlights.week.source}</span>
+                                    </div>
+                                    <span className="text-3xl font-bold text-white block truncate" title={formatMoney(highlights.week.importe)}>
+                                        {formatMoney(highlights.week.importe)}
+                                    </span>
+                                </div>
+                                <div className="p-5 flex-1 flex flex-col">
+                                    <p className="text-zinc-200 text-sm font-medium line-clamp-3 mb-4 flex-1">
+                                        "{highlights.week.resumen}"
+                                    </p>
+                                    <div className="text-xs text-zinc-500 space-y-1">
+                                        <p className="flex items-center gap-1"><Building2 className="w-3 h-3" /> {highlights.week.beneficiario}</p>
+                                        <p className="flex items-center gap-1"><Banknote className="w-3 h-3" /> {highlights.week.tipo}</p>
+                                        <p className="text-[10px] mt-2 opacity-60">{new Date(highlights.week.date).toLocaleDateString()}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="h-48 bg-white/5 rounded-2xl flex items-center justify-center text-zinc-500 text-xs">Sin datos de la semana</div>
+                    )}
+                </div>
+
+                {/* Column 3: Today's Feed (Browsable) */}
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between px-1">
+                        <h3 className="text-zinc-400 text-xs uppercase tracking-wider font-semibold">Gasto de Hoy {expenses.length > 0 && `(${expenses.length})`}</h3>
+                        {expenses.length > 1 && (
+                            <div className="flex items-center gap-1">
+                                <button onClick={prevExpense} className="p-1 hover:bg-white/10 rounded-full transition-colors"><ChevronLeft className="w-4 h-4 text-zinc-400" /></button>
+                                <button onClick={nextExpense} className="p-1 hover:bg-white/10 rounded-full transition-colors"><ChevronRight className="w-4 h-4 text-zinc-400" /></button>
+                            </div>
+                        )}
                     </div>
-                </div>
-            )}
 
-            {/* Empty State - No hay datos aún */}
-            {!isLoading && expenses.length === 0 && (
-                <div className="bg-zinc-900/50 border border-white/5 rounded-2xl p-6 text-center">
-                    <span className="text-4xl block mb-3">📋</span>
-                    <p className="text-zinc-400 text-sm mb-2">
-                        Aún no hay datos del BOE de hoy
-                    </p>
-                    <p className="text-zinc-600 text-xs">
-                        El análisis se actualiza cada día laborable a las 10:00h
-                    </p>
-                </div>
-            )}
-
-            {/* Expense Card */}
-            {!isLoading && currentExpense && (
-                <div className="relative">
-                    <AnimatePresence mode="wait">
-                        <motion.div
-                            key={currentExpense.id}
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            transition={{ duration: 0.2 }}
-                            className="bg-zinc-900/80 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden"
-                        >
-                            {/* Importe destacado */}
-                            <div className="bg-gradient-to-r from-orange-500/20 via-red-500/10 to-transparent px-5 py-4 border-b border-white/5">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-1">
+                    {!isLoading && currentExpense && (
+                        <div className="relative h-full">
+                            <AnimatePresence mode="wait">
+                                <motion.div
+                                    key={currentExpense.id}
+                                    initial={{ opacity: 0, x: 10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -10 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="bg-zinc-900/80 backdrop-blur-sm border border-orange-500/20 rounded-2xl overflow-hidden h-full flex flex-col"
+                                >
+                                    <div className="bg-gradient-to-r from-orange-500/20 via-red-500/10 to-transparent px-5 py-4 border-b border-white/5">
+                                        <div className="flex justify-between items-start">
                                             <span className={cn(
-                                                "text-[10px] font-bold px-1.5 py-0.5 rounded border",
-                                                currentExpense.source === 'BOE'
-                                                    ? "bg-zinc-800 text-zinc-300 border-zinc-700"
-                                                    : "bg-blue-900/30 text-blue-300 border-blue-500/30"
-                                            )}>
-                                                {currentExpense.source}
-                                            </span>
+                                                "text-[10px] font-bold px-1.5 py-0.5 rounded border mb-2 inline-block",
+                                                currentExpense.source === 'BOE' ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-blue-900/30 text-blue-300 border-blue-500/30"
+                                            )}>{currentExpense.source}</span>
+                                            <div className={cn("flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border", getTypeColor(currentExpense.tipo))}>
+                                                {getTypeEmoji(currentExpense.tipo)} {currentExpense.tipo}
+                                            </div>
                                         </div>
-                                        <span className="text-4xl font-bold text-white">
+                                        <span className="text-3xl font-bold text-white block truncate">
                                             {formatMoney(currentExpense.importe)}
                                         </span>
-                                        <span className="ml-2 text-zinc-400 text-sm">{currentExpense.moneda}</span>
-                                    </div>
-                                    <div className={cn(
-                                        "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium",
-                                        getTypeColor(currentExpense.tipo)
-                                    )}>
-                                        <span>{getTypeEmoji(currentExpense.tipo)}</span>
-                                        <span>{currentExpense.tipo}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Contenido */}
-                            <div className="p-5 space-y-4">
-                                {/* Resumen Veridian - La frase irónica */}
-                                <p className="text-white text-lg font-medium leading-relaxed">
-                                    "{currentExpense.resumen}"
-                                </p>
-
-                                {/* Detalles */}
-                                <div className="space-y-2">
-                                    <div className="flex items-start gap-2">
-                                        <Banknote className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
-                                        <div>
-                                            <span className="text-zinc-500 text-xs block">Beneficiario</span>
-                                            <span className="text-zinc-200 text-sm">{currentExpense.beneficiario}</span>
-                                        </div>
                                     </div>
 
-                                    <div className="flex items-start gap-2">
-                                        <Building2 className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
-                                        <div>
-                                            <span className="text-zinc-500 text-xs block">Organismo pagador</span>
-                                            <span className="text-zinc-200 text-sm">{currentExpense.organismo}</span>
-                                        </div>
-                                    </div>
-                                </div>
+                                    <div className="p-5 flex-1 flex flex-col">
+                                        <p className="text-white text-sm font-medium leading-relaxed mb-4 flex-1">
+                                            "{currentExpense.resumen}"
+                                        </p>
 
-                                {/* Link BOE / Fuente */}
-                                {currentExpense.url ? (
-                                    <a
-                                        href={currentExpense.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-orange-400 transition-colors"
-                                    >
-                                        <ExternalLink className="w-3.5 h-3.5" />
-                                        <span>Ver en BOE oficial</span>
-                                    </a>
-                                ) : (
-                                    <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-                                        <Info className="w-3.5 h-3.5" />
-                                        <span>Fuente: {currentExpense.source === 'BDNS' ? 'Base de Datos Nacional de Subvenciones' : currentExpense.source === 'PLACSP' ? 'Plataforma de Contratación' : 'Boletín Oficial del Estado'}</span>
-                                    </div>
-                                )}
-
-                                {/* Botón Expandir - Solo si hay contexto detallado */}
-                                {currentExpense.contexto && (
-                                    <button
-                                        onClick={() => setIsExpanded(!isExpanded)}
-                                        className="flex items-center gap-2 w-full py-3 px-4 mt-3 bg-white/5 hover:bg-white/10 rounded-xl transition-colors border border-white/5"
-                                    >
-                                        <Info className="w-4 h-4 text-blue-400" />
-                                        <span className="text-zinc-300 text-sm font-medium flex-1 text-left">
-                                            {isExpanded ? 'Ocultar explicación' : '¿Por qué es relevante?'}
-                                        </span>
-                                        <ChevronDown
-                                            className={cn(
-                                                "w-4 h-4 text-zinc-500 transition-transform duration-200",
-                                                isExpanded && "rotate-180"
-                                            )}
-                                        />
-                                    </button>
-                                )}
-
-                                {/* Contexto Detallado Expandible */}
-                                <AnimatePresence>
-                                    {isExpanded && currentExpense.contexto && (
-                                        <motion.div
-                                            initial={{ height: 0, opacity: 0 }}
-                                            animate={{ height: 'auto', opacity: 1 }}
-                                            exit={{ height: 0, opacity: 0 }}
-                                            transition={{ duration: 0.2 }}
-                                            className="overflow-hidden"
-                                        >
-                                            <div className="pt-3 mt-3 border-t border-white/5">
-                                                <p className="text-zinc-300 text-sm leading-relaxed">
-                                                    {currentExpense.contexto}
-                                                </p>
+                                        <div className="space-y-2 mb-4">
+                                            <div className="bg-white/5 rounded-lg p-2.5">
+                                                <span className="text-[10px] text-zinc-500 block mb-0.5 uppercase tracking-wide">Beneficiario</span>
+                                                <span className="text-zinc-200 text-xs font-medium block truncate">{currentExpense.beneficiario}</span>
                                             </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
+                                            <div className="bg-white/5 rounded-lg p-2.5">
+                                                <span className="text-[10px] text-zinc-500 block mb-0.5 uppercase tracking-wide">Organismo</span>
+                                                <span className="text-zinc-200 text-xs font-medium block truncate">{currentExpense.organismo}</span>
+                                            </div>
+                                        </div>
 
-                            {/* Navegación */}
-                            {expenses.length > 1 && (
-                                <div className="flex items-center justify-between px-5 py-3 border-t border-white/5 bg-black/30">
-                                    <button
-                                        onClick={prevExpense}
-                                        className="p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
-                                    >
-                                        <ChevronLeft className="w-5 h-5 text-white/60" />
-                                    </button>
-
-                                    <div className="flex items-center gap-1.5">
-                                        {expenses.slice(0, 5).map((_, idx) => (
-                                            <button
-                                                key={idx}
-                                                onClick={() => setCurrentIndex(idx)}
-                                                className={cn(
-                                                    "w-2 h-2 rounded-full transition-all",
-                                                    idx === currentIndex
-                                                        ? "bg-orange-500 w-4"
-                                                        : "bg-white/20 hover:bg-white/40"
-                                                )}
-                                            />
-                                        ))}
-                                        {expenses.length > 5 && (
-                                            <span className="text-zinc-500 text-xs ml-1">+{expenses.length - 5}</span>
+                                        {currentExpense.url ? (
+                                            <a href={currentExpense.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1.5 py-2 w-full bg-white/5 hover:bg-white/10 rounded-lg text-xs text-zinc-400 transition-colors">
+                                                <ExternalLink className="w-3 h-3" /> Ver fuente oficial
+                                            </a>
+                                        ) : (
+                                            <div className="flex items-center justify-center gap-1.5 py-2 w-full bg-white/5 rounded-lg text-xs text-zinc-500 cursor-default">
+                                                <Info className="w-3 h-3" /> Fuente: {currentExpense.source}
+                                            </div>
                                         )}
                                     </div>
+                                </motion.div>
+                            </AnimatePresence>
+                        </div>
+                    )}
 
-                                    <button
-                                        onClick={nextExpense}
-                                        className="p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
-                                    >
-                                        <ChevronRight className="w-5 h-5 text-white/60" />
-                                    </button>
-                                </div>
-                            )}
-                        </motion.div>
-                    </AnimatePresence>
+                    {/* Empty/Loading States for Today Column */}
+                    {isLoading && <div className="h-64 bg-white/5 rounded-2xl flex items-center justify-center"><div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>}
+                    {!isLoading && expenses.length === 0 && <div className="h-64 bg-white/5 rounded-2xl flex flex-col items-center justify-center text-zinc-500 text-xs p-4 text-center"><span>😴</span><p>Sin gastos registrados hoy</p></div>}
                 </div>
-            )}
 
-            {/* Footer con fecha */}
-            {!isLoading && expenses.length > 0 && (
-                <p className="text-center text-zinc-600 text-xs mt-4">
-                    Fuente: {currentExpense?.source === 'BOE' ? 'BOE' : 'BDNS'} {currentExpense?.date ? new Date(currentExpense.date).toLocaleDateString('es-ES', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric'
-                    }) : 'hoy'}
-                </p>
-            )}
+            </div>
         </div>
     );
 };
