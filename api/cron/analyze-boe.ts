@@ -508,8 +508,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             console.log(`   IA respondió:`, analysis ? `${analysis.beneficiario} - ${analysis.importe_total}€` : 'null');
 
-            // SOLO guardar si tiene importe real > 0 (filtro de calidad)
-            if (analysis && analysis.importe_total > 0 && analysis.beneficiario && analysis.beneficiario !== 'No aplica') {
+            // Filtro de calidad: guardar si tiene información útil
+            // - Debe tener beneficiario real (no "No aplica", "Pendiente", etc)
+            // - Debe tener contexto detallado (explicación informativa)
+            // - O debe tener importe > 0
+            const tieneImporte = analysis && analysis.importe_total > 0;
+            const tieneBeneficiarioReal = analysis &&
+                analysis.beneficiario &&
+                analysis.beneficiario !== 'No aplica' &&
+                !analysis.beneficiario.toLowerCase().includes('pendiente') &&
+                !analysis.beneficiario.toLowerCase().includes('nadie');
+            const tieneContexto = analysis && analysis.contexto_detallado && analysis.contexto_detallado.length > 50;
+
+            if (analysis && tieneBeneficiarioReal && (tieneImporte || tieneContexto)) {
                 // 4. GUARDAR EN DB
                 const { error } = await supabase
                     .from('boe_expenses')
