@@ -139,11 +139,27 @@ async function processBOE(dateStr?: string) {
                 const detailRes = await fetch(entry.url, { headers: { 'User-Agent': 'Veridian-BOE/1.0' } });
                 if (detailRes.ok) {
                     const detailHtml = await detailRes.text();
-                    // Extract text from the main container (usually <div id="textoxslt"> or similar)
-                    // Simplified regex to capture the main content block
-                    const contentMatch = detailHtml.match(/<div[^>]*id="textoxslt"[^>]*>([\s\S]*?)<\/div>/i) || detailHtml.match(/<div[^>]*class="texto"[^>]*>([\s\S]*?)<\/div>/i);
+
+                    // Improved Regex Strategy
+                    const contentIds = ['textoxslt', 'texto', 'analisis'];
+                    let contentMatch = null;
+
+                    for (const id of contentIds) {
+                        const regex = new RegExp(`<div[^>]*${id.includes('class') ? 'class' : 'id'}="${id}"[^>]*>([\\s\\S]*?)<\\/div>`, 'i');
+                        contentMatch = detailHtml.match(regex);
+                        if (contentMatch) break;
+                    }
+
                     if (contentMatch) {
                         fullText = contentMatch[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+                    } else {
+                        // Fallback: Try to get just the body if no specific div found
+                        const bodyMatch = detailHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+                        if (bodyMatch) {
+                            fullText = bodyMatch[1].replace(/<script\b[^>]*>[\s\S]*?<\/script>/gim, "")
+                                .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gim, "")
+                                .replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+                        }
                     }
                 }
             }
@@ -151,39 +167,79 @@ async function processBOE(dateStr?: string) {
             console.error(`Error fetching detail for ${entry.url}`, e);
         }
 
+        // Regex Fallback for Amount (Before AI)
+        let fallbackAmount = 0;
+        const moneyRegex = /(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?)\s*(?:€|euros)/i;
+        const matchMoney = fullText.match(moneyRegex);
+        if (matchMoney) {
+            fallbackAmount = parseFloat(matchMoney[1].replace(/\./g, '').replace(',', '.'));
+        }
+
         const systemPrompt = `Eres experto en gasto público. Extrae datos de este anuncio del BOE.
         IMPORTANTE: Busca cifras explícitas como "Valor estimado", "Presupuesto base de licitación" o "Importe".
         Si hay varias cifras, prioriza el "Valor estimado" o el "Importe total/adjudicación".
-        Si no encuentras una cifra explícita, usa 0.
+        Si no encuentras una cifra explícita, usa el valor: ${fallbackAmount > 0 ? fallbackAmount : 0}.
         
         JSON: { "beneficiario": string, "importe_total": number, "moneda": "EUR", "organismo_pagador": string, "tipo_adjudicacion": string, "resumen_veridian": string (max 15 words), "contexto_detallado": string }`;
 
         const analysis = await geminiAnalysis(
-            `Analiza este texto completo del anuncio: ${fullText.substring(0, 10000)}`, // Limit length for token safety
+            `Analiza este texto completo del anuncio: ${fullText.substring(0, 12000)}`,
             systemPrompt
         );
 
-        if (analysis && analysis.importe_total > 0) {
-            const { error } = await supabase.from('boe_expenses').insert({
-                boe_date: date.formatted,
-                boe_section: entry.seccion,
-                boe_url: entry.url,
-                beneficiario: analysis.beneficiario || 'No especificado',
-                importe_total: analysis.importe_total,
-                moneda: analysis.moneda || 'EUR',
-                organismo_pagador: analysis.organismo_pagador,
-                tipo_adjudicacion: analysis.tipo_adjudicacion,
-                resumen_veridian: analysis.resumen_veridian,
-                contexto_detallado: analysis.contexto_detallado,
-                texto_original: entry.texto.substring(0, 2000), // Keep original summary
-                titulo_original: entry.titulo
-            });
-            if (!error) {
-                saved++;
-                results.push(analysis);
+        if (analysis) {
+            // Validate amount: use fallback if AI returns 0 but we found a number
+            if ((!analysis.importe_total || analysis.importe_total === 0) && fallbackAmount > 0) {
+                analysis.importe_total = fallbackAmount;
+            }
+
+            // Always try to update if we have an analysis, even if strictly 0 (though we prefer >0)
+            // But to fix valid 0s (unexpected), we should check. 
+            // However, for Public Expenses, 0 is usually an error.
+
+            if (analysis.importe_total > 0) {
+                const { data: existing } = await supabase.from('boe_expenses').select('id').eq('boe_url', entry.url).single();
+
+                if (existing) {
+                    // Update existing record
+                    const { error } = await supabase.from('boe_expenses').update({
+                        beneficiario: analysis.beneficiario || 'No especificado',
+                        importe_total: analysis.importe_total,
+                        moneda: analysis.moneda || 'EUR',
+                        organismo_pagador: analysis.organismo_pagador,
+                        tipo_adjudicacion: analysis.tipo_adjudicacion,
+                        resumen_veridian: analysis.resumen_veridian,
+                        contexto_detallado: analysis.contexto_detallado
+                    }).eq('id', existing.id);
+
+                    if (!error) {
+                        saved++;
+                        results.push(analysis);
+                    }
+                } else {
+                    // Insert new record
+                    const { error } = await supabase.from('boe_expenses').insert({
+                        boe_date: date.formatted,
+                        boe_section: entry.seccion,
+                        boe_url: entry.url,
+                        beneficiario: analysis.beneficiario || 'No especificado',
+                        importe_total: analysis.importe_total,
+                        moneda: analysis.moneda || 'EUR',
+                        organismo_pagador: analysis.organismo_pagador,
+                        tipo_adjudicacion: analysis.tipo_adjudicacion,
+                        resumen_veridian: analysis.resumen_veridian,
+                        contexto_detallado: analysis.contexto_detallado,
+                        texto_original: entry.texto.substring(0, 2000),
+                        titulo_original: entry.titulo
+                    });
+                    if (!error) {
+                        saved++;
+                        results.push(analysis);
+                    }
+                }
             }
         }
-        await new Promise(r => setTimeout(r, 500)); // Increased delay for politeness
+        await new Promise(r => setTimeout(r, 500));
     }
     return { saved, count: entries.length, money_candidates: moneyEntries.length };
 }
