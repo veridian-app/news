@@ -467,7 +467,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const analysis = await analyzeWithAI(entry);
             aiCalls++;
 
-            if (analysis && analysis.importe_total > 0) {
+            console.log(`   IA respondió:`, analysis ? `${analysis.beneficiario} - ${analysis.importe_total}€` : 'null');
+
+            // Guardar si hay análisis válido (aunque importe sea 0)
+            if (analysis && analysis.beneficiario) {
                 // 4. GUARDAR EN DB
                 const { error } = await supabase
                     .from('boe_expenses')
