@@ -29,7 +29,9 @@ interface GobiernoGastoProps {
 }
 
 // Formatea número a moneda española
-const formatMoney = (amount: number): string => {
+// Formatea número a moneda española
+const formatMoney = (amount: number | undefined | null): string => {
+    if (amount == null) return '0€';
     if (amount >= 1000000) {
         return `${(amount / 1000000).toFixed(1).replace('.0', '')}M€`;
     }
