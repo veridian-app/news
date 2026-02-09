@@ -434,7 +434,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ==========================================================================
     const authHeader = req.headers['authorization'];
     const isVercelCron = req.headers['user-agent'] === 'vercel-cron/1.0';
-    const isAuthorized = authHeader === `Bearer ${process.env.CRON_SECRET} `;
+    const isAuthorized = authHeader === `Bearer ${process.env.CRON_SECRET}`;
 
     if (!isVercelCron && !isAuthorized) {
         return res.status(401).json({ error: 'Unauthorized' });
