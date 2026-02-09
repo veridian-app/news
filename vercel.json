@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/generate-polls",
       "schedule": "30 7 * * *"
+    },
+    {
+      "path": "/api/cron/analyze-boe",
+      "schedule": "0 9 * * 1-5"
     }
   ],
   "rewrites": [
