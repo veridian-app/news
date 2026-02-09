@@ -3,6 +3,7 @@ import { CAFE_NEWS, DAILY_CONSENSUS, CafeItem, CafeConsensusPoll } from "./data/
 import { ExpandableNewsCard, ExpandableNewsItem } from "./ExpandableNewsCard";
 import { LiquidProgressBar } from "./LiquidProgressBar";
 import { DailyConsensus } from "./DailyConsensus";
+import { GobiernoGasto } from "./GobiernoGasto";
 import { CoffeeTicket } from "./CoffeeTicket";
 import { Button } from "@/components/ui/button";
 import { X, Coffee, Ticket, Loader2 } from "lucide-react";
@@ -186,8 +187,13 @@ export const CafeLayout = () => {
                                 />
                             ))}
 
+                            {/* Sección BOE: ¿En qué se gasta el gobierno tu dinero? */}
+                            <div className="mt-20 px-4">
+                                <GobiernoGasto />
+                            </div>
+
                             {/* Consensus Section at the bottom */}
-                            <div className="mt-32 mb-20 scroll-mt-20">
+                            <div className="mt-16 mb-20 scroll-mt-20">
                                 <div onClick={handleConsensusComplete}>
                                     <DailyConsensus
                                         data={activePoll}
