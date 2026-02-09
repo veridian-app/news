@@ -319,7 +319,74 @@ Extrae los datos de gasto público y genera el JSON.`;
 // =============================================================================
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    // Verificación de seguridad
+    // CORS headers para todas las peticiones
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // ==========================================================================
+    // GET: Consulta pública de gastos (sin autenticación)
+    // ==========================================================================
+    if (req.method === 'GET') {
+        try {
+            const { date, limit = '50', min_amount, tipo } = req.query;
+
+            let query = supabase
+                .from('boe_expenses')
+                .select('*')
+                .order('importe_total', { ascending: false });
+
+            if (date && typeof date === 'string') {
+                query = query.eq('boe_date', date);
+            }
+
+            if (min_amount && typeof min_amount === 'string') {
+                const minNum = parseFloat(min_amount);
+                if (!isNaN(minNum)) {
+                    query = query.gte('importe_total', minNum);
+                }
+            }
+
+            if (tipo && typeof tipo === 'string') {
+                query = query.eq('tipo_adjudicacion', tipo);
+            }
+
+            const limitNum = Math.min(parseInt(limit as string) || 50, 100);
+            query = query.limit(limitNum);
+
+            const { data, error } = await query;
+
+            if (error) throw error;
+
+            const stats = {
+                total_registros: data?.length || 0,
+                gasto_total: data?.reduce((sum, item) => sum + (item.importe_total || 0), 0) || 0,
+                gasto_promedio: 0,
+                gasto_maximo: 0
+            };
+
+            if (data && data.length > 0) {
+                stats.gasto_promedio = stats.gasto_total / data.length;
+                stats.gasto_maximo = Math.max(...data.map(d => d.importe_total || 0));
+            }
+
+            return res.status(200).json({ expenses: data || [], stats });
+
+        } catch (error: any) {
+            console.error('❌ Error consulta BOE:', error);
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // ==========================================================================
+    // POST: Cron de análisis (requiere autenticación)
+    // ==========================================================================
     const authHeader = req.headers['authorization'];
     const isVercelCron = req.headers['user-agent'] === 'vercel-cron/1.0';
     const isAuthorized = authHeader === `Bearer ${process.env.CRON_SECRET}`;
@@ -328,7 +395,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const date = getTodayBOEDate();
 
     console.log(`\n${'='.repeat(60)}`);

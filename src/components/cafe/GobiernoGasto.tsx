@@ -66,7 +66,7 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
     useEffect(() => {
         const fetchExpenses = async () => {
             try {
-                const response = await fetch('/api/boe/expenses?limit=10');
+                const response = await fetch('/api/cron/analyze-boe?limit=10');
                 if (response.ok) {
                     const data = await response.json();
                     setExpenses(data.expenses || []);
