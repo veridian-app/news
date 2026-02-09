@@ -90,11 +90,6 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
         setCurrentIndex((prev) => (prev - 1 + expenses.length) % expenses.length);
     };
 
-    // Si no hay gastos, no mostrar
-    if (!isLoading && expenses.length === 0) {
-        return null;
-    }
-
     const currentExpense = expenses[currentIndex];
 
     return (
@@ -134,6 +129,19 @@ export const GobiernoGasto = ({ className }: GobiernoGastoProps) => {
                         <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
                         <span className="text-zinc-500 text-sm">Cargando gastos del BOE...</span>
                     </div>
+                </div>
+            )}
+
+            {/* Empty State - No hay datos aún */}
+            {!isLoading && expenses.length === 0 && (
+                <div className="bg-zinc-900/50 border border-white/5 rounded-2xl p-6 text-center">
+                    <span className="text-4xl block mb-3">📋</span>
+                    <p className="text-zinc-400 text-sm mb-2">
+                        Aún no hay datos del BOE de hoy
+                    </p>
+                    <p className="text-zinc-600 text-xs">
+                        El análisis se actualiza cada día laborable a las 10:00h
+                    </p>
                 </div>
             )}
 
