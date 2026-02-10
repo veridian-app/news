@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import sharp from 'sharp';
 
 // Initialize Supabase Client
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
@@ -120,16 +121,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                 if (!imageBase64) throw new Error('No image data returned from Gemini');
 
-                // Convert base64 to buffer
-                const imageBuffer = Buffer.from(imageBase64, 'base64');
-                const fileName = `${item.id}_${Date.now()}.png`;
+                // Convert base64 to buffer, then optimize with sharp
+                const rawBuffer = Buffer.from(imageBase64, 'base64');
+                const imageBuffer = await sharp(rawBuffer)
+                    .resize(1200, null, { withoutEnlargement: true })
+                    .webp({ quality: 80 })
+                    .toBuffer();
+                const fileName = `${item.id}_${Date.now()}.webp`;
+
+                console.log(`📦 Image optimized: ${(rawBuffer.length / 1024).toFixed(0)}KB PNG → ${(imageBuffer.length / 1024).toFixed(0)}KB WebP (${((1 - imageBuffer.length / rawBuffer.length) * 100).toFixed(0)}% reduction)`);
 
                 // Upload to Supabase Storage
                 const { data: uploadData, error: uploadError } = await supabase
                     .storage
                     .from('news-covers')
                     .upload(fileName, imageBuffer, {
-                        contentType: 'image/png',
+                        contentType: 'image/webp',
                         upsert: true
                     });
 

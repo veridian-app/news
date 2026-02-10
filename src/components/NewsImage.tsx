@@ -15,31 +15,38 @@ export const NewsImage = ({ src, alt, className, priority = false }: NewsImagePr
     useEffect(() => {
         if (!src) return;
 
-        // Si la imagen ya está en caché, marcar como cargada inmediatamente
+        // Reset state when src changes
+        setIsLoaded(false);
+        setError(false);
+
+        // Check if image is already cached
         const img = new Image();
         img.src = src;
-        if (img.complete) {
+        if (img.complete && img.naturalWidth > 0) {
             setIsLoaded(true);
         }
     }, [src]);
 
     return (
         <div className={cn("relative overflow-hidden bg-muted", className)}>
+            {/* Shimmer placeholder while loading */}
             {!isLoaded && !error && (
-                <div className="absolute inset-0 flex items-center justify-center bg-muted animate-pulse">
+                <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 animate-shimmer bg-[length:200%_100%]">
                     <span className="sr-only">Loading...</span>
                 </div>
             )}
 
             {error ? (
                 <div className="absolute inset-0 h-full w-full bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
-                    {/* Optional: Add a subtle pattern or icon if desired, for now keeping it clean */}
+                    {/* Clean fallback gradient */}
                 </div>
             ) : (
                 <img
                     src={src}
                     alt={alt}
                     loading={priority ? "eager" : "lazy"}
+                    decoding="async"
+                    {...(priority ? { fetchPriority: "high" as any } : {})}
                     className={cn(
                         "w-full h-full object-cover transition-opacity duration-500",
                         isLoaded ? "opacity-100" : "opacity-0",
@@ -52,3 +59,4 @@ export const NewsImage = ({ src, alt, className, priority = false }: NewsImagePr
         </div>
     );
 };
+
