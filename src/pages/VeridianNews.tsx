@@ -96,58 +96,64 @@ const shuffleNews = (newsArray: NewsItem[]) => {
 const detectCategory = (title: string, content?: string): string => {
   const textToAnalyze = `${title} ${content || ''}`.toLowerCase();
 
-  // Tecnología - palabras clave más amplias
-  if (textToAnalyze.match(/(tecnología|tech|innovación|digital|app|software|hardware|ia|inteligencia artificial|robot|ciber|inteligencia|artificial|chatgpt|openai|meta|facebook|google|apple|microsoft|amazon|tesla|nvidia|blockchain|crypto|bitcoin|web3|metaverso|realidad virtual|vr|ar|aplicación|programación|desarrollador|startup|emprendimiento|innovación|disruptivo|digitalización|transformación digital)/)) {
+  // Helper to check regex with word boundaries
+  const matches = (keywords: string) => {
+    const regex = new RegExp(`\\b(${keywords})\\b`, 'i');
+    return regex.test(textToAnalyze);
+  };
+
+  // Tecnología
+  if (matches('tecnología|tech|innovación|digital|app|apps|software|hardware|ia|inteligencia artificial|robot|robots|ciber|chatgpt|openai|meta|facebook|google|apple|microsoft|amazon|tesla|nvidia|blockchain|crypto|bitcoin|web3|metaverso|realidad virtual|vr|ar|programación|desarrollador|startup|startups|emprendimiento|disruptivo|digitalización|transformación digital')) {
     return 'tecnología';
   }
 
-  // Ciencia - más específico
-  if (textToAnalyze.match(/(ciencia|científico|investigación|descubrimiento|estudio|marte|espacio|nasa|astronomía|física|química|biología|genética|adn|molecular|experimento|laboratorio|universidad|investigador|publicación científica|revista científica|nature|science|hallazgo|teoría|hipótesis)/)) {
+  // Ciencia
+  if (matches('ciencia|científico|científicos|investigación|descubrimiento|estudio|marte|espacio|nasa|astronomía|física|química|biología|genética|adn|molecular|experimento|laboratorio|universidad|investigador|publicación científica|revista científica|nature|science|hallazgo|teoría|hipótesis')) {
     return 'ciencia';
   }
 
-  // Política - más amplio
-  if (textToAnalyze.match(/(política|político|gobierno|elecciones|partido|presidente|ministro|congreso|senado|diputado|alcalde|municipal|autonómico|nacional|ley|decreto|normativa|regulación|votación|sufragio|democracia|parlamento|asamblea|coalición|oposición)/)) {
+  // Política
+  if (matches('política|político|gobierno|elecciones|partido|presidente|ministro|congreso|senado|diputado|alcalde|municipal|autonómico|nacional|ley|decreto|normativa|regulación|votación|sufragio|democracia|parlamento|asamblea|coalición|oposición')) {
     return 'política';
   }
 
-  // Economía - más amplio
-  if (textToAnalyze.match(/(economía|económico|mercado|empresa|negocio|finanzas|bolsa|inversión|acciones|índice|ibex|dow jones|nasdaq|pib|inflación|desempleo|paro|trabajo|empleo|salario|sueldo|contrato|despido|contratación|empresario|directivo|ceo|gerente|banco|financiero|crédito|préstamo|hipoteca|ahorro|pensiones)/)) {
+  // Economía
+  if (matches('economía|económico|mercado|empresa|empresas|negocio|negocios|finanzas|bolsa|inversión|acciones|índice|ibex|dow jones|nasdaq|pib|inflación|desempleo|paro|trabajo|empleo|salario|sueldo|contrato|despido|contratación|empresario|directivo|ceo|gerente|banco|financiero|crédito|préstamo|hipoteca|ahorro|pensiones')) {
     return 'economía';
   }
 
-  // Salud - más amplio
-  if (textToAnalyze.match(/(salud|médico|hospital|medicina|enfermedad|vacuna|virus|bacteria|epidemia|pandemia|covid|coronavirus|tratamiento|terapia|cirugía|operación|médico|doctor|enfermero|paciente|diagnóstico|síntoma|prevención|sanidad|farmacia|medicamento|fármaco|investigación médica|ensayo clínico)/)) {
+  // Salud
+  if (matches('salud|médico|hospital|medicina|enfermedad|vacuna|virus|bacteria|epidemia|pandemia|covid|coronavirus|tratamiento|terapia|cirugía|operación|doctor|enfermero|paciente|diagnóstico|síntoma|prevención|sanidad|farmacia|medicamento|fármaco|ensayo clínico')) {
     return 'salud';
   }
 
-  // Deportes - más amplio
-  if (textToAnalyze.match(/(deporte|fútbol|baloncesto|olímpico|atleta|futbolista|jugador|equipo|liga|champions|mundial|copa|partido|competición|torneo|campeonato|entrenador|estadio|gimnasio|ejercicio|fitness|running|maratón|tenis|natación|ciclismo|motociclismo|fórmula 1|f1)/)) {
+  // Deportes
+  if (matches('deporte|deportes|fútbol|baloncesto|olímpico|atleta|futbolista|jugador|equipo|liga|champions|mundial|copa|partido|competición|torneo|campeonato|entrenador|estadio|gimnasio|ejercicio|fitness|running|maratón|tenis|natación|ciclismo|motociclismo|fórmula 1|f1')) {
     return 'deportes';
   }
 
-  // Cultura - más amplio
-  if (textToAnalyze.match(/(cultura|arte|música|cine|teatro|literatura|libro|escritor|autor|película|actor|actriz|director|festival|exposición|museo|galería|pintura|escultura|fotografía|diseño|moda|gastronomía|chef|restaurante|receta|cocina)/)) {
+  // Cultura
+  if (matches('cultura|arte|música|cine|teatro|literatura|libro|libros|escritor|autor|película|actor|actriz|director|festival|exposición|museo|galería|pintura|escultura|fotografía|diseño|moda|gastronomía|chef|restaurante|receta|cocina')) {
     return 'cultura';
   }
 
-  // Medioambiente - más amplio
-  if (textToAnalyze.match(/(medioambiente|clima|sostenibilidad|verde|ecología|contaminación|emisiones|co2|cambio climático|calentamiento global|energía renovable|solar|eólica|reciclaje|residuos|plástico|biodiversidad|especies|extinción|naturaleza|animales|plantas|bosque|océano|mar|río|agua|sequía|inundación)/)) {
+  // Medioambiente
+  if (matches('medioambiente|clima|sostenibilidad|verde|ecología|contaminación|emisiones|co2|cambio climático|calentamiento global|energía renovable|solar|eólica|reciclaje|residuos|plástico|biodiversidad|especies|extinción|naturaleza|animales|plantas|bosque|océano|mar|río|agua|sequía|inundación')) {
     return 'medioambiente';
   }
 
-  // Internacional - más amplio
-  if (textToAnalyze.match(/(internacional|mundo|país|global|onu|naciones unidas|ue|unión europea|brexit|tratado|acuerdo internacional|diplomacia|embajada|consulado|migración|refugiado|inmigración|conflicto|guerra|paz|guerra|rusia|ucrania|china|eeuu|estados unidos|europa|asia|áfrica|américa latina)/)) {
+  // Internacional
+  if (matches('internacional|mundo|país|global|onu|naciones unidas|ue|unión europea|brexit|tratado|diplomacia|embajada|consulado|migración|refugiado|inmigración|conflicto|guerra|paz|rusia|ucrania|china|eeuu|estados unidos|europa|asia|áfrica|américa latina')) {
     return 'internacional';
   }
 
   // Educación
-  if (textToAnalyze.match(/(educación|educativo|escuela|colegio|universidad|estudiante|profesor|maestro|alumno|grado|máster|doctorado|investigación académica|título|diploma|formación|enseñanza|aprendizaje|pedagogía)/)) {
+  if (matches('educación|educativo|escuela|colegio|universidad|estudiante|profesor|maestro|alumno|grado|máster|doctorado|título|diploma|formación|enseñanza|aprendizaje|pedagogía')) {
     return 'educación';
   }
 
   // Sociedad
-  if (textToAnalyze.match(/(sociedad|social|comunidad|vecino|barrio|ciudad|población|demografía|natalidad|mortalidad|envejecimiento|jubilación|pensiones|vivienda|alquiler|hipoteca|transporte|tráfico|movilidad|urbanismo)/)) {
+  if (matches('sociedad|social|comunidad|vecino|barrio|ciudad|población|demografía|natalidad|mortalidad|envejecimiento|jubilación|pensiones|vivienda|alquiler|hipoteca|transporte|tráfico|movilidad|urbanismo')) {
     return 'sociedad';
   }
 
@@ -170,7 +176,7 @@ const recommendNews = (newsArray: NewsItem[], preferences: Map<string, number>, 
   // Calcular score para cada noticia
   const scoredNews = newsArray.map(item => {
     let score = 0;
-    const category = detectCategory(item.title || '', item.content || '');
+    const category = item.category || detectCategory(item.title || '', item.content || '');
     const source = item.source || '';
 
     // Score basado en categoría (peso alto) - normalizado
@@ -1340,6 +1346,18 @@ const VeridianNews = () => {
 
   // Solo mostrar noticias del Excel, no usar mockNews
   const displayNews = news && news.length > 0 ? news : [];
+
+  useEffect(() => {
+    if (displayNews.length > 0) {
+      console.log('📊 News Categories Debug:', displayNews.map(n => ({
+        id: n.id,
+        title: n.title?.substring(0, 20),
+        apiCategory: n.category,
+        detectedCategory: detectCategory(n.title, n.content)
+      })));
+    }
+  }, [displayNews]);
+
   if (displayNews.length === 0) {
     return (
       <div className="h-[100dvh] w-full flex items-center justify-center bg-black text-white">
