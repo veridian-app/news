@@ -55,7 +55,10 @@ const Profile = () => {
               </div>
             </div>
 
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-colors cursor-pointer">
+            <div
+              onClick={() => navigate('/privacidad')}
+              className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-colors cursor-pointer"
+            >
               <div className="flex items-center gap-4">
                 <Shield className="w-5 h-5 text-emerald-400" />
                 <div className="flex-1">

@@ -93,11 +93,37 @@ const PrivacyPolicy = () => {
             </div>
           </section>
 
+          {/* Uso Comercial de Datos */}
+          <section>
+            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+              <Database className="w-6 h-6" />
+              4. Uso Comercial de Datos
+            </h2>
+            <div className="space-y-4 text-muted-foreground">
+              <p>
+                En Veridian News valoramos la transparencia. Queremos informarte que, conforme a la legislación vigente
+                y respetando siempre tu privacidad y derechos:
+              </p>
+              <div className="bg-primary/5 p-4 rounded-lg border border-primary/10">
+                <p className="font-medium text-foreground mb-2">Podremos realizar actividades comerciales con los datos recopilados.</p>
+                <p className="text-sm">
+                  Esto puede incluir el análisis de tendencias de mercado, creación de informes agregados anónimos,
+                  y colaboración con terceros para mejorar nuestros servicios o desarrollar nuevos productos.
+                </p>
+              </div>
+              <p>
+                <strong className="text-foreground">Garantía de Privacidad:</strong> Estas actividades se realizarán siempre garantizando el
+                anonimato de los usuarios o, en caso de requerir datos personales, se solicitará tu consentimiento
+                explícito previo para esa finalidad concreta, cumpliendo estrictamente con el RGPD y la LOPDGDD.
+              </p>
+            </div>
+          </section>
+
           {/* Finalidad del tratamiento */}
           <section>
             <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
               <Eye className="w-6 h-6" />
-              4. Finalidad del Tratamiento
+              5. Finalidad del Tratamiento
             </h2>
             <div className="space-y-2 text-muted-foreground">
               <p>Utilizamos tus datos para:</p>
@@ -115,7 +141,7 @@ const PrivacyPolicy = () => {
 
           {/* Base legal */}
           <section>
-            <h2 className="text-2xl font-bold mb-4">5. Base Legal del Tratamiento</h2>
+            <h2 className="text-2xl font-bold mb-4">6. Base Legal del Tratamiento</h2>
             <div className="space-y-2 text-muted-foreground">
               <p>El tratamiento de tus datos se basa en (Art. 6 RGPD):</p>
               <ul className="list-disc list-inside ml-4 space-y-1">
@@ -130,7 +156,7 @@ const PrivacyPolicy = () => {
           <section>
             <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
               <Lock className="w-6 h-6" />
-              6. Conservación de Datos
+              7. Conservación de Datos
             </h2>
             <div className="space-y-2 text-muted-foreground">
               <p><strong className="text-foreground">Datos de waitlist:</strong> Se conservarán mientras mantengas tu registro activo o hasta que solicites su eliminación.</p>
@@ -144,7 +170,7 @@ const PrivacyPolicy = () => {
           <section>
             <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
               <Trash2 className="w-6 h-6" />
-              7. Tus Derechos (RGPD)
+              8. Tus Derechos (RGPD)
             </h2>
             <div className="space-y-3 text-muted-foreground">
               <p>De acuerdo con el Reglamento General de Protección de Datos (RGPD) y la LOPDGDD, tienes derecho a:</p>
@@ -168,7 +194,7 @@ const PrivacyPolicy = () => {
 
           {/* Seguridad */}
           <section>
-            <h2 className="text-2xl font-bold mb-4">8. Seguridad de los Datos</h2>
+            <h2 className="text-2xl font-bold mb-4">9. Seguridad de los Datos</h2>
             <div className="space-y-2 text-muted-foreground">
               <p>Implementamos medidas técnicas y organizativas apropiadas para proteger tus datos (Art. 32 RGPD):</p>
               <ul className="list-disc list-inside ml-4 space-y-1">
@@ -183,7 +209,7 @@ const PrivacyPolicy = () => {
 
           {/* Transferencias internacionales */}
           <section>
-            <h2 className="text-2xl font-bold mb-4">9. Transferencias Internacionales</h2>
+            <h2 className="text-2xl font-bold mb-4">10. Transferencias Internacionales</h2>
             <div className="space-y-2 text-muted-foreground">
               <p>
                 Tus datos se almacenan en servidores de Supabase ubicados en la Unión Europea.
@@ -198,7 +224,7 @@ const PrivacyPolicy = () => {
 
           {/* Cookies */}
           <section>
-            <h2 className="text-2xl font-bold mb-4">10. Cookies y Tecnologías Similares</h2>
+            <h2 className="text-2xl font-bold mb-4">11. Cookies y Tecnologías Similares</h2>
             <div className="space-y-2 text-muted-foreground">
               <p>Utilizamos las siguientes tecnologías de almacenamiento local:</p>
               <ul className="list-disc list-inside ml-4 space-y-1">
@@ -216,7 +242,7 @@ const PrivacyPolicy = () => {
 
           {/* Menores */}
           <section>
-            <h2 className="text-2xl font-bold mb-4">11. Protección de Menores</h2>
+            <h2 className="text-2xl font-bold mb-4">12. Protección de Menores</h2>
             <div className="space-y-2 text-muted-foreground">
               <p>
                 De conformidad con el Art. 8 RGPD y el Art. 7 LOPDGDD, nuestro servicio está dirigido a usuarios mayores de 14 años.
@@ -228,7 +254,7 @@ const PrivacyPolicy = () => {
 
           {/* Modificaciones */}
           <section>
-            <h2 className="text-2xl font-bold mb-4">12. Modificaciones de la Política</h2>
+            <h2 className="text-2xl font-bold mb-4">13. Modificaciones de la Política</h2>
             <div className="space-y-2 text-muted-foreground">
               <p>
                 Nos reservamos el derecho de modificar esta política de privacidad para adaptarla a novedades
@@ -246,7 +272,7 @@ const PrivacyPolicy = () => {
           <section>
             <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
               <Mail className="w-6 h-6" />
-              13. Contacto y Reclamaciones
+              14. Contacto y Reclamaciones
             </h2>
             <div className="space-y-3 text-muted-foreground">
               <p>Para cualquier consulta sobre protección de datos, puedes contactarnos:</p>

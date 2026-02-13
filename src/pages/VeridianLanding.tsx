@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Brain, Shield, Sparkles, ArrowRight, Mail, Loader2, CheckCircle, Users, Zap, Eye } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const VeridianLanding = () => {
   const navigate = useNavigate();
@@ -12,6 +13,20 @@ const VeridianLanding = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSent, setIsSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showCookieBanner, setShowCookieBanner] = useState(false);
+
+  useEffect(() => {
+    const cookiesAccepted = localStorage.getItem('cookies-accepted');
+    if (!cookiesAccepted) {
+      setShowCookieBanner(true);
+    }
+  }, []);
+
+  const acceptCookies = () => {
+    localStorage.setItem('cookies-accepted', 'true');
+    setShowCookieBanner(false);
+  };
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -25,6 +40,11 @@ const VeridianLanding = () => {
 
     if (!email || !email.includes('@')) {
       setError('Introduce un email válido');
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setError('Debes aceptar la Política de Privacidad y el Aviso Legal');
       return;
     }
 
@@ -123,10 +143,25 @@ const VeridianLanding = () => {
                 <p className="text-red-400 text-sm">{error}</p>
               )}
 
+              <div className="flex items-start space-x-2 px-1">
+                <Checkbox
+                  id="terms"
+                  checked={acceptedTerms}
+                  onCheckedChange={(checked) => setAcceptedTerms(checked as boolean)}
+                  className="mt-1 border-white/30 data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
+                />
+                <label
+                  htmlFor="terms"
+                  className="text-sm text-white/60 leading-tight cursor-pointer select-none"
+                >
+                  He leído y acepto la <a href="/privacidad" target="_blank" className="text-green-400 hover:underline">Política de Privacidad</a> y el <a href="/aviso-legal" target="_blank" className="text-green-400 hover:underline">Aviso Legal</a>.
+                </label>
+              </div>
+
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-6 rounded-xl transition-all text-lg flex items-center justify-center gap-2 shadow-lg shadow-green-500/25"
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-6 rounded-xl transition-all text-lg flex items-center justify-center gap-2 shadow-lg shadow-green-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -210,6 +245,25 @@ const VeridianLanding = () => {
         </footer>
 
       </section>
+
+      {/* Cookie Banner */}
+      {showCookieBanner && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-zinc-900/95 backdrop-blur-md border-t border-white/10 animate-fade-in-up">
+          <div className="container mx-auto max-w-4xl flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-white/70 text-center md:text-left">
+              Utilizamos cookies propias y de terceros para mejorar tu experiencia y analizar el uso de la web.
+              Puedes consultar nuestra <a href="/privacidad" className="text-green-400 hover:underline">Política de Cookies</a>.
+            </p>
+            <Button
+              onClick={acceptCookies}
+              variant="outline"
+              className="whitespace-nowrap bg-white text-black hover:bg-white/90 border-transparent font-medium"
+            >
+              Aceptar cookies
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
