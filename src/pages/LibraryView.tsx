@@ -81,7 +81,7 @@ const LibraryView = () => {
         <div className="header-content">
           <h1 className="header-title">Mi Dossier</h1>
           <div className="header-stats">
-            <span className="stat-item">{savedItems.length} Datos guardados</span>
+            <span className="stat-item">{savedNews.length} Datos guardados</span>
             <span className="stat-divider">|</span>
             <span className="stat-item">{activeThemes} Temas activos</span>
             <span className="stat-divider">|</span>
