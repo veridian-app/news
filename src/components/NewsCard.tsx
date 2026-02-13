@@ -33,6 +33,7 @@ interface NewsCardProps {
     onShare: () => void;
     onReadMore: () => void;
     onMarkAsRead?: () => void;
+    category?: string;
 }
 
 // Share modal component
@@ -211,7 +212,7 @@ const ShareModal = ({ isOpen, onClose, item }: { isOpen: boolean; onClose: () =>
     );
 };
 
-export const NewsCard = ({ item, isActive, index, onLike, onShare, onReadMore, onMarkAsRead }: NewsCardProps) => {
+export const NewsCard = ({ item, isActive, index, onLike, onShare, onReadMore, onMarkAsRead, category }: NewsCardProps) => {
     // Logic for double tap
     const lastTap = useRef<number>(0);
     const [showDoubleTapHeart, setShowDoubleTapHeart] = useState(false);
@@ -326,6 +327,14 @@ export const NewsCard = ({ item, isActive, index, onLike, onShare, onReadMore, o
                                 return clean.trim();
                             })()}
                         </div>
+                        {category && (
+                            <>
+                                <span className="text-xs text-white/40">•</span>
+                                <div className="rounded-full bg-emerald-500/20 backdrop-blur-md px-3 py-1 text-xs font-medium text-emerald-400 border border-emerald-500/20 shadow-sm uppercase tracking-wider">
+                                    {category}
+                                </div>
+                            </>
+                        )}
                         <span className="text-xs text-white/70 shadow-black drop-shadow-md">• {new Date(item.date).toLocaleDateString()}</span>
                     </motion.div>
 

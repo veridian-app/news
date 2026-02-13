@@ -12,6 +12,7 @@ interface NewsItem {
   url?: string;
   likes?: number;
   comments?: number;
+  category?: string;
 }
 
 // Función para obtener conteo de comentarios desde Supabase
@@ -229,6 +230,7 @@ export default async function handler(
       url: item.url,
       likes: 0,
       comments: 0,
+      category: item.category
     }));
 
     // Obtener conteo de likes y comentarios desde Supabase

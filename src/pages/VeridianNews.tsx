@@ -28,6 +28,7 @@ interface NewsItem {
   likes?: number;
   comments?: number;
   isLiked?: boolean;
+  category?: string;
 }
 
 // Usar datos de ejemplo si el servidor no está disponible
@@ -1548,6 +1549,7 @@ const VeridianNews = () => {
                 }}
                 onReadMore={() => openFullContent(item)}
                 onMarkAsRead={() => toggleRead(item.id)}
+                category={item.category || detectCategory(item.title, item.content)}
               />
             </div>
           );
