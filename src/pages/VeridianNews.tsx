@@ -10,7 +10,6 @@ import { Clock, Brain, ThumbsUp, ThumbsDown, X, ExternalLink, Search } from "luc
 import { motion } from "framer-motion";
 import { BottomDock } from "../components/BottomDock";
 import { NewsCard } from "@/components/NewsCard";
-import { StreakHeader } from "@/components/StreakHeader";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useReadNews } from "@/hooks/use-read-news";
@@ -1362,8 +1361,6 @@ const VeridianNews = () => {
       <div className="hidden md:block absolute inset-0 bg-zinc-900 z-0 pr-[calc(100vw-100%)]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_rgba(59,130,246,0.1),_transparent_70%)] opacity-40" />
       </div>
-
-      <StreakHeader />
 
       {/* Botón de Ordenar / Filtro */}
       <div className="fixed top-4 left-4 z-50 animate-in fade-in duration-700">
