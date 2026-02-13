@@ -7,6 +7,7 @@ import { DoubleTapOverlay } from "./DoubleTapOverlay";
 import { useHaptic } from "@/hooks/use-haptic";
 import { toast } from "@/hooks/use-toast";
 import { useDockVisibility } from "@/contexts/DockVisibilityContext";
+import { useSavedNews } from "@/hooks/use-saved-news";
 
 export interface NewsItem {
     id: string;
@@ -218,6 +219,10 @@ export const NewsCard = ({ item, isActive, index, onLike, onShare, onReadMore, o
     const [showShareModal, setShowShareModal] = useState(false);
     const { trigger: haptic } = useHaptic();
     const { hideDock, showDock } = useDockVisibility();
+    const { isSaved, toggleSave } = useSavedNews();
+
+    // Check if the item is saved
+    const isItemSaved = isSaved(item.id);
 
     // Hide dock when share modal opens, show when it closes
     useEffect(() => {

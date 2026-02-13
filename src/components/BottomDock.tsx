@@ -1,4 +1,4 @@
-import { Home, Search, Coffee, Bell, User } from "lucide-react";
+import { Home, Search, Coffee, Bookmark, User } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useDockVisibility } from "@/contexts/DockVisibilityContext";
@@ -68,7 +68,7 @@ export const BottomDock = () => {
               </Link>
             </div>
 
-            <DockItem icon={<Bell size={20} />} path="/notifications" isActive={isActive("/notifications")} />
+            <DockItem icon={<Bookmark size={20} />} path="/library" isActive={isActive("/library")} />
             <DockItem icon={<User size={20} />} path="/profile" isActive={isActive("/profile")} />
           </div>
         </motion.div>
