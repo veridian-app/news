@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { NewsImage } from "../components/NewsImage";
@@ -254,6 +254,7 @@ const VeridianNews = () => {
   const screenSize = useScreenSize();
   const { toast } = useToast();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Use authenticated user ID, fallback to anonymous ID for backwards compatibility
   const USER_ID = user?.id || FALLBACK_USER_ID;
@@ -290,6 +291,8 @@ const VeridianNews = () => {
 
   // Read news tracking
   const { isRead, toggleRead, sortByReadStatus } = useReadNews();
+
+
 
   // Calcular noticias recomendadas basándose en preferencias y búsqueda
   const news = useMemo(() => {
@@ -330,6 +333,26 @@ const VeridianNews = () => {
     console.log('✅ Noticias recomendadas:', recommended.length);
     return recommended;
   }, [rawNews, userPreferences, likedNewsIds, sortBy, debouncedSearchQuery]);
+
+  // DEEP LINKING EFFECT
+  useEffect(() => {
+    const newsId = searchParams.get('newsId');
+    if (newsId && news.length > 0 && !selectedNews) {
+      console.log('🔗 Deep link detectado para newsId:', newsId);
+      const linkedNews = news.find(n => n.id === newsId);
+
+      if (linkedNews) {
+        console.log('✅ Noticia encontrada, abriendo modal...');
+        openFullContent(linkedNews);
+
+        // Limpiar el parámetro de la URL para que no se reabra al recargar
+        // pero mantener otros parámetros si existen
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('newsId');
+        setSearchParams(newParams, { replace: true });
+      }
+    }
+  }, [news, searchParams, setSearchParams, selectedNews]);
 
   useEffect(() => {
     // No usar mockNews - solo cargar del Excel

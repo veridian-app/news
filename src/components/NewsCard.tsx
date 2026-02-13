@@ -36,10 +36,12 @@ interface NewsCardProps {
 
 // Share modal component
 const ShareModal = ({ isOpen, onClose, item }: { isOpen: boolean; onClose: () => void; item: NewsItem }) => {
-    // Usar la URL original de la noticia si existe, si no, usar la URL de Veridian
-    const shareUrl = item.url || `https://veridian.news/veridian-news`;
+    // Generar URL interna para deep linking
+    const shareUrl = `${window.location.origin}/veridian-news?newsId=${item.id}`;
+
+    // Texto para compartir
     const shareTitle = item.title;
-    const shareText = `${item.title}\n\nVía Veridian News`;
+    const shareText = `${item.title}\n\nLee la historia completa en Veridian News:`;
     const shareTextTwitter = `${item.title.substring(0, 200)}${item.title.length > 200 ? '...' : ''}\n\n📰 @VeridianNews`;
 
     // Detectar si estamos en móvil
@@ -254,10 +256,7 @@ export const NewsCard = ({ item, isActive, index, onLike, onShare, onReadMore, o
         e.preventDefault();
         e.stopPropagation();
         haptic('light');
-        toast({
-            title: "🔜 Próximamente",
-            description: "La función de guardar estará disponible muy pronto",
-        });
+        toggleSave(item);
     };
 
     const handleShare = (e: React.MouseEvent) => {
