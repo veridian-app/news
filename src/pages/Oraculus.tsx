@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
@@ -6,10 +6,12 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-// Supabase import removed — analysis now uses Vercel API route
-import { Loader2, Lock, CheckCircle2, AlertCircle, TrendingUp, TrendingDown, FileText, Edit3, BookOpen, Shield, Brain, Upload, Download, File, Globe } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, TrendingUp, TrendingDown, FileText, Edit3, BookOpen, Shield, Brain, Upload, Download, File as FileIcon, Globe, X, History, ChevronRight, Sparkles, LayoutDashboard, Search, ArrowRight, Rocket, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
+import { motion, AnimatePresence } from "framer-motion";
+import { BottomDock } from "@/components/BottomDock";
+import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface CraapScore {
@@ -112,6 +114,16 @@ interface AnalysisResult {
     url?: string;
     context: string; // Dónde aparece en el texto
   }>;
+}
+
+interface AnalysisHistoryItem {
+  id: string;
+  date: string;
+  type: 'url' | 'file' | 'text';
+  summary: string;
+  score?: number;
+  reliability?: string;
+  result: AnalysisResult;
 }
 
 // Translations for Oraculus
@@ -424,26 +436,63 @@ const Oraculus = () => {
   const navigate = useNavigate();
   const { language, setLanguage } = useLanguage();
   const t = translations[language];
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [referralCount, setReferralCount] = useState(0);
+
+  // Core State
   const [articleText, setArticleText] = useState("");
   const [articleUrl, setArticleUrl] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  // UI State
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const [founderAccessUntil, setFounderAccessUntil] = useState<string | null>(null);
-  const [isFounderAccess, setIsFounderAccess] = useState(false);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [analysisMode, setAnalysisMode] = useState<"external" | "own">("external");
   const [citationFormat, setCitationFormat] = useState<"APA" | "MLA" | "Chicago">("APA");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isProcessingFile, setIsProcessingFile] = useState(false);
 
+  // Data State
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [history, setHistory] = useState<AnalysisHistoryItem[]>([]);
+
+  // Load history on mount
   useEffect(() => {
-    // Oraculus es ahora público y sin restricciones
-    setIsUnlocked(true);
-    setReferralCount(3);
-    setIsFounderAccess(true);
+    try {
+      const saved = localStorage.getItem('oraculus_history');
+      if (saved) setHistory(JSON.parse(saved));
+    } catch (e) {
+      console.error("Failed to load history", e);
+    }
   }, []);
+
+  const addToHistory = (result: AnalysisResult, type: 'url' | 'file' | 'text', contentSummary: string) => {
+    const newItem: AnalysisHistoryItem = {
+      id: Date.now().toString(),
+      date: new Date().toISOString(),
+      type,
+      summary: contentSummary,
+      score: result.summary.objectivityScore,
+      reliability: result.summary.overallReliability,
+      result
+    };
+
+    // Keep last 5 items
+    const newHistory = [newItem, ...history].slice(0, 5);
+    setHistory(newHistory);
+    localStorage.setItem('oraculus_history', JSON.stringify(newHistory));
+  };
+
+  const clearHistory = () => {
+    setHistory([]);
+    localStorage.removeItem('oraculus_history');
+  };
+
+  const loadFromHistory = (item: AnalysisHistoryItem) => {
+    setAnalysisResult(item.result);
+    // Scroll to results
+    setTimeout(() => {
+      const resultsElement = document.getElementById('analysis-results');
+      if (resultsElement) resultsElement.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  };
 
   const isValidUrl = (string: string) => {
     try {
@@ -1398,6 +1447,11 @@ const Oraculus = () => {
         };
       }
 
+      addToHistory(
+        data,
+        analysisMode === 'own' ? 'text' : (articleUrl ? 'url' : (selectedFile ? 'file' : 'text')),
+        articleUrl || (selectedFile ? selectedFile.name : (articleText.substring(0, 50) + "..."))
+      );
       setAnalysisResult(data);
       toast.success(analysisMode === "own" ? t.success.auditCompleted : t.success.analysisCompleted);
     } catch (error: any) {
@@ -1434,882 +1488,571 @@ const Oraculus = () => {
     }
   };
 
+  // Render Helpers
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return "text-emerald-400";
+    if (score >= 60) return "text-yellow-400";
+    return "text-red-400";
+  };
+
+  const getReliabilityColor = (reliability: string) => {
+    if (reliability.includes("Very High") || reliability.includes("Muy Alta") || reliability.includes("High") || reliability.includes("Alta")) return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+    if (reliability.includes("Medium") || reliability.includes("Media")) return "bg-yellow-500/10 text-yellow-400 border-yellow-500/20";
+    return "bg-red-500/10 text-red-400 border-red-500/20";
+  };
+
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case "None":
       case "Nula":
-        return "bg-emerald-500/20 text-emerald-400 border-emerald-500/50";
+        return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
       case "Low":
       case "Leve":
-        return "bg-yellow-500/20 text-yellow-400 border-yellow-500/50";
+        return "bg-yellow-500/10 text-yellow-400 border-yellow-500/20";
+      case "Medium":
+      case "Moderada":
+        return "bg-orange-500/10 text-orange-400 border-orange-500/20";
+      case "High":
+      case "Alta":
       case "Significant":
       case "Significativa":
-        return "bg-red-500/20 text-red-400 border-red-500/50";
+        return "bg-red-500/10 text-red-400 border-red-500/20";
       default:
         return "bg-muted text-muted-foreground";
     }
   };
 
-  const getReliabilityColor = (reliability: string) => {
-    if (reliability.includes("Very High") || reliability.includes("Muy Alta")) {
-      return "text-emerald-400";
-    }
-    if (reliability.includes("High") || reliability.includes("Alta")) {
-      return "text-emerald-300";
-    }
-    if (reliability.includes("Medium") || reliability.includes("Media")) {
-      return "text-yellow-400";
-    }
-    if (reliability.includes("Low") || reliability.includes("Baja")) {
-      return "text-orange-400";
-    }
-    if (reliability.includes("Very Low") || reliability.includes("Muy Baja")) {
-      return "text-red-400";
-    }
-    return "text-red-400";
-  };
-
-  const getPlagiarismColor = (percentage: number) => {
-    if (percentage < 10) return "text-emerald-400";
-    if (percentage < 25) return "text-yellow-400";
-    if (percentage < 50) return "text-orange-400";
-    return "text-red-400";
-  };
-
-  const getPlagiarismLevel = (percentage: number): "None" | "Low" | "Moderate" | "High" | "Very High" => {
-    if (percentage < 5) return "None";
-    if (percentage < 15) return "Low";
-    if (percentage < 30) return "Moderate";
-    if (percentage < 50) return "High";
-    return "Very High";
-  };
-
-  if (!isUnlocked) {
-    const remaining = Math.max(3 - referralCount, 0);
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
-        <Card className="max-w-md w-full p-8 text-center space-y-6 bg-card/50 backdrop-blur border-border/50">
-          <div className="w-16 h-16 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
-            <Lock className="w-8 h-8 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold mb-2">{t.locked.title}</h1>
-            <p className="text-muted-foreground">
-              {t.locked.message(remaining)}
-            </p>
-          </div>
-          <Progress value={(referralCount / 3) * 100} className="w-full" />
-          <p className="text-sm text-muted-foreground">
-            {t.locked.progress(referralCount)}
-          </p>
-          <Button onClick={() => navigate("/")} variant="outline" className="w-full">
-            {t.locked.backButton}
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            {t.locked.bonus}
-          </p>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background text-foreground pb-24 font-sans selection:bg-primary/20">
+      {/* Ambient Background */}
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-background to-background pointer-events-none" />
+
+      <div className="relative max-w-5xl mx-auto px-4 pt-6 md:pt-12">
         {/* Header */}
-        <div className="text-center space-y-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex-1"></div>
-            <div className="flex items-center gap-2">
-              <Globe className="w-4 h-4 text-muted-foreground" />
-              <Select value={language} onValueChange={(value: "es" | "en") => setLanguage(value)}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="es">Español</SelectItem>
-                </SelectContent>
-              </Select>
+        <header className="flex items-center justify-between mb-8 md:mb-12">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-primary/10 rounded-xl border border-primary/20 backdrop-blur-sm shadow-[0_0_15px_-3px_rgba(16,185,129,0.2)]">
+              <Brain className="w-8 h-8 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Oraculus</h1>
+              <p className="text-sm text-muted-foreground hidden md:block">
+                {language === "es" ? "Sistema de Análisis de Integridad Informativa" : "Information Integrity Analysis System"}
+              </p>
             </div>
           </div>
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <CheckCircle2 className="w-6 h-6 text-emerald-400" />
-            <Badge variant="outline" className="border-emerald-500/50 text-emerald-400">
-              {t.header.unlocked}
-            </Badge>
-          </div>
-          <div className="space-y-2">
-            <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent tracking-tight">
-              {t.header.title}
-            </h1>
-            <p className="text-lg text-muted-foreground max-w-3xl mx-auto font-light">
-              {t.header.subtitle}
-            </p>
-            <p className="text-sm text-muted-foreground/80 max-w-2xl mx-auto">
-              {t.header.subtitle2}
-            </p>
-          </div>
-          {isFounderAccess && (
-            <div className="flex justify-center pt-2">
-              <div className="px-4 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-200 text-xs uppercase tracking-[0.3em]">
-                {founderAccessUntil ? t.header.founderAccess(new Date(founderAccessUntil).toLocaleDateString(language === "es" ? "es-ES" : "en-US")) : t.header.founderAccess("")}
-              </div>
-            </div>
-          )}
-        </div>
 
-        {/* Mode Selector */}
-        <Tabs value={analysisMode} onValueChange={(v) => {
-          setAnalysisMode(v as "external" | "own");
-          setAnalysisResult(null);
-          if (v === "own") {
-            setArticleUrl("");
-          }
-        }} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="external" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              {t.tabs.external}
-            </TabsTrigger>
-            <TabsTrigger value="own" className="flex items-center gap-2">
-              <Edit3 className="w-4 h-4" />
-              {t.tabs.own}
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLanguage(language === "es" ? "en" : "es")}
+              className="rounded-full hover:bg-white/5"
+            >
+              <span className="text-xs font-bold">{language === "es" ? "ES" : "EN"}</span>
+            </Button>
+          </div>
+        </header>
 
-          <TabsContent value="external" className="mt-4">
-            <Card className="p-6 bg-card/50 backdrop-blur border-border/50 shadow-lg">
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    {t.fileUpload.option1}
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
-                      onChange={handleFileSelect}
-                      disabled={isAnalyzing || isProcessingFile}
-                      className="hidden"
-                      id="file-upload-external"
-                    />
-                    <label
-                      htmlFor="file-upload-external"
-                      className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        <AnimatePresence mode="wait">
+          {!analysisResult ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-8"
+            >
+              {/* Input Section */}
+              <div className="space-y-6">
+                {/* Mode Toggle */}
+                <div className="flex justify-center">
+                  <div className="bg-secondary/30 p-1.5 rounded-full border border-white/5 flex gap-1 backdrop-blur-md">
+                    <Button
+                      variant={analysisMode === 'external' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      onClick={() => setAnalysisMode('external')}
+                      className="rounded-full px-6 transition-all"
                     >
-                      <Upload className="w-4 h-4" />
-                      <span className="text-sm">{t.fileUpload.chooseFile}</span>
-                    </label>
-                    {selectedFile && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <File className="w-4 h-4" />
-                        <span>{selectedFile.name}</span>
+                      <Globe className="w-4 h-4 mr-2" />
+                      {t.tabs.external}
+                    </Button>
+                    <Button
+                      variant={analysisMode === 'own' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      onClick={() => setAnalysisMode('own')}
+                      className="rounded-full px-6 transition-all"
+                    >
+                      <Edit3 className="w-4 h-4 mr-2" />
+                      {t.tabs.own}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Main Input Card */}
+                <Card className="p-1 border-white/10 bg-black/20 backdrop-blur-xl shadow-2xl relative overflow-hidden group">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+
+                  <div className="bg-card/95 p-6 md:p-10 rounded-lg border border-white/5">
+                    <div className="space-y-6">
+                      {/* Unified Dropzone Area */}
+                      <div
+                        className={cn(
+                          "relative rounded-xl border-2 border-dashed border-white/10 bg-black/20 transition-all duration-300",
+                          "hover:border-primary/50 hover:bg-black/30 group-hover:shadow-[0_0_20px_-5px_rgba(16,185,129,0.1)]",
+                          (selectedFile || articleText || articleUrl) && "border-primary/50 bg-primary/5"
+                        )}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const file = e.dataTransfer.files[0];
+                          if (file) {
+                            if (file.type === 'application/pdf' || file.name.endsWith('.pdf') ||
+                              file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+                              file.name.endsWith('.docx') || file.type === 'text/plain' || file.name.endsWith('.txt')) {
+                              setSelectedFile(file);
+                              setArticleText("");
+                              setArticleUrl("");
+                            } else {
+                              toast.error("File type not supported. Use PDF, DOCX or TXT.");
+                            }
+                          }
+                        }}
+                      >
+                        <label className="flex flex-col items-center justify-center w-full min-h-[200px] cursor-pointer p-8 text-center">
+                          {selectedFile ? (
+                            <div className="space-y-3 animate-in fade-in zoom-in duration-300">
+                              <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-2">
+                                <FileIcon className="w-8 h-8 text-primary" />
+                              </div>
+                              <p className="font-medium text-lg text-primary-foreground">{selectedFile.name}</p>
+                              <p className="text-sm text-muted-foreground">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                              <Button variant="ghost" size="sm" onClick={(e) => { e.preventDefault(); setSelectedFile(null); }}>
+                                <X className="w-4 h-4 mr-2" />
+                                {language === "es" ? "Cambiar archivo" : "Change file"}
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="mb-4 p-4 rounded-full bg-white/5 group-hover:bg-primary/10 transition-colors">
+                                <Upload className="w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors" />
+                              </div>
+                              <p className="text-lg font-medium mb-2">
+                                {analysisMode === 'external'
+                                  ? (language === "es" ? "Arrastra un archivo o pega una URL" : "Drag a file or paste a URL")
+                                  : (language === "es" ? "Pega tu texto aquí o sube un archivo" : "Paste your text here or upload a file")}
+                              </p>
+                              <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
+                                PDF, DOCX, TXT {language === "es" ? "o enlaces directos a artículos" : "or direct article links"}
+                              </p>
+
+                              {/* URL/Text Input Overlay */}
+                              <div className="w-full max-w-xl relative" onClick={e => e.stopPropagation()}>
+                                <div className="relative group/input">
+                                  <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none z-10">
+                                    {articleUrl ? <Globe className="w-4 h-4 text-primary" /> : <FileText className="w-4 h-4 text-muted-foreground" />}
+                                  </div>
+                                  <Textarea
+                                    value={articleText || articleUrl}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      if (val.trim().startsWith('http')) {
+                                        setArticleUrl(val);
+                                        setArticleText("");
+                                      } else {
+                                        setArticleText(val);
+                                        setArticleUrl("");
+                                      }
+                                    }}
+                                    placeholder={analysisMode === 'external' ? "https://..." : (language === "es" ? "Escribe o pega texto..." : "Type or paste text...")}
+                                    className="pl-10 min-h-[60px] py-4 bg-black/40 border-white/10 focus:border-primary/50 transition-all resize-y text-sm md:text-base font-mono rounded-lg"
+                                  />
+                                </div>
+                                <div className="mt-2 flex justify-between items-center text-xs text-muted-foreground px-1">
+                                  <span>{(articleText || articleUrl).length > 0 ? `${(articleText || articleUrl).length} chars` : ""}</span>
+                                  {analysisMode === 'own' && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="opacity-70">Format:</span>
+                                      <Select value={citationFormat} onValueChange={(v: any) => setCitationFormat(v)}>
+                                        <SelectTrigger className="h-6 w-[80px] text-xs bg-transparent border-white/10 px-2">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="APA">APA</SelectItem>
+                                          <SelectItem value="MLA">MLA</SelectItem>
+                                          <SelectItem value="Chicago">Chicago</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              <input
+                                type="file"
+                                accept=".pdf,.doc,.docx,.txt"
+                                onChange={handleFileSelect}
+                                className="hidden"
+                                id="file-upload"
+                              />
+                            </>
+                          )}
+                        </label>
                       </div>
-                    )}
-                    {isProcessingFile && (
-                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t.fileUpload.description}
-                  </p>
-                </div>
 
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
+                      <Button
+                        onClick={handleAnalyze}
+                        disabled={isAnalyzing || isProcessingFile || (!articleText.trim() && !articleUrl.trim() && !selectedFile)}
+                        className="w-full h-12 text-lg font-medium shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all bg-gradient-to-r from-primary to-emerald-600 hover:from-primary/90 hover:to-emerald-600/90"
+                        size="lg"
+                      >
+                        {isExtracting ? (
+                          <>
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                            {t.buttons.extracting}
+                          </>
+                        ) : isAnalyzing ? (
+                          <>
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                            {t.buttons.analyzing}
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="mr-2 h-5 w-5" />
+                            {t.buttons.analyze}
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">{language === "es" ? "O" : "OR"}</span>
-                  </div>
-                </div>
+                </Card>
 
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    {t.urlInput.option2}
-                  </label>
-                  <Textarea
-                    value={articleUrl}
-                    onChange={(e) => {
-                      setArticleUrl(e.target.value);
-                      setSelectedFile(null); // Clear file when URL is entered
-                    }}
-                    placeholder={t.urlInput.placeholder}
-                    className="min-h-[80px] bg-background/50 font-mono text-sm"
-                    disabled={isAnalyzing}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t.urlInput.description}
-                  </p>
-                </div>
-
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">{language === "es" ? "O" : "OR"}</span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    {t.textInput.option3}
-                  </label>
-                  <Textarea
-                    value={articleText}
-                    onChange={(e) => setArticleText(e.target.value)}
-                    placeholder={t.textInput.placeholder}
-                    className="min-h-[200px] bg-background/50"
-                    disabled={isAnalyzing}
-                  />
-                </div>
-                <Button
-                  onClick={handleAnalyze}
-                  disabled={isAnalyzing || isProcessingFile || (!articleText.trim() && !articleUrl.trim() && !selectedFile)}
-                  className="w-full"
-                  size="lg"
-                >
-                  {isExtracting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t.buttons.extracting}
-                    </>
-                  ) : isAnalyzing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t.buttons.analyzing}
-                    </>
-                  ) : (
-                    t.buttons.analyze
-                  )}
-                </Button>
-              </div>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="own" className="mt-4">
-            <Card className="p-6 bg-card/50 backdrop-blur border-border/50 shadow-lg">
-              <div className="space-y-4">
-                <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <Brain className="w-5 h-5 text-primary mt-0.5" />
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium">{t.ownText.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {t.ownText.description}
+                {/* History Section */}
+                {history.length > 0 && (
+                  <div className="pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200">
+                    <div className="flex items-center justify-between mb-4 px-1">
+                      <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <History className="w-4 h-4" />
+                        {language === "es" ? "Análisis Recientes" : "Recent Analysis"}
                       </p>
+                      <button onClick={clearHistory} className="text-xs text-muted-foreground hover:text-red-400 transition-colors uppercase tracking-wider font-semibold">
+                        {language === "es" ? "Limpiar" : "Clear"}
+                      </button>
                     </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    {t.fileUpload.option1}
-                  </label>
-                  <div className="flex items-center gap-2 mb-4">
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
-                      onChange={handleFileSelect}
-                      disabled={isAnalyzing || isProcessingFile}
-                      className="hidden"
-                      id="file-upload-own"
-                    />
-                    <label
-                      htmlFor="file-upload-own"
-                      className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Upload className="w-4 h-4" />
-                      <span className="text-sm">{t.fileUpload.chooseFile}</span>
-                    </label>
-                    {selectedFile && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <File className="w-4 h-4" />
-                        <span>{selectedFile.name}</span>
-                      </div>
-                    )}
-                    {isProcessingFile && (
-                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    {t.fileUpload.description}
-                  </p>
-
-                  <div className="relative mb-4">
-                    <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t" />
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-card px-2 text-muted-foreground">{language === "es" ? "O" : "OR"}</span>
-                    </div>
-                  </div>
-
-                  <label className="text-sm font-medium mb-2 block">
-                    {t.textInput.option3.replace("article", "text")}
-                  </label>
-                  <Textarea
-                    value={articleText}
-                    onChange={(e) => setArticleText(e.target.value)}
-                    placeholder={t.textInput.ownPlaceholder}
-                    className="min-h-[300px] bg-background/50"
-                    disabled={isAnalyzing}
-                  />
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <label className="text-sm font-medium mb-2 block">
-                      {t.ownText.citationFormat}
-                    </label>
-                    <div className="flex gap-2">
-                      {(["APA", "MLA", "Chicago"] as const).map((format) => (
-                        <Button
-                          key={format}
-                          type="button"
-                          variant={citationFormat === format ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setCitationFormat(format)}
-                          disabled={isAnalyzing}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {history.map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => loadFromHistory(item)}
+                          className="flex items-center gap-3 p-3 rounded-lg border border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/10 transition-colors text-left group active:scale-[0.98]"
                         >
-                          {format}
-                        </Button>
+                          <div className="p-2 rounded bg-black/20 text-muted-foreground group-hover:text-primary transition-colors">
+                            {item.type === 'url' ? <Globe className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate text-foreground group-hover:text-white transition-colors">
+                              {item.summary || "Untitled"}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-muted-foreground">{new Date(item.date).toLocaleDateString()}</span>
+                              {item.score !== undefined && (
+                                <Badge variant="outline" className={cn("text-[10px] h-4 border-white/10", getScoreColor(item.score).replace('text-', 'text-'))}>
+                                  {item.score}/100
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-white/50 transition-transform group-hover:translate-x-0.5" />
+                        </button>
                       ))}
                     </div>
                   </div>
-                </div>
-
-                <Button
-                  onClick={handleAnalyze}
-                  disabled={isAnalyzing || isProcessingFile || (!articleText.trim() && !selectedFile)}
-                  className="w-full"
-                  size="lg"
-                >
-                  {isAnalyzing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t.buttons.auditing}
-                    </>
-                  ) : (
-                    <>
-                      <Edit3 className="mr-2 h-4 w-4" />
-                      {t.buttons.audit}
-                    </>
-                  )}
-                </Button>
-              </div>
-            </Card>
-          </TabsContent>
-        </Tabs>
-
-        {/* Results Section */}
-        {analysisResult && analysisResult.summary && (
-          <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Summary Card */}
-            <Card className="p-6 bg-card/50 backdrop-blur border-border/50 shadow-lg">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold flex items-center gap-2">
-                  <Shield className="w-6 h-6" />
-                  {t.results.executiveSummary}
-                </h2>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => generatePDF(analysisResult)}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    {t.results.downloadPDF}
-                  </Button>
-                  <Button
-                    onClick={() => generateDOC(analysisResult)}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    {t.results.downloadDOC}
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-4">
-                {/* Objectivity Score */}
-                {analysisResult.summary.objectivityScore !== undefined && (
-                  <div className="p-4 rounded-lg bg-background/50 border border-border/50">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium">{t.results.objectivityScore}</p>
-                      <Badge className={`text-lg px-3 py-1 ${analysisResult.summary.objectivityScore >= 80 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50" :
-                        analysisResult.summary.objectivityScore >= 60 ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/50" :
-                          "bg-red-500/20 text-red-400 border-red-500/50"
-                        }`}>
-                        {analysisResult.summary.objectivityScore}/100
-                      </Badge>
-                    </div>
-                    <Progress value={analysisResult.summary.objectivityScore} className="h-2 mb-2" />
-                    {analysisResult.summary.objectivityExplanation && (
-                      <p className="text-xs text-muted-foreground">{analysisResult.summary.objectivityExplanation}</p>
-                    )}
-                  </div>
                 )}
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              id="analysis-results"
+              className="space-y-6 pb-12"
+            >
+              {/* Results Header */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <Button variant="ghost" className="hover:bg-white/5 -ml-2 text-muted-foreground hover:text-foreground" onClick={() => setAnalysisResult(null)}>
+                  <ArrowRight className="w-4 h-4 mr-2 rotate-180" />
+                  {language === "es" ? "Nuevo Análisis" : "New Analysis"}
+                </Button>
 
-                {/* Plagiarism Analysis - Always show */}
-                {analysisResult.summary.plagiarismAnalysis !== undefined && (
-                  <div className="p-4 rounded-lg bg-background/50 border border-border/50">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <AlertCircle className={`w-4 h-4 ${getPlagiarismColor(analysisResult.summary.plagiarismAnalysis.percentage)}`} />
-                        <p className="text-sm font-medium">{t.results.plagiarismRisk}</p>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <Button onClick={() => generatePDF(analysisResult)} variant="outline" size="sm" className="gap-2 flex-1 sm:flex-none border-white/10 hover:bg-white/5">
+                    <Download className="w-4 h-4" /> PDF
+                  </Button>
+                  <Button onClick={() => generateDOC(analysisResult)} variant="outline" size="sm" className="gap-2 flex-1 sm:flex-none border-white/10 hover:bg-white/5">
+                    <Download className="w-4 h-4" /> DOCX
+                  </Button>
+                </div>
+              </div>
+
+              {/* KPI Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Objectivity Score */}
+                <Card className="p-6 border-white/10 bg-black/20 backdrop-blur-md relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <Shield className="w-24 h-24" />
+                  </div>
+                  <p className="text-sm text-muted-foreground font-medium mb-2 uppercase tracking-wider">{t.results.objectivityScore}</p>
+                  <div className="flex items-end gap-2">
+                    <span className={cn("text-5xl font-bold tracking-tighter", getScoreColor(analysisResult.summary.objectivityScore || 0))}>
+                      {analysisResult.summary.objectivityScore}
+                    </span>
+                    <span className="text-lg text-muted-foreground mb-1.5 font-light">/100</span>
+                  </div>
+                  <Progress value={analysisResult.summary.objectivityScore} className="h-1.5 mt-4 bg-white/5" indicatorClassName={getScoreColor(analysisResult.summary.objectivityScore || 0).replace('text-', 'bg-')} />
+                </Card>
+
+                {/* Reliability */}
+                <Card className="p-6 border-white/10 bg-black/20 backdrop-blur-md flex flex-col justify-center relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <Brain className="w-24 h-24" />
+                  </div>
+                  <p className="text-sm text-muted-foreground font-medium mb-3 uppercase tracking-wider">{t.results.overallReliability}</p>
+                  <div className={cn("inline-flex self-start px-4 py-1.5 rounded-full text-sm font-medium border", getReliabilityColor(analysisResult.summary.overallReliability))}>
+                    {analysisResult.summary.overallReliability}
+                  </div>
+                </Card>
+
+                {/* Plagiarism Risk */}
+                <Card className="p-6 border-white/10 bg-black/20 backdrop-blur-md relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <AlertCircle className="w-24 h-24" />
+                  </div>
+                  <p className="text-sm text-muted-foreground font-medium mb-2 uppercase tracking-wider">{t.results.plagiarismRisk}</p>
+                  <div className="flex items-end gap-2">
+                    <span className={cn("text-5xl font-bold tracking-tighter",
+                      analysisResult.summary.plagiarismAnalysis?.percentage < 15 ? "text-emerald-400" :
+                        analysisResult.summary.plagiarismAnalysis?.percentage < 40 ? "text-yellow-400" : "text-red-400"
+                    )}>
+                      {analysisResult.summary.plagiarismAnalysis?.percentage}%
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2 font-medium bg-white/5 inline-block px-2 py-1 rounded">
+                    {analysisResult.summary.plagiarismAnalysis?.level}
+                  </p>
+                </Card>
+              </div>
+
+              {/* Hoax Alerts Banner */}
+              {analysisResult.summary.hoaxAlerts && analysisResult.summary.hoaxAlerts.length > 0 && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-5 flex gap-4 animate-in fade-in slide-in-from-top-4">
+                  <div className="bg-red-500/20 p-2 rounded-full h-fit">
+                    <AlertCircle className="w-5 h-5 text-red-500" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-red-400">{t.source.confirmedMisinformation}</h3>
+                    <ul className="space-y-2 text-sm text-red-200/80">
+                      {analysisResult.summary.hoaxAlerts.map((alert, idx) => (
+                        <li key={idx} className="flex gap-2">
+                          <span className="opacity-50">•</span>
+                          <span>{alert.claim}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* Detailed Tabs */}
+              <Tabs defaultValue="overview" className="w-full">
+                <TabsList className="w-full bg-black/20 backdrop-blur-sm border border-white/5 p-1 h-auto grid grid-cols-2 md:grid-cols-4 gap-1 rounded-xl">
+                  <TabsTrigger value="overview" className="rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20 transition-all py-3">
+                    <LayoutDashboard className="w-4 h-4 mr-2" />
+                    {language === "es" ? "Resumen" : "Overview"}
+                  </TabsTrigger>
+                  <TabsTrigger value="bias" className="rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20 transition-all py-3">
+                    <Brain className="w-4 h-4 mr-2" />
+                    {t.results.biasAnalysis}
+                  </TabsTrigger>
+                  <TabsTrigger value="sources" className="rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20 transition-all py-3">
+                    <BookOpen className="w-4 h-4 mr-2" />
+                    {language === "es" ? "Fuentes" : "Sources"}
+                  </TabsTrigger>
+                  {analysisMode === 'own' && (
+                    <TabsTrigger value="improvements" className="rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20 transition-all py-3">
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      {language === "es" ? "Mejoras" : "Improvements"}
+                    </TabsTrigger>
+                  )}
+                </TabsList>
+
+                <div className="mt-6 space-y-6">
+                  <TabsContent value="overview" className="space-y-6 focus-visible:ring-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    {/* Summary Text */}
+                    <Card className="p-6 md:p-8 bg-card/40 backdrop-blur border-border/50">
+                      <h3 className="text-lg font-semibold mb-6 flex items-center gap-2 text-primary">
+                        <Sparkles className="w-5 h-5" />
+                        {t.results.executiveSummary}
+                      </h3>
+
+                      <div className="grid md:grid-cols-2 gap-8">
+                        {/* Concerns */}
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 text-sm font-medium text-red-400 uppercase tracking-wider pb-2 border-b border-white/5">
+                            <TrendingDown className="w-4 h-4" />
+                            {t.results.mainConcerns}
+                          </div>
+                          {analysisResult.summary.mainConcerns.length > 0 ? (
+                            <ul className="space-y-3">
+                              {analysisResult.summary.mainConcerns.map((c, i) => (
+                                <li key={i} className="text-sm text-muted-foreground flex gap-3 group">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-red-500/50 mt-1.5 group-hover:scale-125 transition-transform" />
+                                  <span className="leading-relaxed">{c}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-muted-foreground italic opacity-50">None detected</p>
+                          )}
+                        </div>
+
+                        {/* Strengths */}
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 text-sm font-medium text-emerald-400 uppercase tracking-wider pb-2 border-b border-white/5">
+                            <TrendingUp className="w-4 h-4" />
+                            {t.results.strengths}
+                          </div>
+                          {analysisResult.summary.strengths.length > 0 ? (
+                            <ul className="space-y-3">
+                              {analysisResult.summary.strengths.map((c, i) => (
+                                <li key={i} className="text-sm text-muted-foreground flex gap-3 group">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/50 mt-1.5 group-hover:scale-125 transition-transform" />
+                                  <span className="leading-relaxed">{c}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-muted-foreground italic opacity-50">None detected</p>
+                          )}
+                        </div>
                       </div>
-                      <Badge className={`text-lg px-3 py-1 ${analysisResult.summary.plagiarismAnalysis.percentage < 10 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50" :
-                        analysisResult.summary.plagiarismAnalysis.percentage < 25 ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/50" :
-                          analysisResult.summary.plagiarismAnalysis.percentage < 50 ? "bg-orange-500/20 text-orange-400 border-orange-500/50" :
-                            "bg-red-500/20 text-red-400 border-red-500/50"
-                        }`}>
-                        {analysisResult.summary.plagiarismAnalysis.percentage}%
-                      </Badge>
-                    </div>
-                    <Progress
-                      value={analysisResult.summary.plagiarismAnalysis.percentage}
-                      className={`h-2 mb-2 ${getPlagiarismColor(analysisResult.summary.plagiarismAnalysis.percentage)}`}
-                    />
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">
-                        {t.results.level}: <span className={getPlagiarismColor(analysisResult.summary.plagiarismAnalysis.percentage)}>
-                          {analysisResult.summary.plagiarismAnalysis.level}
-                        </span>
-                      </p>
-                      {analysisResult.summary.plagiarismAnalysis.explanation && (
-                        <p className="text-xs text-muted-foreground">{analysisResult.summary.plagiarismAnalysis.explanation}</p>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="bias" className="focus-visible:ring-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {Object.entries(analysisResult.biasAnalysis || {})
+                        .filter(([_, val]: [string, any]) => val && val.severity && val.severity !== 'None' && val.severity !== 'Nula')
+                        .map(([key, val]: [string, any]) => (
+                          <Card key={key} className="p-6 bg-card/40 backdrop-blur border-border/50 hover:border-primary/20 transition-all group">
+                            <div className="flex justify-between items-start mb-4">
+                              <h4 className="font-medium capitalize text-lg group-hover:text-primary transition-colors">{key.replace(/([A-Z])/g, ' $1').trim()}</h4>
+                              <Badge variant="outline" className={cn("px-3 py-1", getSeverityColor(val.severity))}>
+                                {val.severity}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground mb-4 leading-relaxed">{val.explanation}</p>
+                            {val.quotes && val.quotes.length > 0 && (
+                              <div className="bg-black/20 p-4 rounded-lg text-sm italic text-muted-foreground border-l-2 border-primary/20">
+                                "{val.quotes[0]}"
+                              </div>
+                            )}
+                          </Card>
+                        ))}
+                      {Object.entries(analysisResult.biasAnalysis || {}).filter(([_, val]: [string, any]) => val && val.severity && val.severity !== 'None' && val.severity !== 'Nula').length === 0 && (
+                        <div className="col-span-2 py-12 text-center text-muted-foreground">
+                          <CheckCircle2 className="w-12 h-12 text-emerald-500/50 mx-auto mb-4" />
+                          <p className="text-lg font-medium">No significant biases detected</p>
+                        </div>
                       )}
                     </div>
-                    {analysisResult.summary.plagiarismAnalysis.flaggedSections && analysisResult.summary.plagiarismAnalysis.flaggedSections.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
-                        <p className="text-xs font-medium text-muted-foreground mb-2">{t.source.flaggedSections}:</p>
-                        {analysisResult.summary.plagiarismAnalysis.flaggedSections.map((section, idx) => (
-                          <div key={idx} className="p-2 rounded bg-yellow-500/10 border border-yellow-500/30">
-                            <p className="text-xs text-muted-foreground italic mb-1">"{section.text.substring(0, 100)}..."</p>
-                            <p className="text-xs text-muted-foreground mb-1"><strong>{t.source.issue}:</strong> {section.reason}</p>
-                            <p className="text-xs text-emerald-400"><strong>{t.source.recommendation}:</strong> {section.suggestion}</p>
+                  </TabsContent>
+
+                  <TabsContent value="sources" className="focus-visible:ring-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    <div className="space-y-4">
+                      {analysisResult.sources?.map((source, i) => (
+                        <Card key={i} className="p-6 bg-card/40 backdrop-blur border-border/50 hover:bg-card/60 transition-colors">
+                          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-4">
+                            <div>
+                              <h4 className="font-medium text-lg text-primary flex items-center gap-2">
+                                {source.name}
+                                <ExternalLink className="w-3 h-3 opacity-50" />
+                              </h4>
+                              {source.url && <a href={source.url} target="_blank" className="text-xs text-muted-foreground hover:text-white truncate max-w-sm block mt-1 transition-colors">{source.url}</a>}
+                            </div>
+                            <div className="flex gap-2">
+                              <Badge variant="outline" className={cn(
+                                (source.craap?.overall?.includes('High') || source.confidenceScore > 80) ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+                              )}>
+                                Run Score: {source.craap?.overall || `${source.confidenceScore}%`}
+                              </Badge>
+                            </div>
                           </div>
+
+                          <p className="text-sm text-muted-foreground mb-4 leading-relaxed bg-black/10 p-3 rounded-lg border border-white/5">
+                            {source.summary}
+                          </p>
+
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div className="text-xs p-2 rounded bg-black/20 border border-white/5">
+                              <span className="block opacity-50 mb-1 uppercase tracking-wider text-[10px]">Type</span>
+                              {source.type}
+                            </div>
+                            <div className="text-xs p-2 rounded bg-black/20 border border-white/5">
+                              <span className="block opacity-50 mb-1 uppercase tracking-wider text-[10px]">Tone</span>
+                              {source.perspective?.tone}
+                            </div>
+                            {source.craap?.authority && (
+                              <div className="text-xs p-2 rounded bg-black/20 border border-white/5 md:col-span-2">
+                                <span className="block opacity-50 mb-1 uppercase tracking-wider text-[10px]">Authority</span>
+                                {`${source.craap.authority.score}/5`}
+                              </div>
+                            )}
+                          </div>
+                        </Card>
+                      ))}
+                      {(!analysisResult.sources || analysisResult.sources.length === 0) && (
+                        <div className="py-12 text-center text-muted-foreground">
+                          <p>No external sources detected in text</p>
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+
+                  {analysisMode === 'own' && (
+                    <TabsContent value="improvements" className="focus-visible:ring-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                      <div className="space-y-4">
+                        {analysisResult.improvementSuggestions?.map((imp, i) => (
+                          <Card key={i} className="p-6 bg-card/40 backdrop-blur border-border/50">
+                            <div className="flex gap-4">
+                              <div className="p-2 bg-primary/10 rounded-lg h-fit border border-primary/20">
+                                <Sparkles className="w-5 h-5 text-primary" />
+                              </div>
+                              <div className="space-y-4 flex-1">
+                                <p className="text-sm font-medium leading-relaxed">{imp.reason}</p>
+                                <div className="grid md:grid-cols-2 gap-4 text-sm">
+                                  <div className="p-4 bg-red-500/5 rounded-lg border border-red-500/10">
+                                    <p className="text-xs text-red-500 mb-2 font-bold uppercase tracking-wider">Before</p>
+                                    <p className="opacity-80 italic">"{imp.current}"</p>
+                                  </div>
+                                  <div className="p-4 bg-emerald-500/5 rounded-lg border border-emerald-500/10">
+                                    <p className="text-xs text-emerald-500 mb-2 font-bold uppercase tracking-wider">After</p>
+                                    <p className="opacity-80 font-medium">"{imp.suggestion}"</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </Card>
                         ))}
                       </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Hoax Alerts */}
-                {analysisResult.summary.hoaxAlerts && analysisResult.summary.hoaxAlerts.length > 0 && (
-                  <div className="p-4 rounded-lg border-2 space-y-3">
-                    {analysisResult.summary.hoaxAlerts.some(alert => alert.type === "buloConfirmado") && (
-                      <div className="p-3 rounded-lg bg-red-500/20 border border-red-500/50">
-                        <div className="flex items-center gap-2 mb-2">
-                          <AlertCircle className="w-5 h-5 text-red-400" />
-                          <p className="font-bold text-red-400">⚠️ {t.source.confirmedMisinformation}</p>
-                        </div>
-                        <div className="space-y-2">
-                          {analysisResult.summary.hoaxAlerts
-                            .filter(alert => alert.type === "buloConfirmado")
-                            .map((alert, idx) => (
-                              <div key={idx} className="text-sm">
-                                <p className="font-medium text-red-300 mb-1">"{alert.claim}"</p>
-                                <p className="text-red-200/80">{alert.reason}</p>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-                    {analysisResult.summary.hoaxAlerts.some(alert => alert.type === "posibleBulo") && (
-                      <div className="p-3 rounded-lg bg-yellow-500/20 border border-yellow-500/50">
-                        <div className="flex items-center gap-2 mb-2">
-                          <AlertCircle className="w-5 h-5 text-yellow-400" />
-                          <p className="font-bold text-yellow-400">⚠️ {t.source.possibleMisinformation}</p>
-                        </div>
-                        <div className="space-y-2">
-                          {analysisResult.summary.hoaxAlerts
-                            .filter(alert => alert.type === "posibleBulo")
-                            .map((alert, idx) => (
-                              <div key={idx} className="text-sm">
-                                <p className="font-medium text-yellow-300 mb-1">"{alert.claim}"</p>
-                                <p className="text-yellow-200/80">{alert.reason}</p>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div>
-                  <p className="text-sm text-muted-foreground mb-2">{t.results.overallReliability}</p>
-                  <p className={`text-2xl font-bold ${getReliabilityColor(analysisResult.summary.overallReliability)}`}>
-                    {analysisResult.summary.overallReliability}
-                  </p>
+                    </TabsContent>
+                  )}
                 </div>
-
-                {analysisResult.summary.mainConcerns.length > 0 && (
-                  <div>
-                    <p className="text-sm font-medium mb-2 flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4" />
-                      {t.results.mainConcerns}
-                    </p>
-                    <ul className="space-y-1">
-                      {analysisResult.summary.mainConcerns.map((concern, idx) => (
-                        <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
-                          <TrendingDown className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
-                          {concern}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {analysisResult.summary.strengths.length > 0 && (
-                  <div>
-                    <p className="text-sm font-medium mb-2 flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4" />
-                      {t.results.strengths}
-                    </p>
-                    <ul className="space-y-1">
-                      {analysisResult.summary.strengths.map((strength, idx) => (
-                        <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
-                          <TrendingUp className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
-                          {strength}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </Card>
-
-            {/* Bias Analysis */}
-            {analysisResult.biasAnalysis && Object.entries(analysisResult.biasAnalysis).some(([_, value]) => value && value.severity && value.severity !== "None" && value.severity !== "Nula") && (
-              <Card className="p-6 bg-card/50 backdrop-blur border-border/50 shadow-lg">
-                <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-                  <Brain className="w-6 h-6" />
-                  {t.results.biasAnalysis}
-                </h2>
-                <div className="grid md:grid-cols-2 gap-4">
-                  {Object.entries(analysisResult.biasAnalysis)
-                    .filter(([_, value]) => value && value.severity && value.severity !== "None" && value.severity !== "Nula")
-                    .map(([key, value]) => {
-                      if (!value || !value.severity) return null;
-                      const biasNameMap: { [key: string]: string } = {
-                        selectionBias: t.bias.selectionBias,
-                        misrepresentation: t.bias.misrepresentation,
-                        loadedLanguage: t.bias.loadedLanguage,
-                        falseExperts: t.bias.falseExperts,
-                        confirmationBias: t.bias.confirmationBias,
-                        framing: t.bias.framing,
-                        omission: t.bias.omission,
-                        appealToEmotion: t.bias.appealToEmotion,
-                        sensationalism: t.bias.sensationalism,
-                        falseEquivalence: t.bias.falseEquivalence,
-                        agendaSetting: t.bias.agendaSetting,
-                        hastyGeneralization: t.bias.hastyGeneralization,
-                      };
-                      const biasName = biasNameMap[key] || key;
-                      return (
-                        <div key={key} className="p-4 rounded-lg bg-background/50 border border-border/50">
-                          <div className="flex items-center justify-between mb-2">
-                            <p className="font-medium">{biasName}</p>
-                            <Badge className={getSeverityColor(value.severity)}>
-                              {value.severity === "Leve" || value.severity === "Low" ? t.severity.low :
-                                value.severity === "Significativa" || value.severity === "Significant" ? t.severity.significant :
-                                  value.severity === "Moderada" || value.severity === "Moderate" ? t.severity.moderate :
-                                    value.severity === "Alta" || value.severity === "High" ? t.severity.high :
-                                      value.severity === "Muy Alta" || value.severity === "Very High" ? t.severity.veryHigh :
-                                        value.severity === "Nula" || value.severity === "None" ? t.severity.none :
-                                          value.severity}
-                            </Badge>
-                          </div>
-                          {value.explanation ? (
-                            <p className="text-sm text-muted-foreground mb-3">{value.explanation}</p>
-                          ) : (
-                            <p className="text-sm text-muted-foreground mb-3 italic">{t.bias.noExplanation}</p>
-                          )}
-                          {value.quotes && Array.isArray(value.quotes) && value.quotes.length > 0 && (
-                            <div className="mt-3 pt-3 border-t border-border/50">
-                              <p className="text-xs font-medium text-muted-foreground mb-2">{t.bias.textualEvidence}:</p>
-                              <div className="space-y-2">
-                                {value.quotes.map((quote, idx) => (
-                                  <div key={idx} className="text-xs bg-background/70 p-2 rounded border-l-2 border-primary/50 italic text-muted-foreground">
-                                    "{quote}"
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                    .filter(item => item !== null)}
-                </div>
-              </Card>
-            )}
-
-            {/* Own Text Specific Sections */}
-            {analysisResult.isOwnText && (
-              <>
-                {/* Missing Citations */}
-                {analysisResult.missingCitations && analysisResult.missingCitations.length > 0 && (
-                  <Card className="p-6 bg-card/50 backdrop-blur border-border/50 border-yellow-500/30 shadow-lg">
-                    <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-                      <AlertCircle className="w-6 h-6 text-yellow-400" />
-                      {t.results.missingCitations}
-                    </h2>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {t.results.missingCitationsDesc}
-                    </p>
-                    <div className="space-y-2">
-                      {analysisResult.missingCitations.map((claim, idx) => (
-                        <div key={idx} className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
-                          <p className="text-sm text-muted-foreground italic">"{claim}"</p>
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                )}
-
-                {/* Improvement Suggestions */}
-                {analysisResult.improvementSuggestions && analysisResult.improvementSuggestions.length > 0 && (
-                  <Card className="p-6 bg-card/50 backdrop-blur border-border/50 border-primary/30 shadow-lg">
-                    <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-                      <Brain className="w-6 h-6" />
-                      {t.results.improvementSuggestions}
-                    </h2>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {t.results.improvementDesc}
-                    </p>
-                    <div className="space-y-4">
-                      {analysisResult.improvementSuggestions.map((suggestion, idx) => (
-                        <div key={idx} className="p-4 rounded-lg bg-background/50 border border-border/50">
-                          <div className="flex items-start gap-3">
-                            <Badge variant="outline" className="shrink-0">
-                              {suggestion.type === "language" && t.source.language}
-                              {suggestion.type === "source" && t.source.sources}
-                              {suggestion.type === "balance" && t.source.balance}
-                              {suggestion.type === "claim" && t.source.claim}
-                            </Badge>
-                            <div className="flex-1 space-y-3">
-                              <p className="text-sm font-medium">{suggestion.reason}</p>
-
-                              <div className="space-y-2">
-                                <div>
-                                  <p className="text-xs font-medium text-muted-foreground mb-1">{t.source.exampleIssue}:</p>
-                                  <div className="bg-red-500/10 border border-red-500/30 rounded p-2">
-                                    <p className="text-xs text-foreground leading-relaxed">
-                                      {suggestion.current}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <p className="text-xs font-medium text-muted-foreground mb-1">{t.source.criticalThinking}:</p>
-                                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded p-2">
-                                    <p className="text-xs text-foreground leading-relaxed">
-                                      {suggestion.suggestion}
-                                    </p>
-                                  </div>
-                                  <p className="text-xs text-muted-foreground mt-1 italic">
-                                    {t.source.criticalThinkingNote}
-                                  </p>
-                                </div>
-                              </div>
-
-                              {suggestion.location && (
-                                <div className="pt-2 border-t border-border/50">
-                                  <p className="text-xs text-muted-foreground">
-                                    <span className="font-medium">{t.source.approximateLocation}:</span> {suggestion.location.substring(0, 100)}{suggestion.location.length > 100 ? '...' : ''}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                )}
-              </>
-            )}
-
-            {/* Sources Analysis - Show for both modes (external and own) */}
-            {analysisResult.sources && analysisResult.sources.length > 0 && (
-              <Card className="p-6 bg-card/50 backdrop-blur border-border/50 shadow-lg">
-                <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-                  <BookOpen className="w-6 h-6" />
-                  {analysisResult.isOwnText ? t.results.craapAnalysis : t.results.sourcesAnalysis}
-                </h2>
-                {analysisResult.isOwnText && (
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {t.results.craapDescription}
-                  </p>
-                )}
-                <div className="space-y-4">
-                  {[...analysisResult.sources]
-                    .sort((a, b) => {
-                      // Sort by publication date (most recent first)
-                      const dateA = a.publicationDate && a.publicationDate !== 'Desconocida' && a.publicationDate !== 'Unknown'
-                        ? new Date(a.publicationDate).getTime()
-                        : 0;
-                      const dateB = b.publicationDate && b.publicationDate !== 'Desconocida' && b.publicationDate !== 'Unknown'
-                        ? new Date(b.publicationDate).getTime()
-                        : 0;
-                      return dateB - dateA;
-                    })
-                    .map((source, idx) => (
-                      <div key={idx} className="p-4 rounded-lg bg-background/50 border border-border/50">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1">
-                            <div className="flex items-start gap-2">
-                              <h3 className="font-semibold text-lg">{source.name}</h3>
-                              {source.confidenceScore !== undefined && (
-                                <Badge className={`text-xs ${source.confidenceScore >= 80 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50" :
-                                  source.confidenceScore >= 60 ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/50" :
-                                    "bg-red-500/20 text-red-400 border-red-500/50"
-                                  }`}>
-                                  {source.confidenceScore}% {t.source.confidence}
-                                </Badge>
-                              )}
-                            </div>
-                            {source.url && (
-                              <a
-                                href={source.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-primary hover:underline mt-1 block truncate max-w-md"
-                              >
-                                {source.url}
-                              </a>
-                            )}
-                            {source.summary && (
-                              <p className="text-sm text-muted-foreground mt-2 italic">{source.summary}</p>
-                            )}
-                            <div className="flex gap-2 mt-2 flex-wrap">
-                              <Badge variant="outline" className="text-xs">{source.type}</Badge>
-                              <Badge variant="outline" className="text-xs">{source.accessibility}</Badge>
-                              {source.publicationDate && source.publicationDate !== 'Desconocida' && source.publicationDate !== 'Unknown' && (
-                                <Badge variant="outline" className="text-xs">
-                                  {new Date(source.publicationDate).toLocaleDateString('en-US', {
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric'
-                                  })}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                          {source.craap && source.craap.overall && (
-                            <Badge className={`${getReliabilityColor(source.craap.overall)} border-current ml-2`}>
-                              {source.craap.overall}
-                            </Badge>
-                          )}
-                        </div>
-
-                        {source.perspective && (
-                          <div className="grid md:grid-cols-2 gap-3 mb-3">
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">{t.source.tone}</p>
-                              <p className="text-sm font-medium">{source.perspective.tone || t.source.notSpecified}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">{t.source.orientation}</p>
-                              <p className="text-sm font-medium">{source.perspective.orientation || t.source.notSpecified}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {source.craap ? (
-                          <div className="space-y-3 mt-3 pt-3 border-t border-border/50">
-                            <p className="text-sm font-medium mb-3">{t.craap.score}</p>
-                            <div className="space-y-3">
-                              {Object.entries(source.craap)
-                                .filter(([key]) => key !== "overall")
-                                .map(([key, value]) => {
-                                  if (!value || typeof value !== 'object' || !('score' in value)) {
-                                    return null;
-                                  }
-                                  const craapValue = value as CraapScore;
-                                  const scoreNames: { [key: string]: string } = {
-                                    currency: t.craap.currency,
-                                    relevance: t.craap.relevance,
-                                    authority: t.craap.authority,
-                                    accuracy: t.craap.accuracy,
-                                    purpose: t.craap.purpose
-                                  };
-                                  return (
-                                    <div key={key} className="space-y-1.5">
-                                      <div className="flex justify-between items-center text-xs">
-                                        <span className="font-medium text-muted-foreground">
-                                          {scoreNames[key] || key}
-                                        </span>
-                                        <span className="font-bold text-foreground">{craapValue.score}/5</span>
-                                      </div>
-                                      <Progress
-                                        value={(craapValue.score / 5) * 100}
-                                        className="h-2"
-                                      />
-                                      {craapValue.reasoning && (
-                                        <p className="text-xs text-muted-foreground italic mt-1">
-                                          {craapValue.reasoning}
-                                        </p>
-                                      )}
-                                    </div>
-                                  );
-                                })
-                                .filter(item => item !== null)}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="mt-3 pt-3 border-t border-border/50">
-                            <p className="text-xs text-muted-foreground italic">
-                              {t.craap.notAvailable}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                </div>
-              </Card>
-            )}
-          </div>
-        )}
+              </Tabs>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* Footer */}
-      <footer className="relative py-8 px-4 border-t border-border/50 mt-12">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center text-sm text-muted-foreground space-y-4">
-            <p>{t.footer.copyright}</p>
-            <div className="flex flex-wrap justify-center gap-4 text-xs">
-              <a
-                href="/privacidad"
-                className="hover:text-primary transition-colors underline-offset-4 hover:underline"
-              >
-                {t.footer.privacy}
-              </a>
-              <span className="text-border">•</span>
-              <a
-                href="/terminos"
-                className="hover:text-primary transition-colors underline-offset-4 hover:underline"
-              >
-                {t.footer.terms}
-              </a>
-              <span className="text-border">•</span>
-              <a
-                href="/aviso-legal"
-                className="hover:text-primary transition-colors underline-offset-4 hover:underline"
-              >
-                {t.footer.legal}
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <BottomDock />
     </div>
   );
 };
