@@ -1,4 +1,4 @@
-import { Home, LayoutGrid, Search, Coffee, Brain, User } from "lucide-react";
+import { Home, LayoutGrid, Search, Coffee, Brain, Bookmark, User } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useDockVisibility } from "@/contexts/DockVisibilityContext";
@@ -44,38 +44,58 @@ export const BottomDock = () => {
 
   const isActive = (path: string) => location.pathname === path;
   const isCafeActive = isActive("/cafe");
+  const isProfileActive = isActive("/profile");
 
   return (
-    <AnimatePresence>
-      {isVisible && (
-        <motion.div
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 100, opacity: 0 }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="fixed bottom-3 inset-x-0 z-50 flex justify-center pb-[env(safe-area-inset-bottom)]"
-        >
-          <div className="flex items-center justify-between px-5 py-2.5 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl min-w-[320px] max-w-[400px] w-[90vw] gap-1">
-            <DockItem icon={<Home size={20} />} path="/" isActive={isActive("/")} />
-            <SearchButton isActive={showSearchModal} />
-            <DockItem icon={<LayoutGrid size={20} />} path="/categorias" isActive={isActive("/categorias")} />
+    <>
+      {/* Profile avatar - top right corner */}
+      <Link
+        to="/profile"
+        className={cn(
+          "fixed top-4 right-4 z-50 flex items-center justify-center w-9 h-9 rounded-full transition-all duration-300",
+          "bg-black/40 backdrop-blur-xl border border-white/10 shadow-lg",
+          "hover:border-white/20 hover:bg-black/60 active:scale-95",
+          isProfileActive && "border-emerald-500/40 bg-emerald-500/10"
+        )}
+      >
+        <User size={16} className={cn(
+          "transition-colors",
+          isProfileActive ? "text-emerald-400" : "text-white/60"
+        )} />
+      </Link>
 
-            {/* Central Café Button - centered, no protrusion */}
-            <Link
-              to="/cafe"
-              className={cn(
-                "flex items-center justify-center w-10 h-10 bg-gradient-to-tr from-green-600 to-emerald-500 rounded-full shadow-lg shadow-green-900/50 active:scale-95 transition-transform",
-                isCafeActive && "ring-2 ring-emerald-400/50"
-              )}
-            >
-              <Coffee className="text-white" size={18} />
-            </Link>
+      {/* Bottom dock */}
+      <AnimatePresence>
+        {isVisible && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="fixed bottom-3 inset-x-0 z-50 flex justify-center pb-[env(safe-area-inset-bottom)]"
+          >
+            <div className="flex items-center justify-between px-5 py-2.5 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl min-w-[320px] max-w-[400px] w-[90vw] gap-1">
+              <DockItem icon={<Home size={20} />} path="/" isActive={isActive("/")} />
+              <SearchButton isActive={showSearchModal} />
+              <DockItem icon={<LayoutGrid size={20} />} path="/categorias" isActive={isActive("/categorias")} />
 
-            <DockItem icon={<Brain size={20} />} path="/oraculus" isActive={isActive("/oraculus")} />
-            <DockItem icon={<User size={20} />} path="/profile" isActive={isActive("/profile")} />
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+              {/* Central Café Button */}
+              <Link
+                to="/cafe"
+                className={cn(
+                  "flex items-center justify-center w-10 h-10 bg-gradient-to-tr from-green-600 to-emerald-500 rounded-full shadow-lg shadow-green-900/50 active:scale-95 transition-transform",
+                  isCafeActive && "ring-2 ring-emerald-400/50"
+                )}
+              >
+                <Coffee className="text-white" size={18} />
+              </Link>
+
+              <DockItem icon={<Brain size={20} />} path="/oraculus" isActive={isActive("/oraculus")} />
+              <DockItem icon={<Bookmark size={20} />} path="/library" isActive={isActive("/library")} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 };
