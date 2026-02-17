@@ -113,10 +113,21 @@ const CategoriesPage = () => {
 
     // Build categories list sorted by count
     const categories = useMemo(() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayMs = today.getTime();
+
         return Array.from(categorizedNews.entries())
             .map(([name, items]) => ({
                 name,
                 count: items.length,
+                hasToday: items.some((item) => {
+                    try {
+                        return new Date(item.date).getTime() >= todayMs;
+                    } catch {
+                        return false;
+                    }
+                }),
                 icon: "",
                 gradient: "",
                 borderColor: "",

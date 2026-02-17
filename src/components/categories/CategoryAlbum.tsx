@@ -5,6 +5,7 @@ interface CategoryInfo {
     name: string;
     icon: string;
     count: number;
+    hasToday: boolean;
     gradient: string;
     borderColor: string;
 }
@@ -86,6 +87,14 @@ export const CategoryAlbum = ({ categories, onSelectCategory }: CategoryAlbumPro
 
                             {/* Subtle pattern overlay */}
                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,_rgba(255,255,255,0.08),_transparent_60%)]" />
+
+                            {/* Today indicator */}
+                            {cat.hasToday && (
+                                <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_6px_2px_rgba(16,185,129,0.4)]" />
+                                    <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider">Hoy</span>
+                                </div>
+                            )}
 
                             {/* Content */}
                             <div className="relative z-10 flex flex-col h-full min-h-[110px] md:min-h-[130px] justify-between">
