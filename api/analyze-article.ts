@@ -485,12 +485,12 @@ IMPORTANT: Respond ONLY with a valid JSON object with this EXACT structure:
         .join('\n\n');
 }
 
-// ─── Call Gemini ─────────────────────────────────────────────────
+// ─── Call OpenAI ────────────────────────────────────────────────
 
-async function callGemini(systemPrompt: string, userText: string): Promise<any> {
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-    if (!GEMINI_API_KEY) {
-        throw new Error('GEMINI_API_KEY not configured');
+async function callOpenAI(systemPrompt: string, userText: string): Promise<any> {
+    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+    if (!OPENAI_API_KEY) {
+        throw new Error('OPENAI_API_KEY not configured');
     }
 
     const MAX_RETRIES = 3;
@@ -498,58 +498,50 @@ async function callGemini(systemPrompt: string, userText: string): Promise<any> 
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         if (attempt > 0) {
-            // Exponential backoff: 2s, 6s
             const waitMs = Math.pow(3, attempt) * 1000;
             console.log(`Retry ${attempt}/${MAX_RETRIES} after ${waitMs}ms...`);
             await new Promise((r) => setTimeout(r, waitMs));
         }
 
-        const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [
-                        {
-                            role: 'user',
-                            parts: [{ text: userText }],
-                        },
-                    ],
-                    systemInstruction: {
-                        parts: [{ text: systemPrompt }],
-                    },
-                    generationConfig: {
-                        responseMimeType: 'application/json',
-                        temperature: 0.1,
-                        maxOutputTokens: 65536,
-                    },
-                }),
-            }
-        );
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${OPENAI_API_KEY}`,
+            },
+            body: JSON.stringify({
+                model: 'gpt-4o-mini',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userText },
+                ],
+                response_format: { type: 'json_object' },
+                temperature: 0.1,
+                max_tokens: 16384,
+            }),
+        });
 
         if (response.status === 429) {
             const errText = await response.text();
-            console.warn(`Gemini 429 rate limit (attempt ${attempt + 1}):`, errText);
+            console.warn(`OpenAI 429 rate limit (attempt ${attempt + 1}):`, errText);
             lastError = new Error('RATE_LIMIT');
-            continue; // retry
+            continue;
         }
 
         if (!response.ok) {
             const errText = await response.text();
-            console.error('Gemini API error:', response.status, errText);
-            throw new Error(`Gemini API error: ${response.status}`);
+            console.error('OpenAI API error:', response.status, errText);
+            throw new Error(`OpenAI API error: ${response.status}`);
         }
 
         const data = await response.json();
-        const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        const textContent = data.choices?.[0]?.message?.content;
 
         if (!textContent) {
-            console.error('No text in Gemini response:', JSON.stringify(data));
-            throw new Error('Empty Gemini response');
+            console.error('No content in OpenAI response:', JSON.stringify(data));
+            throw new Error('Empty OpenAI response');
         }
 
-        // Parse JSON
         try {
             return JSON.parse(textContent);
         } catch (parseErr) {
@@ -557,13 +549,13 @@ async function callGemini(systemPrompt: string, userText: string): Promise<any> 
             if (jsonMatch) {
                 return JSON.parse(jsonMatch[0]);
             }
-            console.error('Failed to parse Gemini JSON:', textContent.substring(0, 500));
-            throw new Error('Invalid JSON in Gemini response');
+            console.error('Failed to parse OpenAI JSON:', textContent.substring(0, 500));
+            throw new Error('Invalid JSON in OpenAI response');
         }
     }
 
     // All retries exhausted
-    throw lastError || new Error('Gemini API failed after retries');
+    throw lastError || new Error('OpenAI API failed after retries');
 }
 
 // ─── Main handler ───────────────────────────────────────────────
@@ -623,9 +615,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Build prompt & call Gemini
         const systemPrompt = buildSystemPrompt(isOwnTextMode, analysisLanguage, citationFormat || 'APA');
 
-        console.log(`Calling Gemini (mode: ${isOwnTextMode ? 'own' : 'external'}, lang: ${analysisLanguage}, text: ${finalText.length} chars)`);
+        console.log(`Calling OpenAI (mode: ${isOwnTextMode ? 'own' : 'external'}, lang: ${analysisLanguage}, text: ${finalText.length} chars)`);
 
-        const result = await callGemini(systemPrompt, finalText);
+        const result = await callOpenAI(systemPrompt, finalText);
 
         // Save anonymous stats (fire-and-forget)
         const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
