@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Card } from "@/components/ui/card";
 import { Loader2, Send, X, Bot, User, Sparkles, BookOpen, Fingerprint } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/useLanguage";
@@ -13,6 +12,7 @@ interface ResearchPanelProps {
     onClose: () => void;
     articleContext: string;
     articleTitle?: string;
+    variant?: "overlay" | "embedded";
 }
 
 interface Message {
@@ -49,7 +49,7 @@ const QUICK_ACTIONS = {
     ]
 };
 
-export function ResearchPanel({ isOpen, onClose, articleContext, articleTitle }: ResearchPanelProps) {
+export function ResearchPanel({ isOpen, onClose, articleContext, articleTitle, variant = "overlay" }: ResearchPanelProps) {
     const { language } = useLanguage();
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
@@ -121,6 +121,142 @@ export function ResearchPanel({ isOpen, onClose, articleContext, articleTitle }:
         }
     };
 
+    const content = (
+        <div className={cn(
+            "flex flex-col h-full bg-background/95 backdrop-blur-xl border-l border-white/10 shadow-2xl",
+            variant === "embedded" ? "w-full border-0 shadow-none bg-transparent" : "fixed inset-y-0 right-0 z-50 w-full sm:w-[450px] pt-16 sm:pt-0"
+        )}>
+            {/* Header - Only show close button in overlay mode */}
+            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/20">
+                <div className="flex items-center gap-3">
+                    <div className="bg-primary/20 p-2 rounded-lg">
+                        <Sparkles className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-lg">{t.title}</h3>
+                        <p className="text-xs text-muted-foreground">{t.subtitle}</p>
+                    </div>
+                </div>
+                {variant === "overlay" && (
+                    <Button variant="ghost" size="icon" onClick={onClose} className="hover:bg-white/10 rounded-full h-8 w-8">
+                        <X className="w-5 h-5" />
+                    </Button>
+                )}
+            </div>
+
+            {/* Main Chat Area */}
+            <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+                <div className="space-y-4 pb-4">
+                    {/* Welcome Message */}
+                    {messages.length === 0 && (
+                        <div className="space-y-6">
+                            <div className="flex gap-3">
+                                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                                    <Bot className="w-5 h-5 text-primary" />
+                                </div>
+                                <div className="bg-card/40 border border-white/5 rounded-2xl rounded-tl-sm p-4 text-sm leading-relaxed max-w-[85%]">
+                                    {t.welcome}
+                                </div>
+                            </div>
+
+                            {/* Quick Actions Grid */}
+                            <div className="grid grid-cols-1 gap-2">
+                                {actions.map((action, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => handleSend(action.prompt)}
+                                        className="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 hover:border-primary/30 transition-all text-left group"
+                                    >
+                                        <div className="p-2 rounded-md bg-black/20 group-hover:bg-primary/20 transition-colors">
+                                            <action.icon className="w-4 h-4 text-primary" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium">{action.label}</p>
+                                            <p className="text-[10px] text-muted-foreground opacity-70 line-clamp-1">{action.prompt}</p>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Chat History */}
+                    {messages.map((msg, idx) => (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            key={idx}
+                            className={cn(
+                                "flex gap-3",
+                                msg.role === 'user' ? "flex-row-reverse" : "flex-row"
+                            )}
+                        >
+                            <div className={cn(
+                                "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
+                                msg.role === 'user' ? "bg-white/10" : "bg-primary/20"
+                            )}>
+                                {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-5 h-5 text-primary" />}
+                            </div>
+                            <div className={cn(
+                                "rounded-2xl p-4 text-sm leading-relaxed max-w-[85%] whitespace-pre-wrap",
+                                msg.role === 'user'
+                                    ? "bg-primary text-primary-foreground rounded-tr-sm"
+                                    : "bg-card/60 border border-white/5 rounded-tl-sm backdrop-blur-sm"
+                            )}>
+                                {msg.content}
+                            </div>
+                        </motion.div>
+                    ))}
+
+                    {isLoading && (
+                        <div className="flex gap-3">
+                            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                                <Bot className="w-5 h-5 text-primary" />
+                            </div>
+                            <div className="bg-card/40 border border-white/5 rounded-2xl rounded-tl-sm p-4 flex items-center gap-2">
+                                <div className="flex gap-1">
+                                    <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="w-1.5 h-1.5 bg-primary rounded-full" />
+                                    <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-1.5 h-1.5 bg-primary rounded-full" />
+                                    <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-1.5 h-1.5 bg-primary rounded-full" />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </ScrollArea>
+
+            {/* Input Area */}
+            <div className="p-4 border-t border-white/10 bg-black/20">
+                <div className="relative">
+                    <Input
+                        ref={inputRef}
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                        placeholder={t.placeholder}
+                        className="pr-12 bg-black/20 border-white/10 focus-visible:ring-primary/50 h-12"
+                        disabled={isLoading}
+                    />
+                    <Button
+                        size="icon"
+                        onClick={() => handleSend()}
+                        disabled={!input.trim() || isLoading}
+                        className="absolute right-1 top-1 h-10 w-10 bg-primary/20 hover:bg-primary text-primary hover:text-white transition-colors"
+                    >
+                        <Send className="w-4 h-4" />
+                    </Button>
+                </div>
+                <p className="text-[10px] text-center text-muted-foreground mt-2 opacity-50">
+                    {language === 'es' ? "Oraculus puede cometer errores. Verifica la info." : "Oraculus can make mistakes. Verify info."}
+                </p>
+            </div>
+        </div>
+    );
+
+    if (variant === "embedded") {
+        return content;
+    }
+
     return (
         <AnimatePresence>
             {isOpen && (
@@ -129,130 +265,9 @@ export function ResearchPanel({ isOpen, onClose, articleContext, articleTitle }:
                     animate={{ x: 0, opacity: 1 }}
                     exit={{ x: "100%", opacity: 0 }}
                     transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                    className="fixed inset-y-0 right-0 z-50 w-full sm:w-[450px] bg-background/95 backdrop-blur-xl border-l border-white/10 shadow-2xl flex flex-col pt-16 sm:pt-0"
+                    className="fixed inset-y-0 right-0 z-50 w-full sm:w-[450px]"
                 >
-                    {/* Header */}
-                    <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/20">
-                        <div className="flex items-center gap-3">
-                            <div className="bg-primary/20 p-2 rounded-lg">
-                                <Sparkles className="w-5 h-5 text-primary" />
-                            </div>
-                            <div>
-                                <h3 className="font-semibold text-lg">{t.title}</h3>
-                                <p className="text-xs text-muted-foreground">{t.subtitle}</p>
-                            </div>
-                        </div>
-                        <Button variant="ghost" size="icon" onClick={onClose} className="hover:bg-white/10 rounded-full h-8 w-8">
-                            <X className="w-5 h-5" />
-                        </Button>
-                    </div>
-
-                    {/* Main Chat Area */}
-                    <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-                        <div className="space-y-4 pb-4">
-                            {/* Welcome Message */}
-                            {messages.length === 0 && (
-                                <div className="space-y-6">
-                                    <div className="flex gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                                            <Bot className="w-5 h-5 text-primary" />
-                                        </div>
-                                        <div className="bg-card/40 border border-white/5 rounded-2xl rounded-tl-sm p-4 text-sm leading-relaxed max-w-[85%]">
-                                            {t.welcome}
-                                        </div>
-                                    </div>
-
-                                    {/* Quick Actions Grid */}
-                                    <div className="grid grid-cols-1 gap-2">
-                                        {actions.map((action, i) => (
-                                            <button
-                                                key={i}
-                                                onClick={() => handleSend(action.prompt)}
-                                                className="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 hover:border-primary/30 transition-all text-left group"
-                                            >
-                                                <div className="p-2 rounded-md bg-black/20 group-hover:bg-primary/20 transition-colors">
-                                                    <action.icon className="w-4 h-4 text-primary" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-medium">{action.label}</p>
-                                                    <p className="text-[10px] text-muted-foreground opacity-70 line-clamp-1">{action.prompt}</p>
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Chat History */}
-                            {messages.map((msg, idx) => (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    key={idx}
-                                    className={cn(
-                                        "flex gap-3",
-                                        msg.role === 'user' ? "flex-row-reverse" : "flex-row"
-                                    )}
-                                >
-                                    <div className={cn(
-                                        "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
-                                        msg.role === 'user' ? "bg-white/10" : "bg-primary/20"
-                                    )}>
-                                        {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-5 h-5 text-primary" />}
-                                    </div>
-                                    <div className={cn(
-                                        "rounded-2xl p-4 text-sm leading-relaxed max-w-[85%] whitespace-pre-wrap",
-                                        msg.role === 'user'
-                                            ? "bg-primary text-primary-foreground rounded-tr-sm"
-                                            : "bg-card/60 border border-white/5 rounded-tl-sm backdrop-blur-sm"
-                                    )}>
-                                        {msg.content}
-                                    </div>
-                                </motion.div>
-                            ))}
-
-                            {isLoading && (
-                                <div className="flex gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                                        <Bot className="w-5 h-5 text-primary" />
-                                    </div>
-                                    <div className="bg-card/40 border border-white/5 rounded-2xl rounded-tl-sm p-4 flex items-center gap-2">
-                                        <div className="flex gap-1">
-                                            <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="w-1.5 h-1.5 bg-primary rounded-full" />
-                                            <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-1.5 h-1.5 bg-primary rounded-full" />
-                                            <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-1.5 h-1.5 bg-primary rounded-full" />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </ScrollArea>
-
-                    {/* Input Area */}
-                    <div className="p-4 border-t border-white/10 bg-black/20">
-                        <div className="relative">
-                            <Input
-                                ref={inputRef}
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                                placeholder={t.placeholder}
-                                className="pr-12 bg-black/20 border-white/10 focus-visible:ring-primary/50 h-12"
-                                disabled={isLoading}
-                            />
-                            <Button
-                                size="icon"
-                                onClick={() => handleSend()}
-                                disabled={!input.trim() || isLoading}
-                                className="absolute right-1 top-1 h-10 w-10 bg-primary/20 hover:bg-primary text-primary hover:text-white transition-colors"
-                            >
-                                <Send className="w-4 h-4" />
-                            </Button>
-                        </div>
-                        <p className="text-[10px] text-center text-muted-foreground mt-2 opacity-50">
-                            {language === 'es' ? "Oraculus puede cometer errores. Verifica la info." : "Oraculus can make mistakes. Verify info."}
-                        </p>
-                    </div>
+                    {content}
                 </motion.div>
             )}
         </AnimatePresence>
