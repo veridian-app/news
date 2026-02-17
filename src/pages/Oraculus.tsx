@@ -1996,22 +1996,26 @@ const Oraculus = () => {
                             {source.summary}
                           </p>
 
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <div className="text-xs p-2 rounded bg-black/20 border border-white/5">
-                              <span className="block opacity-50 mb-1 uppercase tracking-wider text-[10px]">Type</span>
-                              {source.type}
-                            </div>
-                            <div className="text-xs p-2 rounded bg-black/20 border border-white/5">
-                              <span className="block opacity-50 mb-1 uppercase tracking-wider text-[10px]">Tone</span>
-                              {source.perspective?.tone}
-                            </div>
-                            {source.craap?.authority && (
-                              <div className="text-xs p-2 rounded bg-black/20 border border-white/5 md:col-span-2">
-                                <span className="block opacity-50 mb-1 uppercase tracking-wider text-[10px]">Authority</span>
-                                {`${source.craap.authority.score}/5`}
+                          {source.craap && (
+                            <div className="col-span-2 md:col-span-4 mt-4 pt-4 border-t border-white/5">
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">CRAAP Analysis Methodology</p>
+                              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                {Object.entries(source.craap).filter(([k]) => k !== 'overall').map(([key, val]: [string, any]) => (
+                                  <div key={key} className="space-y-1.5">
+                                    <div className="flex justify-between text-[10px] uppercase tracking-wider font-medium">
+                                      <span className="opacity-70">{key}</span>
+                                      <span className={cn(
+                                        val.score >= 4 ? "text-emerald-400" : (val.score >= 3 ? "text-yellow-400" : "text-red-400")
+                                      )}>{val.score}/5</span>
+                                    </div>
+                                    <Progress value={(val.score / 5) * 100} className="h-1 bg-white/5" indicatorClassName={
+                                      val.score >= 4 ? "bg-emerald-500" : (val.score >= 3 ? "bg-yellow-500" : "bg-red-500")
+                                    } />
+                                  </div>
+                                ))}
                               </div>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </Card>
                       ))}
                       {(!analysisResult.sources || analysisResult.sources.length === 0) && (
