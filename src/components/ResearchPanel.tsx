@@ -124,58 +124,37 @@ export function ResearchPanel({ isOpen, onClose, articleContext, articleTitle, v
     const content = (
         <div className={cn(
             "flex flex-col h-full bg-background/95 backdrop-blur-xl border-l border-white/10 shadow-2xl",
-            variant === "embedded" ? "w-full border-0 shadow-none bg-transparent" : "fixed inset-y-0 right-0 z-50 w-full sm:w-[450px] pt-16 sm:pt-0"
+            variant === "embedded" ? "w-full border-0 shadow-none bg-transparent" : "fixed inset-y-0 right-0 z-50 w-full sm:w-[500px] pt-16 sm:pt-0"
         )}>
             {/* Header - Only show close button in overlay mode */}
-            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/20">
-                <div className="flex items-center gap-3">
-                    <div className="bg-primary/20 p-2 rounded-lg">
-                        <Sparkles className="w-5 h-5 text-primary" />
+            {variant === "overlay" && (
+                <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/20">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-primary/20 p-2 rounded-lg">
+                            <Sparkles className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-lg">{t.title}</h3>
+                            <p className="text-xs text-muted-foreground">{t.subtitle}</p>
+                        </div>
                     </div>
-                    <div>
-                        <h3 className="font-semibold text-lg">{t.title}</h3>
-                        <p className="text-xs text-muted-foreground">{t.subtitle}</p>
-                    </div>
-                </div>
-                {variant === "overlay" && (
                     <Button variant="ghost" size="icon" onClick={onClose} className="hover:bg-white/10 rounded-full h-8 w-8">
                         <X className="w-5 h-5" />
                     </Button>
-                )}
-            </div>
+                </div>
+            )}
 
             {/* Main Chat Area */}
             <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-                <div className="space-y-4 pb-4">
+                <div className="space-y-6 pb-4 max-w-3xl mx-auto">
                     {/* Welcome Message */}
                     {messages.length === 0 && (
-                        <div className="space-y-6">
-                            <div className="flex gap-3">
-                                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                                    <Bot className="w-5 h-5 text-primary" />
-                                </div>
-                                <div className="bg-card/40 border border-white/5 rounded-2xl rounded-tl-sm p-4 text-sm leading-relaxed max-w-[85%]">
-                                    {t.welcome}
-                                </div>
+                        <div className="flex gap-4">
+                            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                                <Bot className="w-6 h-6 text-primary" />
                             </div>
-
-                            {/* Quick Actions Grid */}
-                            <div className="grid grid-cols-1 gap-2">
-                                {actions.map((action, i) => (
-                                    <button
-                                        key={i}
-                                        onClick={() => handleSend(action.prompt)}
-                                        className="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 hover:border-primary/30 transition-all text-left group"
-                                    >
-                                        <div className="p-2 rounded-md bg-black/20 group-hover:bg-primary/20 transition-colors">
-                                            <action.icon className="w-4 h-4 text-primary" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-medium">{action.label}</p>
-                                            <p className="text-[10px] text-muted-foreground opacity-70 line-clamp-1">{action.prompt}</p>
-                                        </div>
-                                    </button>
-                                ))}
+                            <div className="bg-card/40 border border-white/5 rounded-2xl rounded-tl-sm p-6 text-base leading-relaxed text-foreground/90 shadow-sm">
+                                {t.welcome}
                             </div>
                         </div>
                     )}
@@ -187,21 +166,21 @@ export function ResearchPanel({ isOpen, onClose, articleContext, articleTitle, v
                             animate={{ opacity: 1, y: 0 }}
                             key={idx}
                             className={cn(
-                                "flex gap-3",
+                                "flex gap-4",
                                 msg.role === 'user' ? "flex-row-reverse" : "flex-row"
                             )}
                         >
                             <div className={cn(
-                                "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
+                                "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
                                 msg.role === 'user' ? "bg-white/10" : "bg-primary/20"
                             )}>
-                                {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-5 h-5 text-primary" />}
+                                {msg.role === 'user' ? <User className="w-5 h-5" /> : <Bot className="w-6 h-6 text-primary" />}
                             </div>
                             <div className={cn(
-                                "rounded-2xl p-4 text-sm leading-relaxed max-w-[85%] whitespace-pre-wrap",
+                                "rounded-2xl p-6 text-base leading-7 whitespace-pre-wrap shadow-sm max-w-[85%]", // Improved typography
                                 msg.role === 'user'
                                     ? "bg-primary text-primary-foreground rounded-tr-sm"
-                                    : "bg-card/60 border border-white/5 rounded-tl-sm backdrop-blur-sm"
+                                    : "bg-card/60 border border-white/5 rounded-tl-sm backdrop-blur-sm text-foreground/90"
                             )}>
                                 {msg.content}
                             </div>
@@ -209,15 +188,15 @@ export function ResearchPanel({ isOpen, onClose, articleContext, articleTitle, v
                     ))}
 
                     {isLoading && (
-                        <div className="flex gap-3">
-                            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                                <Bot className="w-5 h-5 text-primary" />
+                        <div className="flex gap-4">
+                            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                                <Bot className="w-6 h-6 text-primary" />
                             </div>
-                            <div className="bg-card/40 border border-white/5 rounded-2xl rounded-tl-sm p-4 flex items-center gap-2">
-                                <div className="flex gap-1">
-                                    <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="w-1.5 h-1.5 bg-primary rounded-full" />
-                                    <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-1.5 h-1.5 bg-primary rounded-full" />
-                                    <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-1.5 h-1.5 bg-primary rounded-full" />
+                            <div className="bg-card/40 border border-white/5 rounded-2xl rounded-tl-sm p-6 flex items-center gap-2">
+                                <div className="flex gap-1.5">
+                                    <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="w-2 h-2 bg-primary rounded-full" />
+                                    <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-2 h-2 bg-primary rounded-full" />
+                                    <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-2 h-2 bg-primary rounded-full" />
                                 </div>
                             </div>
                         </div>
@@ -226,29 +205,45 @@ export function ResearchPanel({ isOpen, onClose, articleContext, articleTitle, v
             </ScrollArea>
 
             {/* Input Area */}
-            <div className="p-4 border-t border-white/10 bg-black/20">
-                <div className="relative">
-                    <Input
-                        ref={inputRef}
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                        placeholder={t.placeholder}
-                        className="pr-12 bg-black/20 border-white/10 focus-visible:ring-primary/50 h-12"
-                        disabled={isLoading}
-                    />
-                    <Button
-                        size="icon"
-                        onClick={() => handleSend()}
-                        disabled={!input.trim() || isLoading}
-                        className="absolute right-1 top-1 h-10 w-10 bg-primary/20 hover:bg-primary text-primary hover:text-white transition-colors"
-                    >
-                        <Send className="w-4 h-4" />
-                    </Button>
+            <div className="p-4 border-t border-white/10 bg-background/50 backdrop-blur-md">
+                <div className="max-w-3xl mx-auto space-y-4">
+                    {/* Persistent Quick Actions (Horizontal Scroll) */}
+                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none mask-fade-right">
+                        {actions.map((action, i) => (
+                            <button
+                                key={i}
+                                onClick={() => handleSend(action.prompt)}
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/50 hover:bg-secondary border border-transparent hover:border-primary/20 transition-all text-xs font-medium whitespace-nowrap group shrink-0"
+                            >
+                                <action.icon className="w-3.5 h-3.5 text-primary group-hover:scale-110 transition-transform" />
+                                {action.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="relative">
+                        <Input
+                            ref={inputRef}
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                            placeholder={t.placeholder}
+                            className="pr-12 bg-secondary/30 border-white/10 focus-visible:ring-primary/50 h-14 text-base rounded-xl"
+                            disabled={isLoading}
+                        />
+                        <Button
+                            size="icon"
+                            onClick={() => handleSend()}
+                            disabled={!input.trim() || isLoading}
+                            className="absolute right-2 top-2 h-10 w-10 bg-primary/20 hover:bg-primary text-primary hover:text-white transition-all rounded-lg"
+                        >
+                            <Send className="w-5 h-5" />
+                        </Button>
+                    </div>
+                    <p className="text-[10px] text-center text-muted-foreground opacity-50">
+                        {language === 'es' ? "Oraculus puede cometer errores. Verifica la info." : "Oraculus can make mistakes. Verify info."}
+                    </p>
                 </div>
-                <p className="text-[10px] text-center text-muted-foreground mt-2 opacity-50">
-                    {language === 'es' ? "Oraculus puede cometer errores. Verifica la info." : "Oraculus can make mistakes. Verify info."}
-                </p>
             </div>
         </div>
     );

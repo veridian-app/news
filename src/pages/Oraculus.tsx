@@ -1894,12 +1894,8 @@ const Oraculus = () => {
                   </TabsTrigger>
 
                   <TabsTrigger
-                    value="research-trigger"
-                    className="rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20 transition-all py-3 text-primary hover:bg-primary/10"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setIsResearchMode(true);
-                    }}
+                    value="research"
+                    className="rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20 transition-all py-3"
                   >
                     <Sparkles className="w-4 h-4 mr-2" />
                     {language === "es" ? "Investigación" : "Research"}
@@ -2112,6 +2108,16 @@ const Oraculus = () => {
                       </div>
                     </TabsContent>
                   )}
+
+                  <TabsContent value="research" className="h-[600px] mt-6 focus-visible:ring-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    <ResearchPanel
+                      isOpen={true}
+                      onClose={() => { }}
+                      articleContext={analysisMode === 'own' ? articleText : (articleText || "No context available")}
+                      articleTitle={articleTitle}
+                      variant="embedded"
+                    />
+                  </TabsContent>
                 </div>
               </Tabs>
             </motion.div>
@@ -2136,55 +2142,6 @@ const Oraculus = () => {
             >
               <Sparkles className="w-6 h-6 animate-pulse" />
             </Button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <ResearchPanel
-        isOpen={isResearchPanelOpen}
-        onClose={() => setIsResearchPanelOpen(false)}
-        articleContext={analysisMode === 'own' ? articleText : (articleText || "No context available")}
-        articleTitle={articleTitle}
-      />
-
-      {/* Full Screen Research Mode */}
-      <AnimatePresence>
-        {isResearchMode && (
-          <motion.div
-            initial={{ opacity: 0, y: "100%" }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed inset-0 z-50 bg-background flex flex-col md:flex-row"
-          >
-            {/* Split View: Left (Chat) */}
-            <div className="w-full md:w-1/2 h-1/2 md:h-full border-b md:border-b-0 md:border-r border-white/10 relative">
-              <div className="absolute top-4 right-4 z-10 md:hidden">
-                <Button variant="ghost" size="icon" onClick={() => setIsResearchMode(false)}>
-                  <X className="w-5 h-5" />
-                </Button>
-              </div>
-              <ResearchPanel
-                isOpen={true}
-                onClose={() => { }}
-                articleContext={analysisMode === 'own' ? articleText : (articleText || "No context available")}
-                articleTitle={articleTitle}
-                variant="embedded"
-              />
-            </div>
-
-            {/* Split View: Right (Reader) */}
-            <div className="w-full md:w-1/2 h-1/2 md:h-full relative bg-white text-black">
-              <div className="absolute top-4 right-4 z-10 hidden md:block">
-                <Button variant="ghost" size="icon" onClick={() => setIsResearchMode(false)} className="hover:bg-gray-100 rounded-full text-gray-500 hover:text-gray-900">
-                  <X className="w-6 h-6" />
-                </Button>
-              </div>
-              <ArticleReader
-                content={articleText || ""}
-                title={articleTitle || "Document Viewer"}
-              />
-            </div>
           </motion.div>
         )}
       </AnimatePresence>
