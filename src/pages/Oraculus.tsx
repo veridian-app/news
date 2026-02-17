@@ -1465,6 +1465,13 @@ const Oraculus = () => {
         articleUrl || (selectedFile ? selectedFile.name : (articleText.substring(0, 50) + "..."))
       );
       setAnalysisResult(data);
+      if (data.extractedLinks && data.extractedLinks.length > 0) {
+        setTimeout(() => toast.success(language === 'es'
+          ? `Se han detectado ${data.extractedLinks.length} fuentes externas`
+          : `${data.extractedLinks.length} external sources detected`, {
+          icon: <LinkIcon className="w-4 h-4" />
+        }), 1000);
+      }
       toast.success(analysisMode === "own" ? t.success.auditCompleted : t.success.analysisCompleted);
     } catch (error: any) {
       console.error("Error analyzing:", error);
