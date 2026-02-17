@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2, CheckCircle2, AlertCircle, TrendingUp, TrendingDown, FileText, Edit3, BookOpen, Shield, Brain, Upload, Download, File as FileIcon, Globe, X, History, ChevronRight, Sparkles, LayoutDashboard, Search, ArrowRight, Rocket, ExternalLink, Users, Building2, MapPin, Calendar } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, TrendingUp, TrendingDown, FileText, Edit3, BookOpen, Shield, Brain, Upload, Download, File as FileIcon, Globe, X, History, ChevronRight, Sparkles, LayoutDashboard, Search, ArrowRight, Rocket, ExternalLink, Users, Building2, MapPin, Calendar, Link as LinkIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,6 +15,7 @@ import { ResearchPanel } from "@/components/ResearchPanel";
 import { ArticleReader } from "@/components/ArticleReader";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getSourceDNA } from "@/data/sourceDNA";
 
 interface CraapScore {
   score: number;
@@ -2042,8 +2043,25 @@ const Oraculus = () => {
                               <h4 className="font-medium text-lg text-primary flex items-center gap-2">
                                 {source.name}
                                 <ExternalLink className="w-3 h-3 opacity-50" />
+                                {source.url && (() => {
+                                  const dna = getSourceDNA(source.url);
+                                  if (dna) return (
+                                    <Badge variant="outline" className={cn(
+                                      "ml-2 text-xs",
+                                      dna.bias === 'Left' || dna.bias === 'Center-Left' ? "text-blue-400 border-blue-500/30" :
+                                        dna.bias === 'Right' || dna.bias === 'Center-Right' ? "text-red-400 border-red-500/30" :
+                                          "text-gray-400 border-gray-500/30"
+                                    )}>
+                                      {dna.bias} • {dna.reliability} Reliability
+                                    </Badge>
+                                  );
+                                })()}
                               </h4>
                               {source.url && <a href={source.url} target="_blank" className="text-xs text-muted-foreground hover:text-white truncate max-w-sm block mt-1 transition-colors">{source.url}</a>}
+                              {source.url && (() => {
+                                const dna = getSourceDNA(source.url);
+                                if (dna) return <p className="text-xs text-purple-300/80 mt-1 italic">{dna.description}</p>;
+                              })()}
                             </div>
                             <div className="flex gap-2">
                               <Badge variant="outline" className={cn(

@@ -8,6 +8,7 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { motion, AnimatePresence } from "framer-motion";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
+import { getSourceDNA } from "@/data/sourceDNA";
 
 interface ResearchPanelProps {
     isOpen: boolean;
@@ -240,29 +241,47 @@ export function ResearchPanel({ isOpen, onClose, articleContext, articleTitle, v
                             </CollapsibleTrigger>
                             <CollapsibleContent>
                                 <div className="p-2 space-y-1 bg-black/20">
-                                    {extractedLinks.map((link, i) => (
-                                        <div key={i} className="group flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors gap-3">
-                                            <div className="flex-1 min-w-0">
-                                                <div className="text-xs font-medium truncate text-foreground/80 group-hover:text-foreground">{link.text || "Link"}</div>
-                                                <div className="text-[10px] text-muted-foreground truncate">{link.url}</div>
+                                    {extractedLinks.map((link, i) => {
+                                        const dna = getSourceDNA(link.url);
+                                        return (
+                                            <div key={i} className="group flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors gap-3">
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 mb-0.5">
+                                                        <div className="text-xs font-medium truncate text-foreground/80 group-hover:text-foreground">{link.text || "Link"}</div>
+                                                        {dna && (
+                                                            <Badge variant="outline" className={cn(
+                                                                "text-[9px] px-1 h-3.5 border-dashed",
+                                                                dna.bias === 'Left' || dna.bias === 'Center-Left' ? "text-blue-400 border-blue-500/30 bg-blue-500/10" :
+                                                                    dna.bias === 'Right' || dna.bias === 'Center-Right' ? "text-red-400 border-red-500/30 bg-red-500/10" :
+                                                                        "text-gray-400 border-gray-500/30 bg-gray-500/10"
+                                                            )}>
+                                                                {dna.bias}
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                                                        <span className="opacity-70">{link.url}</span>
+                                                        {dna && <span className="text-purple-300/80">• {dna.name}</span>}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                    <a href={link.url} target="_blank" rel="noopener noreferrer" className="p-1.5 text-muted-foreground hover:text-white transition-colors" title="Open Link">
+                                                        <ExternalLink className="w-3.5 h-3.5" />
+                                                    </a>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="secondary"
+                                                        className="h-6 text-[10px] px-2 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300 border-purple-500/20"
+                                                        onClick={() => handleVerify(link.url)}
+                                                        disabled={isLoading}
+                                                    >
+                                                        <ShieldCheck className="w-3 h-3 mr-1" />
+                                                        {language === 'es' ? 'Verificar' : 'Verify'}
+                                                    </Button>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-1 shrink-0">
-                                                <a href={link.url} target="_blank" rel="noopener noreferrer" className="p-1.5 text-muted-foreground hover:text-white transition-colors" title="Open Link">
-                                                    <ExternalLink className="w-3.5 h-3.5" />
-                                                </a>
-                                                <Button
-                                                    size="sm"
-                                                    variant="secondary"
-                                                    className="h-6 text-[10px] px-2 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300 border-purple-500/20"
-                                                    onClick={() => handleVerify(link.url)}
-                                                    disabled={isLoading}
-                                                >
-                                                    <ShieldCheck className="w-3 h-3 mr-1" />
-                                                    {language === 'es' ? 'Verificar' : 'Verify'}
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </CollapsibleContent>
                         </Collapsible>
