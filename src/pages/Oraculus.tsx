@@ -1631,83 +1631,75 @@ const Oraculus = () => {
                                 {language === "es" ? "Cambiar archivo" : "Change file"}
                               </Button>
                             </div>
-                          ) : (
-                            <>
-                              <div className="mb-4 p-4 rounded-full bg-white/5 group-hover:bg-primary/10 transition-colors">
-                                <Upload className="w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors" />
-                              </div>
-                              <p className="text-lg font-medium mb-2">
-                                {analysisMode === 'external'
-                                  ? (language === "es" ? "Arrastra un archivo o pega una URL" : "Drag a file or paste a URL")
-                                  : (language === "es" ? "Pega tu texto aquí o sube un archivo" : "Paste your text here or upload a file")}
-                              </p>
-                              <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
-                                PDF, DOCX, TXT {language === "es" ? "o enlaces directos a artículos" : "or direct article links"}
-                              </p>
+                          ) : <>
+                            <div
+                              className="mb-4 p-4 rounded-full bg-white/5 hover:bg-primary/20 transition-all cursor-pointer group-hover:scale-110 duration-300"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                document.getElementById('file-upload')?.click();
+                              }}
+                            >
+                              <Upload className="w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors" />
+                            </div>
+                            <p className="text-lg font-medium mb-2">
+                              {analysisMode === 'external'
+                                ? (language === "es" ? "Arrastra un archivo o pega una URL" : "Drag a file or paste a URL")
+                                : (language === "es" ? "Pega tu texto aquí o sube un archivo" : "Paste your text here or upload a file")}
+                            </p>
+                            <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
+                              PDF, DOCX, TXT {language === "es" ? "o enlaces directos a artículos" : "or direct article links"}
+                            </p>
 
-                              {/* URL/Text Input Overlay */}
-                              <div className="w-full max-w-xl relative" onClick={e => e.stopPropagation()}>
-                                <div className="relative group/input">
-                                  <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none z-10">
-                                    {articleUrl ? <Globe className="w-4 h-4 text-primary" /> : <FileText className="w-4 h-4 text-muted-foreground" />}
-                                  </div>
-                                  <Textarea
-                                    value={articleText || articleUrl}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      if (val.trim().startsWith('http')) {
-                                        setArticleUrl(val);
-                                        setArticleText("");
-                                      } else {
-                                        setArticleText(val);
-                                        setArticleUrl("");
-                                      }
-                                    }}
-                                    placeholder={analysisMode === 'external' ? "https://..." : (language === "es" ? "Escribe o pega texto..." : "Type or paste text...")}
-                                    className="pl-10 min-h-[60px] py-4 bg-black/40 border-white/10 focus:border-primary/50 transition-all resize-y text-sm md:text-base font-mono rounded-lg"
-                                  />
+                            {/* URL/Text Input Overlay */}
+                            <div className="w-full max-w-xl relative" onClick={e => e.stopPropagation()}>
+                              <div className="relative group/input">
+                                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none z-10">
+                                  {articleUrl ? <Globe className="w-4 h-4 text-primary" /> : <FileText className="w-4 h-4 text-muted-foreground" />}
                                 </div>
-                                <div className="mt-2 flex justify-between items-center text-xs text-muted-foreground px-1">
-                                  <span>{(articleText || articleUrl).length > 0 ? `${(articleText || articleUrl).length} chars` : ""}</span>
-                                  {analysisMode === 'own' && (
-                                    <div className="flex items-center gap-2">
-                                      <span className="opacity-70">Format:</span>
-                                      <Select value={citationFormat} onValueChange={(v: any) => setCitationFormat(v)}>
-                                        <SelectTrigger className="h-6 w-[80px] text-xs bg-transparent border-white/10 px-2">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="APA">APA</SelectItem>
-                                          <SelectItem value="MLA">MLA</SelectItem>
-                                          <SelectItem value="Chicago">Chicago</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div className="w-full flex justify-center pb-2">
-                                <div
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    document.getElementById('file-upload')?.click();
+                                <Textarea
+                                  value={articleText || articleUrl}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val.trim().startsWith('http')) {
+                                      setArticleUrl(val);
+                                      setArticleText("");
+                                    } else {
+                                      setArticleText(val);
+                                      setArticleUrl("");
+                                    }
                                   }}
-                                  className="cursor-pointer p-2 rounded-full text-muted-foreground/50 hover:text-primary hover:bg-primary/10 transition-all duration-300"
-                                  title={language === "es" ? "Seleccionar archivo" : "Select file"}
-                                >
-                                  <Upload className="w-5 h-5" />
-                                </div>
+                                  placeholder={analysisMode === 'external' ? "https://..." : (language === "es" ? "Escribe o pega texto..." : "Type or paste text...")}
+                                  className="pl-10 min-h-[60px] py-4 bg-black/40 border-white/10 focus:border-primary/50 transition-all resize-y text-sm md:text-base font-mono rounded-lg"
+                                />
                               </div>
+                              <div className="mt-2 flex justify-between items-center text-xs text-muted-foreground px-1">
+                                <span>{(articleText || articleUrl).length > 0 ? `${(articleText || articleUrl).length} chars` : ""}</span>
+                                {analysisMode === 'own' && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="opacity-70">Format:</span>
+                                    <Select value={citationFormat} onValueChange={(v: any) => setCitationFormat(v)}>
+                                      <SelectTrigger className="h-6 w-[80px] text-xs bg-transparent border-white/10 px-2">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="APA">APA</SelectItem>
+                                        <SelectItem value="MLA">MLA</SelectItem>
+                                        <SelectItem value="Chicago">Chicago</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
 
-                              <input
-                                type="file"
-                                accept=".pdf,.doc,.docx,.txt"
-                                onChange={handleFileSelect}
-                                className="hidden"
-                                id="file-upload"
-                              />
-                            </>
+                            <input
+                              type="file"
+                              accept=".pdf,.doc,.docx,.txt"
+                              onChange={handleFileSelect}
+                              className="hidden"
+                              id="file-upload"
+                            />
+                          </>
                           )}
                         </label>
                       </div>
