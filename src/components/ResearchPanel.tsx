@@ -102,20 +102,40 @@ export function ResearchPanel({ isOpen, onClose, articleContext, articleTitle, v
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    query: text,
-                    context: articleContext,
+                    messages: [...messages, userMsg], // Send full history
+                    articleContext,
+                    articleTitle,
                     language
                 }),
             });
 
-            if (!response.ok) throw new Error('API Error');
+            if (!response.ok) {
+                if (response.status === 429) {
+                    throw new Error(language === 'es' ? "El sistema está ocupado, intenta en un momento." : "System busy, please try again shortly.");
+                }
+                throw new Error('Network response was not ok');
+            }
 
             const data = await response.json();
-            const assistantMsg: Message = { role: 'assistant', content: data.answer };
+
+            // Check if response has content
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            const assistantMsg: Message = {
+                role: 'assistant',
+                content: data.content || (language === 'es' ? "Lo siento, no pude analizar eso." : "Sorry, I couldn't analyze that.")
+            };
+
             setMessages(prev => [...prev, assistantMsg]);
-        } catch (error) {
-            console.error(error);
-            setMessages(prev => [...prev, { role: 'assistant', content: `⚠️ ${t.error}` }]);
+        } catch (error: any) {
+            console.error('Research chat error:', error);
+            const errorMsg: Message = {
+                role: 'assistant',
+                content: error.message || t.error
+            };
+            setMessages(prev => [...prev, errorMsg]);
         } finally {
             setIsLoading(false);
         }
