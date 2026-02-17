@@ -1800,14 +1800,6 @@ const Oraculus = () => {
                 </Button>
 
                 <div className="flex gap-2 w-full sm:w-auto">
-                  <Button
-                    onClick={() => setIsResearchMode(true)}
-                    variant="outline"
-                    className="gap-2 flex-1 sm:flex-none border-primary/20 bg-primary/10 hover:bg-primary/20 text-primary"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    {language === "es" ? "Modo Investigación" : "Research Mode"}
-                  </Button>
                   <Button onClick={() => generatePDF(analysisResult)} variant="outline" size="sm" className="gap-2 flex-1 sm:flex-none border-white/10 hover:bg-white/5">
                     <Download className="w-4 h-4" /> PDF
                   </Button>
@@ -1900,6 +1892,19 @@ const Oraculus = () => {
                     <BookOpen className="w-4 h-4 mr-2" />
                     {language === "es" ? "Fuentes" : "Sources"}
                   </TabsTrigger>
+
+                  <TabsTrigger
+                    value="research-trigger"
+                    className="rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20 transition-all py-3 text-primary hover:bg-primary/10"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setIsResearchMode(true);
+                    }}
+                  >
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    {language === "es" ? "Investigación" : "Research"}
+                  </TabsTrigger>
+
                   {analysisMode === 'own' && (
                     <TabsTrigger value="improvements" className="rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20 transition-all py-3">
                       <Sparkles className="w-4 h-4 mr-2" />
@@ -2183,7 +2188,7 @@ const Oraculus = () => {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </div >
   );
 };
 
