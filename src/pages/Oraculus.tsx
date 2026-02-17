@@ -122,6 +122,7 @@ interface AnalysisResult {
     role: string;
     sentiment: "Positive" | "Negative" | "Neutral";
   }>;
+  extractedLinks?: Array<{ text: string; url: string }>;
 }
 
 interface AnalysisHistoryItem {
@@ -2116,6 +2117,7 @@ const Oraculus = () => {
                       articleContext={analysisMode === 'own' ? articleText : (articleText || "No context available")}
                       articleTitle={articleTitle}
                       variant="embedded"
+                      extractedLinks={analysisResult?.extractedLinks || []}
                     />
                   </TabsContent>
                 </div>

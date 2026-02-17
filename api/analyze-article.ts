@@ -123,9 +123,27 @@ async function saveAnonymousStats(
     }
 }
 
-// ─── Extract article text from URL ─────────────────────────────
+// ─── Link Extraction Helper ────────────────────────────────────
 
-async function extractTextFromUrl(url: string): Promise<string> {
+function extractLinks(html: string): Array<{ text: string; url: string }> {
+    const links: Array<{ text: string; url: string }> = [];
+    const linkRegex = /<a[^>]+href=["'](http[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+    let match;
+
+    while ((match = linkRegex.exec(html)) !== null) {
+        const url = match[1];
+        const text = match[2].replace(/<[^>]+>/g, '').trim(); // Strip inner tags
+
+        // Filter out internal anchors, javascript:void, same domain relative links if not absolute
+        if (url && url.startsWith('http') && text.length > 2) {
+            // Basic deduplication could happen here or in frontend
+            links.push({ text: text.substring(0, 100), url });
+        }
+    }
+    return links.slice(0, 30); // Limit to top 30 links to avoid payload bloat
+}
+
+async function extractTextFromUrl(url: string): Promise<{ text: string; links: Array<{ text: string; url: string }> }> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
 
@@ -144,22 +162,25 @@ async function extractTextFromUrl(url: string): Promise<string> {
         const html = await response.text();
 
         // Strip scripts/styles
-        let text = html
+        let cleanHtml = html
             .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
             .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
             .replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '');
 
         // Try to extract article content
         const articleMatch =
-            text.match(/<article[^>]*>([\s\S]*?)<\/article>/i) ||
-            text.match(/<main[^>]*>([\s\S]*?)<\/main>/i) ||
-            text.match(/<div[^>]*class="[^"]*article[^"]*"[^>]*>([\s\S]*?)<\/div>/i) ||
-            text.match(/<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+            cleanHtml.match(/<article[^>]*>([\s\S]*?)<\/article>/i) ||
+            cleanHtml.match(/<main[^>]*>([\s\S]*?)<\/main>/i) ||
+            cleanHtml.match(/<div[^>]*class="[^"]*article[^"]*"[^>]*>([\s\S]*?)<\/div>/i) ||
+            cleanHtml.match(/<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
 
-        if (articleMatch) text = articleMatch[1];
+        let contentHtml = articleMatch ? articleMatch[1] : cleanHtml;
+
+        // Extract links from the specific content area BEFORE stripping tags
+        const links = extractLinks(contentHtml);
 
         // Strip HTML tags
-        text = text
+        let text = contentHtml
             .replace(/<[^>]+>/g, ' ')
             .replace(/&nbsp;/g, ' ')
             .replace(/&quot;/g, '"')
@@ -170,7 +191,7 @@ async function extractTextFromUrl(url: string): Promise<string> {
             .trim();
 
         if (!text.length) throw new Error('No content extracted');
-        return text;
+        return { text, links };
     } catch (err: any) {
         clearTimeout(timeout);
         if (err.name === 'AbortError') throw new Error('URL fetch timeout');
@@ -602,6 +623,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // Extract content from URL (only in external mode)
+        let extractedLinks: Array<{ text: string; url: string }> = [];
+
         if (articleUrl && articleUrl.trim().length > 0) {
             if (isOwnTextMode) {
                 return res.status(400).json({ error: "En modo 'Auditar Mi Texto' solo se acepta texto directo" });
@@ -609,8 +632,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             console.log('Extracting content from URL:', articleUrl);
             try {
-                finalText = await extractTextFromUrl(articleUrl.trim());
-                console.log(`Content extracted: ${finalText.length} characters`);
+                const extraction = await extractTextFromUrl(articleUrl.trim());
+                finalText = extraction.text;
+                extractedLinks = extraction.links;
+                console.log(`Content extracted: ${finalText.length} characters, ${extractedLinks.length} links`);
             } catch (urlErr: any) {
                 const msg = urlErr.message.includes('403')
                     ? analysisLanguage === 'es'
@@ -634,14 +659,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const result = await callOpenAI(systemPrompt, finalText);
 
+        // Inject extracted links into the result
+        const finalResult = { ...result, extractedLinks };
+
         // Save anonymous stats (fire-and-forget)
         const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-        saveAnonymousStats(supabaseUrl, supabaseServiceKey, articleUrl, result).catch((e) =>
+        saveAnonymousStats(supabaseUrl, supabaseServiceKey, articleUrl, finalResult).catch((e) =>
             console.error('Stats save failed:', e)
         );
 
-        return res.status(200).json(result);
+        return res.status(200).json(finalResult);
     } catch (error: any) {
         console.error('Analysis error:', error);
         const status = error.message === 'RATE_LIMIT' ? 429 : 500;
