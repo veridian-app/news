@@ -18,6 +18,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsAndConditions from "./pages/TermsAndConditions";
 import LegalNotice from "./pages/LegalNotice";
 import CafeVeridian from "./pages/CafeVeridian";
+import CategoriesPage from "./pages/CategoriesPage";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,11 @@ const App = () => (
                 <Route path="/cafe" element={
                   <ProtectedRoute>
                     <CafeVeridian />
+                  </ProtectedRoute>
+                } />
+                <Route path="/categorias" element={
+                  <ProtectedRoute>
+                    <CategoriesPage />
                   </ProtectedRoute>
                 } />
 

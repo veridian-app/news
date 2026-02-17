@@ -1,4 +1,4 @@
-import { Home, Search, Coffee, Bookmark, User } from "lucide-react";
+import { LayoutGrid, Search, Coffee, Bookmark, User } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useDockVisibility } from "@/contexts/DockVisibilityContext";
@@ -55,7 +55,7 @@ export const BottomDock = () => {
           className="fixed bottom-3 inset-x-0 z-50 flex justify-center pb-[env(safe-area-inset-bottom)]"
         >
           <div className="flex items-center justify-between px-6 py-2.5 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl min-w-[280px] max-w-[340px] w-[85vw]">
-            <DockItem icon={<Home size={20} />} path="/" isActive={isActive("/")} />
+            <DockItem icon={<LayoutGrid size={20} />} path="/categorias" isActive={isActive("/categorias")} />
             <SearchButton isActive={showSearchModal} />
 
             {/* Central Café Button */}
