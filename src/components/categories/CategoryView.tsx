@@ -54,7 +54,36 @@ const transformToExpandable = (items: NewsItem[]): ExpandableNewsItem[] => {
 
 export const CategoryView = ({ category, newsItems, onBack }: CategoryViewProps) => {
     const icon = CATEGORY_ICONS[category] || "📰";
-    const expandableItems = transformToExpandable(newsItems);
+
+    // Split by today vs older
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayMs = today.getTime();
+
+    const todayNews: NewsItem[] = [];
+    const olderNews: NewsItem[] = [];
+
+    // Sort by date descending first
+    const sorted = [...newsItems].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
+    sorted.forEach((item) => {
+        try {
+            const itemDate = new Date(item.date);
+            if (itemDate.getTime() >= todayMs) {
+                todayNews.push(item);
+            } else {
+                olderNews.push(item);
+            }
+        } catch {
+            olderNews.push(item);
+        }
+    });
+
+    const todayExpandable = transformToExpandable(todayNews);
+    const olderExpandable = transformToExpandable(olderNews);
+    const hasAny = todayNews.length > 0 || olderNews.length > 0;
 
     return (
         <div className="min-h-screen bg-zinc-950 text-white">
@@ -84,10 +113,60 @@ export const CategoryView = ({ category, newsItems, onBack }: CategoryViewProps)
 
             {/* News List */}
             <div className="max-w-2xl mx-auto px-4 py-6 pb-32">
-                {expandableItems.length > 0 ? (
-                    expandableItems.map((item, index) => (
-                        <ExpandableNewsCard key={item.id} item={item} index={index} />
-                    ))
+                {hasAny ? (
+                    <>
+                        {/* Today section */}
+                        {todayExpandable.length > 0 && (
+                            <div className="mb-8">
+                                <motion.div
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    className="flex items-center gap-2 mb-4"
+                                >
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                    <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider">
+                                        Hoy
+                                    </h3>
+                                    <span className="text-xs text-emerald-400/50 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                        {todayNews.length}
+                                    </span>
+                                </motion.div>
+                                {todayExpandable.map((item, index) => (
+                                    <ExpandableNewsCard key={item.id} item={item} index={index} />
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Divider between sections */}
+                        {todayExpandable.length > 0 && olderExpandable.length > 0 && (
+                            <div className="flex items-center gap-3 my-8">
+                                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                            </div>
+                        )}
+
+                        {/* Older section */}
+                        {olderExpandable.length > 0 && (
+                            <div>
+                                <motion.div
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: todayExpandable.length > 0 ? 0.2 : 0 }}
+                                    className="flex items-center gap-2 mb-4"
+                                >
+                                    <div className="w-2 h-2 rounded-full bg-zinc-500" />
+                                    <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">
+                                        Anteriores
+                                    </h3>
+                                    <span className="text-xs text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full">
+                                        {olderNews.length}
+                                    </span>
+                                </motion.div>
+                                {olderExpandable.map((item, index) => (
+                                    <ExpandableNewsCard key={item.id} item={item} index={index} />
+                                ))}
+                            </div>
+                        )}
+                    </>
                 ) : (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
