@@ -42,7 +42,11 @@ export const BottomDock = () => {
   const { isVisible } = useDockVisibility();
   const { showSearchModal } = useSearch();
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => {
+    if (path === "/" && location.pathname !== "/") return false;
+    return location.pathname.startsWith(path);
+  };
+
   const isCafeActive = isActive("/cafe");
   const isProfileActive = isActive("/profile");
 
@@ -75,7 +79,7 @@ export const BottomDock = () => {
             className="fixed bottom-3 inset-x-0 z-50 flex justify-center pb-[env(safe-area-inset-bottom)]"
           >
             <div className="flex items-center justify-between px-5 py-2.5 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl min-w-[320px] max-w-[400px] w-[90vw] gap-1">
-              <DockItem icon={<Home size={20} />} path="/" isActive={isActive("/")} />
+              <DockItem icon={<Home size={20} />} path="/" isActive={location.pathname === "/" || location.pathname === "/veridian-news"} />
               <SearchButton isActive={showSearchModal} />
               <DockItem icon={<LayoutGrid size={20} />} path="/categorias" isActive={isActive("/categorias")} />
 
@@ -83,11 +87,14 @@ export const BottomDock = () => {
               <Link
                 to="/cafe"
                 className={cn(
-                  "flex items-center justify-center w-10 h-10 bg-gradient-to-tr from-green-600 to-emerald-500 rounded-full shadow-lg shadow-green-900/50 active:scale-95 transition-transform",
+                  "relative flex items-center justify-center w-10 h-10 bg-gradient-to-tr from-green-600 to-emerald-500 rounded-full shadow-lg shadow-green-900/50 active:scale-95 transition-transform",
                   isCafeActive && "ring-2 ring-emerald-400/50"
                 )}
               >
                 <Coffee className="text-white" size={18} />
+                {isCafeActive && (
+                  <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-emerald-500 rounded-full shadow-[0_0_6px_2px_rgba(16,185,129,0.5)]" />
+                )}
               </Link>
 
               <DockItem icon={<Brain size={20} />} path="/oraculus" isActive={isActive("/oraculus")} />
