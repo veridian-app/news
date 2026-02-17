@@ -6,11 +6,12 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2, CheckCircle2, AlertCircle, TrendingUp, TrendingDown, FileText, Edit3, BookOpen, Shield, Brain, Upload, Download, File as FileIcon, Globe, X, History, ChevronRight, Sparkles, LayoutDashboard, Search, ArrowRight, Rocket, ExternalLink } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, TrendingUp, TrendingDown, FileText, Edit3, BookOpen, Shield, Brain, Upload, Download, File as FileIcon, Globe, X, History, ChevronRight, Sparkles, LayoutDashboard, Search, ArrowRight, Rocket, ExternalLink, Users, Building2, MapPin, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
 import { motion, AnimatePresence } from "framer-motion";
 import { BottomDock } from "@/components/BottomDock";
+import { ResearchPanel } from "@/components/ResearchPanel";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -113,6 +114,12 @@ interface AnalysisResult {
     name: string;
     url?: string;
     context: string; // Dónde aparece en el texto
+  }>;
+  entities?: Array<{
+    name: string;
+    type: "Person" | "Organization" | "Location" | "Event";
+    role: string;
+    sentiment: "Positive" | "Negative" | "Neutral";
   }>;
 }
 
@@ -440,6 +447,9 @@ const Oraculus = () => {
   // Core State
   const [articleText, setArticleText] = useState("");
   const [articleUrl, setArticleUrl] = useState("");
+  const [articleTitle, setArticleTitle] = useState("");
+  const [citationFormat, setCitationFormat] = useState<string>("APA");
+  const [isResearchPanelOpen, setIsResearchPanelOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // UI State
@@ -447,7 +457,6 @@ const Oraculus = () => {
   const [isExtracting, setIsExtracting] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [analysisMode, setAnalysisMode] = useState<"external" | "own">("external");
-  const [citationFormat, setCitationFormat] = useState<"APA" | "MLA" | "Chicago">("APA");
 
   // Data State
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -1940,6 +1949,40 @@ const Oraculus = () => {
                         </div>
                       </div>
                     </Card>
+
+                    {/* Key Entities & Connections */}
+                    {analysisResult.entities && analysisResult.entities.length > 0 && (
+                      <Card className="p-6 md:p-8 bg-card/40 backdrop-blur border-border/50">
+                        <h3 className="text-lg font-semibold mb-6 flex items-center gap-2 text-primary">
+                          <Users className="w-5 h-5" />
+                          Key Entities & Connections
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {analysisResult.entities.map((entity, i) => (
+                            <div key={i} className="p-4 rounded-lg bg-black/20 border border-white/5 hover:border-primary/20 transition-colors">
+                              <div className="flex justify-between items-start mb-2">
+                                <div className="p-2 bg-white/5 rounded-md">
+                                  {entity.type === 'Person' && <Users className="w-4 h-4 text-primary" />}
+                                  {entity.type === 'Organization' && <Building2 className="w-4 h-4 text-orange-400" />}
+                                  {entity.type === 'Location' && <MapPin className="w-4 h-4 text-emerald-400" />}
+                                  {entity.type === 'Event' && <Calendar className="w-4 h-4 text-purple-400" />}
+                                </div>
+                                <Badge variant="outline" className={cn(
+                                  "text-[10px] px-2 py-0.5 h-auto uppercase tracking-wider",
+                                  entity.sentiment === 'Positive' ? 'text-emerald-400 border-emerald-500/20 bg-emerald-500/10' :
+                                    entity.sentiment === 'Negative' ? 'text-red-400 border-red-500/20 bg-red-500/10' :
+                                      'text-gray-400 border-gray-500/20 bg-gray-500/10'
+                                )}>
+                                  {entity.sentiment}
+                                </Badge>
+                              </div>
+                              <h4 className="font-medium text-sm text-white mb-1">{entity.name}</h4>
+                              <p className="text-xs text-muted-foreground line-clamp-2">{entity.role}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </Card>
+                    )}
                   </TabsContent>
 
                   <TabsContent value="bias" className="focus-visible:ring-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -2062,6 +2105,32 @@ const Oraculus = () => {
       </div>
 
       <BottomDock />
+
+      {/* Research Chat FAB */}
+      <AnimatePresence>
+        {!isAnalyzing && analysisResult && (
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            className="fixed bottom-24 right-6 z-50"
+          >
+            <Button
+              onClick={() => setIsResearchPanelOpen(true)}
+              className="h-14 w-14 rounded-full shadow-2xl bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white p-0 flex items-center justify-center border border-white/20"
+            >
+              <Sparkles className="w-6 h-6 animate-pulse" />
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <ResearchPanel
+        isOpen={isResearchPanelOpen}
+        onClose={() => setIsResearchPanelOpen(false)}
+        articleContext={analysisMode === 'own' ? articleText : (articleText || "No context available")}
+        articleTitle={articleTitle}
+      />
     </div>
   );
 };

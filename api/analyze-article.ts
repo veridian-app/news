@@ -351,31 +351,38 @@ If no hoaxes or suspicions: leave the array empty.`;
    - explanation: Professional explanation of risk level
    - flaggedSections: Array of problematic sections with text, reason, suggestion`;
 
+    // ── Key Entities
+    const entitiesInst = es
+        ? `7. ENTIDADES Y CONEXIONES CLAVE: Identifica las personas, organizaciones, lugares y eventos más relevantes mencionados.
+   - Para cada uno: nombre, tipo (Person, Organization, Location, Event), rol/contexto breve, y el sentimiento detectado hacia ellos.`
+        : `7. KEY ENTITIES & CONNECTIONS: Identify the most relevant people, organizations, locations, and events mentioned.
+   - For each: name, type (Person, Organization, Location, Event), brief role/context, and detected sentiment towards them.`;
+
     // ── Overall reliability mapping
     const reliability = es
-        ? `7. FIABILIDAD GENERAL: Debe ser CONSISTENTE con el objectivityScore:
+        ? `8. FIABILIDAD GENERAL: Debe ser CONSISTENTE con el objectivityScore:
    - >= 90: "Muy Alta", >= 80: "Alta", >= 65: "Media", >= 50: "Baja", < 50: "Muy Baja"`
-        : `7. OVERALL RELIABILITY: Must be CONSISTENT with objectivityScore:
+        : `8. OVERALL RELIABILITY: Must be CONSISTENT with objectivityScore:
    - >= 90: "Very High", >= 80: "High", >= 65: "Medium", >= 50: "Low", < 50: "Very Low"`;
 
     // ── Own-text specific sections
     const ownTextSections = isOwnText
         ? es
-            ? `8. AFIRMACIONES SIN CITAR: Identifica TODAS las afirmaciones que requieren fuente pero no la tienen. Para cada una lista la afirmación, explica por qué requiere fuente, y sugiere qué tipo de fuente sería apropiada.
+            ? `9. AFIRMACIONES SIN CITAR: Identifica TODAS las afirmaciones que requieren fuente pero no la tienen. Para cada una lista la afirmación, explica por qué requiere fuente, y sugiere qué tipo de fuente sería apropiada.
 
-9. REFERENCIAS BIBLIOGRÁFICAS: Para cada fuente detectada, genera una referencia en formato ${format}.
+10. REFERENCIAS BIBLIOGRÁFICAS: Para cada fuente detectada, genera una referencia en formato ${format}.
 
-10. RECOMENDACIONES DE MEJORA: Proporciona RECOMENDACIONES que añadan valor al texto, NO correcciones.
+11. RECOMENDACIONES DE MEJORA: Proporciona RECOMENDACIONES que añadan valor al texto, NO correcciones.
    - Tipo: "language" | "source" | "balance" | "claim"
    - Ubicación: fragmento del texto donde aplica (TEXTO ORIGINAL)
    - Actual: fragmento original (TEXTO ORIGINAL)
    - Sugerencia: consejo sobre conceptos nuevos a explorar
    - Razón: por qué esta recomendación añade valor`
-            : `8. UNCITED CLAIMS: Identify ALL claims that require a source but don't have one. For each, list the claim, explain why it requires a source, and suggest what type of source would be appropriate.
+            : `9. UNCITED CLAIMS: Identify ALL claims that require a source but don't have one. For each, list the claim, explain why it requires a source, and suggest what type of source would be appropriate.
 
-9. BIBLIOGRAPHIC REFERENCES: For each detected source, generate a reference in ${format} format.
+10. BIBLIOGRAPHIC REFERENCES: For each detected source, generate a reference in ${format} format.
 
-10. IMPROVEMENT RECOMMENDATIONS: Provide RECOMMENDATIONS that add value to the text, NOT corrections.
+11. IMPROVEMENT RECOMMENDATIONS: Provide RECOMMENDATIONS that add value to the text, NOT corrections.
    - Type: "language" | "source" | "balance" | "claim"
    - Location: text fragment where it applies (ORIGINAL TEXT)
    - Current: original fragment (ORIGINAL TEXT)
@@ -426,6 +433,14 @@ IMPORTANT: Respond ONLY with a valid JSON object with this EXACT structure:
         "tone": "Neutral | Analytical | Strong Opinion | Alarmist",
         "orientation": "Academic | Center | Center-Left | Center-Right | Pro-Industry | etc"
       }
+    }
+  ],
+  "entities": [
+    {
+      "name": "Entity Name",
+      "type": "Person | Organization | Location | Event",
+      "role": "Role description",
+      "sentiment": "Positive | Negative | Neutral"
     }
   ],
   "biasAnalysis": {
@@ -480,7 +495,7 @@ IMPORTANT: Respond ONLY with a valid JSON object with this EXACT structure:
         }
 }`;
 
-    return [role, langRules, exhaustive, biasTypes, sourceDetection, craapEval, objectivityScore, hoaxDetection, plagiarism, reliability, ownTextSections, jsonSchema]
+    return [role, langRules, exhaustive, biasTypes, sourceDetection, craapEval, objectivityScore, hoaxDetection, plagiarism, entitiesInst, reliability, ownTextSections, jsonSchema]
         .filter(Boolean)
         .join('\n\n');
 }
