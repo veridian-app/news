@@ -1,4 +1,4 @@
-import { Home, LayoutGrid, Search, Coffee, Bookmark, User } from "lucide-react";
+import { Home, LayoutGrid, Search, Coffee, Brain, User } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useDockVisibility } from "@/contexts/DockVisibilityContext";
@@ -71,7 +71,7 @@ export const BottomDock = () => {
               <Coffee className="text-white" size={18} />
             </Link>
 
-            <DockItem icon={<Bookmark size={20} />} path="/library" isActive={isActive("/library")} />
+            <DockItem icon={<Brain size={20} />} path="/oraculus" isActive={isActive("/oraculus")} />
             <DockItem icon={<User size={20} />} path="/profile" isActive={isActive("/profile")} />
           </div>
         </motion.div>

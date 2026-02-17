@@ -19,6 +19,7 @@ import TermsAndConditions from "./pages/TermsAndConditions";
 import LegalNotice from "./pages/LegalNotice";
 import CafeVeridian from "./pages/CafeVeridian";
 import CategoriesPage from "./pages/CategoriesPage";
+import Oraculus from "./pages/Oraculus";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +63,11 @@ const App = () => (
                 <Route path="/categorias" element={
                   <ProtectedRoute>
                     <CategoriesPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/oraculus" element={
+                  <ProtectedRoute>
+                    <Oraculus />
                   </ProtectedRoute>
                 } />
 
