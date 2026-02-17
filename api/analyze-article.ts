@@ -493,56 +493,77 @@ async function callGemini(systemPrompt: string, userText: string): Promise<any> 
         throw new Error('GEMINI_API_KEY not configured');
     }
 
-    const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-        {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [
-                    {
-                        role: 'user',
-                        parts: [{ text: userText }],
+    const MAX_RETRIES = 3;
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        if (attempt > 0) {
+            // Exponential backoff: 2s, 6s
+            const waitMs = Math.pow(3, attempt) * 1000;
+            console.log(`Retry ${attempt}/${MAX_RETRIES} after ${waitMs}ms...`);
+            await new Promise((r) => setTimeout(r, waitMs));
+        }
+
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [
+                        {
+                            role: 'user',
+                            parts: [{ text: userText }],
+                        },
+                    ],
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }],
                     },
-                ],
-                systemInstruction: {
-                    parts: [{ text: systemPrompt }],
-                },
-                generationConfig: {
-                    responseMimeType: 'application/json',
-                    temperature: 0.1,
-                    maxOutputTokens: 65536,
-                },
-            }),
+                    generationConfig: {
+                        responseMimeType: 'application/json',
+                        temperature: 0.1,
+                        maxOutputTokens: 65536,
+                    },
+                }),
+            }
+        );
+
+        if (response.status === 429) {
+            const errText = await response.text();
+            console.warn(`Gemini 429 rate limit (attempt ${attempt + 1}):`, errText);
+            lastError = new Error('RATE_LIMIT');
+            continue; // retry
         }
-    );
 
-    if (!response.ok) {
-        const errText = await response.text();
-        console.error('Gemini API error:', response.status, errText);
-        throw new Error(`Gemini API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!textContent) {
-        console.error('No text in Gemini response:', JSON.stringify(data));
-        throw new Error('Empty Gemini response');
-    }
-
-    // Parse JSON - Gemini with responseMimeType: application/json should return valid JSON
-    try {
-        return JSON.parse(textContent);
-    } catch (parseErr) {
-        // Try to extract JSON from the response if it has extra text
-        const jsonMatch = textContent.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-            return JSON.parse(jsonMatch[0]);
+        if (!response.ok) {
+            const errText = await response.text();
+            console.error('Gemini API error:', response.status, errText);
+            throw new Error(`Gemini API error: ${response.status}`);
         }
-        console.error('Failed to parse Gemini JSON:', textContent.substring(0, 500));
-        throw new Error('Invalid JSON in Gemini response');
+
+        const data = await response.json();
+        const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!textContent) {
+            console.error('No text in Gemini response:', JSON.stringify(data));
+            throw new Error('Empty Gemini response');
+        }
+
+        // Parse JSON
+        try {
+            return JSON.parse(textContent);
+        } catch (parseErr) {
+            const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                return JSON.parse(jsonMatch[0]);
+            }
+            console.error('Failed to parse Gemini JSON:', textContent.substring(0, 500));
+            throw new Error('Invalid JSON in Gemini response');
+        }
     }
+
+    // All retries exhausted
+    throw lastError || new Error('Gemini API failed after retries');
 }
 
 // ─── Main handler ───────────────────────────────────────────────
@@ -554,9 +575,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
+    const { articleText, articleUrl, isOwnText, citationFormat, language } = req.body || {};
+    const analysisLanguage = language || 'en';
+
     try {
-        const { articleText, articleUrl, isOwnText, citationFormat, language } = req.body || {};
-        const analysisLanguage = language || 'en';
 
         // Validate input
         if ((!articleText || !articleText.trim()) && (!articleUrl || !articleUrl.trim())) {
@@ -567,9 +589,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const isOwnTextMode = isOwnText === true;
         let finalText = articleText || '';
 
-        // Truncate to 100k chars
-        if (finalText.length > 100000) {
-            finalText = finalText.substring(0, 100000) + '\n\n[Texto truncado por longitud...]';
+        // Truncate to 30k chars to stay within Gemini free-tier token limits
+        if (finalText.length > 30000) {
+            finalText = finalText.substring(0, 30000) + '\n\n[Texto truncado por longitud...]';
         }
 
         // Extract content from URL (only in external mode)
@@ -615,8 +637,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json(result);
     } catch (error: any) {
         console.error('Analysis error:', error);
-        return res.status(500).json({
-            error: error.message || 'Internal server error',
-        });
+        const status = error.message === 'RATE_LIMIT' ? 429 : 500;
+        const msg =
+            error.message === 'RATE_LIMIT'
+                ? analysisLanguage === 'es'
+                    ? 'Demasiadas solicitudes a Gemini. Por favor espera 30 segundos e inténtalo de nuevo.'
+                    : 'Too many requests to Gemini. Please wait 30 seconds and try again.'
+                : error.message || 'Internal server error';
+        return res.status(status).json({ error: msg });
     }
 }
