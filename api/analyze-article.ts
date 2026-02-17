@@ -589,9 +589,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const isOwnTextMode = isOwnText === true;
         let finalText = articleText || '';
 
-        // Truncate to 30k chars to stay within Gemini free-tier token limits
-        if (finalText.length > 30000) {
-            finalText = finalText.substring(0, 30000) + '\n\n[Texto truncado por longitud...]';
+        // Truncate to 100k chars (Gemini 2.0 Flash supports up to 1M tokens)
+        if (finalText.length > 100000) {
+            finalText = finalText.substring(0, 100000) + '\n\n[Texto truncado por longitud...]';
         }
 
         // Extract content from URL (only in external mode)
