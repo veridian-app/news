@@ -1700,7 +1700,7 @@ const Oraculus = () => {
                               id="file-upload"
                             />
                           </>
-                          )}
+                          }
                         </label>
                       </div>
 
