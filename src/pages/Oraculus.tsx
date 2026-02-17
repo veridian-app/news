@@ -1687,6 +1687,19 @@ const Oraculus = () => {
                                 </div>
                               </div>
 
+                              <div className="w-full flex justify-center pb-2">
+                                <div
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    document.getElementById('file-upload')?.click();
+                                  }}
+                                  className="cursor-pointer p-2 rounded-full text-muted-foreground/50 hover:text-primary hover:bg-primary/10 transition-all duration-300"
+                                  title={language === "es" ? "Seleccionar archivo" : "Select file"}
+                                >
+                                  <Upload className="w-5 h-5" />
+                                </div>
+                              </div>
+
                               <input
                                 type="file"
                                 accept=".pdf,.doc,.docx,.txt"
