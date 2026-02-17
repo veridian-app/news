@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+// Supabase import removed — analysis now uses Vercel API route
 import { Loader2, Lock, CheckCircle2, AlertCircle, TrendingUp, TrendingDown, FileText, Edit3, BookOpen, Shield, Brain, Upload, Download, File, Globe } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
@@ -440,9 +440,9 @@ const Oraculus = () => {
 
   useEffect(() => {
     // Oraculus es ahora público y sin restricciones
-        setIsUnlocked(true);
-        setReferralCount(3);
-        setIsFounderAccess(true);
+    setIsUnlocked(true);
+    setReferralCount(3);
+    setIsFounderAccess(true);
   }, []);
 
   const isValidUrl = (string: string) => {
@@ -471,7 +471,7 @@ const Oraculus = () => {
         const pdfjsLib = await import('pdfjs-dist');
         // Use local worker from public folder (more reliable than CDN)
         pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-        
+
         const arrayBuffer = await file.arrayBuffer();
         const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
         const pdf = await loadingTask.promise;
@@ -533,7 +533,7 @@ const Oraculus = () => {
     try {
       const jsPDF = (await import('jspdf')).default;
       const doc = new jsPDF();
-      
+
       let yPos = 20;
       const pageWidth = doc.internal.pageSize.getWidth();
       const margin = 20;
@@ -553,7 +553,7 @@ const Oraculus = () => {
 
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      
+
       if (result.summary.objectivityScore !== undefined) {
         doc.text(`${t.results.objectivityScore}: ${result.summary.objectivityScore}/100`, margin, yPos);
         yPos += 7;
@@ -621,7 +621,7 @@ const Oraculus = () => {
         yPos += 10;
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        
+
         biases.forEach(([key, value]) => {
           if (!value || !value.severity) return;
           const biasNameMap: { [key: string]: string } = {
@@ -667,7 +667,7 @@ const Oraculus = () => {
         yPos += 10;
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        
+
         result.sources.forEach((source, idx) => {
           doc.setFont('helvetica', 'bold');
           doc.text(`${idx + 1}. ${source.name}`, margin, yPos);
@@ -816,7 +816,7 @@ const Oraculus = () => {
             spacing: { after: 200 },
           })
         );
-        
+
         biases.forEach(([key, value]) => {
           if (!value || !value.severity) return;
           const biasNameMap: { [key: string]: string } = {
@@ -863,7 +863,7 @@ const Oraculus = () => {
             spacing: { after: 200 },
           })
         );
-        
+
         result.sources.forEach((source, idx) => {
           children.push(
             new Paragraph({
@@ -926,7 +926,7 @@ const Oraculus = () => {
     } else {
       if (!hasText && !hasUrl) {
         toast.error(t.errors.noInput);
-      return;
+        return;
       }
 
       if (hasUrl && !urlIsValid) {
@@ -954,15 +954,22 @@ const Oraculus = () => {
         setTimeout(() => reject(new Error(t.errors.timeout)), 150000);
       });
 
-      const analysisPromise = supabase.functions.invoke("analyze-article", {
-        body: { 
+      const analysisPromise = fetch("/api/analyze-article", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           articleText: hasText ? articleText : undefined,
           articleUrl: hasUrl && analysisMode === "external" ? articleUrl.trim() : undefined,
           isOwnText: analysisMode === "own",
           citationFormat: analysisMode === "own" ? citationFormat : undefined,
-          language: language, // Pass language to backend
-        },
+          language: language,
+        }),
+      }).then(async (resp) => {
+        const json = await resp.json();
+        if (!resp.ok) return { data: null, error: json.error || json };
+        return { data: json, error: null };
       });
+
 
       let response;
       try {
@@ -970,22 +977,22 @@ const Oraculus = () => {
       } catch (fetchError: any) {
         // Manejar errores de fetch, incluyendo 429 Too Many Requests
         console.error("Error en la petición:", fetchError);
-        
+
         if (fetchError?.message?.includes('429') || fetchError?.response?.status === 429 || fetchError?.status === 429) {
-          throw new Error(language === "es" 
-            ? "Demasiadas solicitudes. Por favor, espera unos minutos antes de intentar de nuevo. Si el problema persiste, es posible que hayas alcanzado el límite de tu plan de Supabase." 
+          throw new Error(language === "es"
+            ? "Demasiadas solicitudes. Por favor, espera unos minutos antes de intentar de nuevo. Si el problema persiste, es posible que hayas alcanzado el límite de tu plan de Supabase."
             : "Too many requests. Please wait a few minutes before trying again. If the problem persists, you may have reached your Supabase plan limit.");
         }
-        
+
         if (fetchError?.message?.includes('non-2xx')) {
-          throw new Error(language === "es" 
-            ? "Error del servidor. Por favor, intenta de nuevo en unos momentos." 
+          throw new Error(language === "es"
+            ? "Error del servidor. Por favor, intenta de nuevo en unos momentos."
             : "Server error. Please try again in a few moments.");
         }
-        
+
         throw fetchError;
       }
-      
+
       // Log completo de la respuesta para debugging
       console.log("Respuesta completa del backend:", response);
       console.log("Tipo de respuesta:", typeof response);
@@ -1014,14 +1021,14 @@ const Oraculus = () => {
 
       if (error) {
         console.error("Error del backend:", error);
-        
+
         // Manejar errores 429 específicamente
         if (error?.message?.includes('429') || error?.status === 429 || (typeof error === 'object' && error?.response?.status === 429)) {
-          throw new Error(language === "es" 
-            ? "Demasiadas solicitudes. Por favor, espera unos minutos antes de intentar de nuevo. Si el problema persiste, es posible que hayas alcanzado el límite de tu plan de Supabase." 
+          throw new Error(language === "es"
+            ? "Demasiadas solicitudes. Por favor, espera unos minutos antes de intentar de nuevo. Si el problema persiste, es posible que hayas alcanzado el límite de tu plan de Supabase."
             : "Too many requests. Please wait a few minutes before trying again. If the problem persists, you may have reached your Supabase plan limit.");
         }
-        
+
         throw new Error(typeof error === 'string' ? error : (error?.message || t.errors.analyzing));
       }
 
@@ -1041,7 +1048,7 @@ const Oraculus = () => {
       if (data.fuentes || data.analisis_craap || data.sesgo || data.confiabilidad) {
         console.log("⚠️ Detectado formato antiguo, transformando...");
         console.log("Estructura recibida:", JSON.stringify(data, null, 2));
-        
+
         // Transformar fuentes a sources
         if (data.fuentes && Array.isArray(data.fuentes)) {
           data.sources = data.fuentes.map((fuente: any) => {
@@ -1053,30 +1060,30 @@ const Oraculus = () => {
             } else {
               // Crear craap por defecto usando analisis_craap global si existe
               craap = {
-                currency: { 
-                  score: 3, 
-                  reasoning: data.analisis_craap?.currency || fuente.currency || "" 
+                currency: {
+                  score: 3,
+                  reasoning: data.analisis_craap?.currency || fuente.currency || ""
                 },
-                relevance: { 
-                  score: 3, 
-                  reasoning: data.analisis_craap?.relevance || fuente.relevance || "" 
+                relevance: {
+                  score: 3,
+                  reasoning: data.analisis_craap?.relevance || fuente.relevance || ""
                 },
-                authority: { 
-                  score: 3, 
-                  reasoning: data.analisis_craap?.authority || fuente.authority || "" 
+                authority: {
+                  score: 3,
+                  reasoning: data.analisis_craap?.authority || fuente.authority || ""
                 },
-                accuracy: { 
-                  score: 3, 
-                  reasoning: data.analisis_craap?.accuracy || fuente.accuracy || "" 
+                accuracy: {
+                  score: 3,
+                  reasoning: data.analisis_craap?.accuracy || fuente.accuracy || ""
                 },
-                purpose: { 
-                  score: 3, 
-                  reasoning: data.analisis_craap?.purpose || fuente.purpose || "" 
+                purpose: {
+                  score: 3,
+                  reasoning: data.analisis_craap?.purpose || fuente.purpose || ""
                 },
                 overall: "Media"
               };
             }
-            
+
             return {
               name: fuente.nombre || fuente.name || "Fuente desconocida",
               url: fuente.url || "",
@@ -1093,13 +1100,13 @@ const Oraculus = () => {
             };
           });
         }
-        
+
         // Transformar sesgo a biasAnalysis
         if (data.sesgo) {
           const nivel = data.sesgo.nivel || data.sesgo.severity || "Nula";
-          const severity = nivel === "Moderado" || nivel === "Significativa" ? "Significant" : 
-                          nivel === "Leve" ? "Low" : "None";
-          
+          const severity = nivel === "Moderado" || nivel === "Significativa" ? "Significant" :
+            nivel === "Leve" ? "Low" : "None";
+
           data.biasAnalysis = {
             selectionBias: {
               severity: severity,
@@ -1108,7 +1115,7 @@ const Oraculus = () => {
             }
           };
         }
-        
+
         // Transformar confiabilidad a summary - manejar múltiples estructuras posibles
         if (data.confiabilidad || data.sesgo) {
           let confiabilidadNivel = "Media";
@@ -1119,7 +1126,7 @@ const Oraculus = () => {
             explanation: language === "es" ? "No se detectó riesgo de plagio." : "No plagiarism risk detected.",
             flaggedSections: [] as any[]
           };
-          
+
           // Manejar diferentes estructuras de confiabilidad
           if (data.confiabilidad) {
             // Estructura 1: { nivel: "Alta", justificacion: "..." }
@@ -1137,23 +1144,23 @@ const Oraculus = () => {
               confiabilidadNivel = data.confiabilidad.level;
               justificacion = data.confiabilidad.justification || data.confiabilidad.justificacion || "";
             }
-            
+
             // Extraer plagiarismAnalysis si existe dentro de confiabilidad
             if (data.confiabilidad.plagiarismAnalysis) {
               plagiarismAnalysis = data.confiabilidad.plagiarismAnalysis;
             }
           }
-          
+
           // Si no hay confiabilidad pero hay sesgo, usar sesgo
           if (!data.confiabilidad && data.sesgo) {
             justificacion = data.sesgo.justificacion || data.sesgo.explanation || "";
           }
-          
+
           const overallReliability = confiabilidadNivel === "Alta" || confiabilidadNivel === "High" ? "High" :
-                                    confiabilidadNivel === "Muy Alta" || confiabilidadNivel === "Very High" ? "Very High" :
-                                    confiabilidadNivel === "Media" || confiabilidadNivel === "Medium" ? "Medium" :
-                                    confiabilidadNivel === "Baja" || confiabilidadNivel === "Low" ? "Low" : "Very Low";
-          
+            confiabilidadNivel === "Muy Alta" || confiabilidadNivel === "Very High" ? "Very High" :
+              confiabilidadNivel === "Media" || confiabilidadNivel === "Medium" ? "Medium" :
+                confiabilidadNivel === "Baja" || confiabilidadNivel === "Low" ? "Low" : "Very Low";
+
           // Calcular objectivityScore basado en confiabilidad
           let objectivityScore = 60;
           if (confiabilidadNivel === "Alta" || confiabilidadNivel === "High") {
@@ -1167,7 +1174,7 @@ const Oraculus = () => {
           } else {
             objectivityScore = 35;
           }
-          
+
           data.summary = {
             overallReliability: overallReliability,
             mainConcerns: justificacion ? [justificacion] : [],
@@ -1178,13 +1185,13 @@ const Oraculus = () => {
             plagiarismAnalysis: plagiarismAnalysis
           };
         }
-        
+
         // Limpiar campos antiguos
         delete data.fuentes;
         delete data.analisis_craap;
         delete data.sesgo;
         delete data.confiabilidad;
-        
+
         console.log("✅ Formato transformado correctamente");
         console.log("Estructura transformada:", JSON.stringify(data, null, 2));
       }
@@ -1193,9 +1200,9 @@ const Oraculus = () => {
       if (data.summary && (!data.summary.overallReliability || !Array.isArray(data.summary.mainConcerns) || !Array.isArray(data.summary.strengths))) {
         console.log("⚠️ Detectado summary con estructura incorrecta, transformando...");
         console.log("Summary recibido:", JSON.stringify(data.summary, null, 2));
-        
+
         const oldSummary = data.summary;
-        
+
         // Extraer valores de diferentes estructuras posibles
         let overallReliability = "Medium";
         let mainConcerns: string[] = [];
@@ -1209,18 +1216,18 @@ const Oraculus = () => {
           explanation: language === "es" ? "No se detectó riesgo de plagio." : "No plagiarism risk detected.",
           flaggedSections: [] as any[]
         };
-        
+
         // Estructura 1: { credibility: "Alta", reason: "...", plagiarismAnalysis: {...} }
         if (oldSummary.credibility) {
           const credibility = oldSummary.credibility;
           overallReliability = credibility === "Alta" || credibility === "High" ? "High" :
-                              credibility === "Muy Alta" || credibility === "Very High" ? "Very High" :
-                              credibility === "Media" || credibility === "Medium" ? "Medium" :
-                              credibility === "Baja" || credibility === "Low" ? "Low" : "Very Low";
-          
+            credibility === "Muy Alta" || credibility === "Very High" ? "Very High" :
+              credibility === "Media" || credibility === "Medium" ? "Medium" :
+                credibility === "Baja" || credibility === "Low" ? "Low" : "Very Low";
+
           objectivityExplanation = oldSummary.reason || oldSummary.justificacion || oldSummary.explanation || "";
           mainConcerns = objectivityExplanation ? [objectivityExplanation] : [];
-          
+
           if (credibility === "Alta" || credibility === "High") {
             objectivityScore = 75;
           } else if (credibility === "Muy Alta" || credibility === "Very High") {
@@ -1237,13 +1244,13 @@ const Oraculus = () => {
         else if (oldSummary.nivel) {
           const nivel = oldSummary.nivel;
           overallReliability = nivel === "Alta" ? "High" :
-                              nivel === "Muy Alta" ? "Very High" :
-                              nivel === "Media" ? "Medium" :
-                              nivel === "Baja" ? "Low" : "Very Low";
-          
+            nivel === "Muy Alta" ? "Very High" :
+              nivel === "Media" ? "Medium" :
+                nivel === "Baja" ? "Low" : "Very Low";
+
           objectivityExplanation = oldSummary.justificacion || oldSummary.explanation || "";
           mainConcerns = objectivityExplanation ? [objectivityExplanation] : [];
-          
+
           if (nivel === "Alta") {
             objectivityScore = 75;
           } else if (nivel === "Muy Alta") {
@@ -1259,20 +1266,20 @@ const Oraculus = () => {
         // Estructura 3: Intentar extraer de campos existentes
         else {
           overallReliability = oldSummary.overallReliability || "Medium";
-          mainConcerns = Array.isArray(oldSummary.mainConcerns) ? oldSummary.mainConcerns : 
-                        oldSummary.mainConcerns ? [oldSummary.mainConcerns] : [];
-          strengths = Array.isArray(oldSummary.strengths) ? oldSummary.strengths : 
-                     oldSummary.strengths ? [oldSummary.strengths] : [];
+          mainConcerns = Array.isArray(oldSummary.mainConcerns) ? oldSummary.mainConcerns :
+            oldSummary.mainConcerns ? [oldSummary.mainConcerns] : [];
+          strengths = Array.isArray(oldSummary.strengths) ? oldSummary.strengths :
+            oldSummary.strengths ? [oldSummary.strengths] : [];
           objectivityScore = oldSummary.objectivityScore || 60;
           objectivityExplanation = oldSummary.objectivityExplanation || oldSummary.explanation || "";
           hoaxAlerts = Array.isArray(oldSummary.hoaxAlerts) ? oldSummary.hoaxAlerts : [];
         }
-        
+
         // Extraer plagiarismAnalysis si existe
         if (oldSummary.plagiarismAnalysis) {
           plagiarismAnalysis = oldSummary.plagiarismAnalysis;
         }
-        
+
         // Reconstruir summary con estructura correcta
         data.summary = {
           overallReliability: overallReliability,
@@ -1283,7 +1290,7 @@ const Oraculus = () => {
           hoaxAlerts: hoaxAlerts,
           plagiarismAnalysis: plagiarismAnalysis
         };
-        
+
         console.log("✅ Summary transformado correctamente");
         console.log("Summary transformado:", JSON.stringify(data.summary, null, 2));
       }
@@ -1303,7 +1310,7 @@ const Oraculus = () => {
       // Normalizar estructura de sesgos si viene en formato incorrecto
       if (data && data.biasAnalysis) {
         const normalizedBiasAnalysis: any = {};
-        
+
         Object.entries(data.biasAnalysis).forEach(([key, value]) => {
           // Si el valor es un array (formato incorrecto), convertirlo al formato correcto
           if (Array.isArray(value)) {
@@ -1312,14 +1319,14 @@ const Oraculus = () => {
               explanation: `${value.length} instance(s) of this bias detected in the text.`,
               quotes: value
             };
-          } 
+          }
           // Si ya es un objeto con la estructura correcta, mantenerlo
           else if (value && typeof value === 'object' && 'severity' in value) {
             normalizedBiasAnalysis[key] = value;
           }
           // Si es null o undefined, omitirlo
         });
-        
+
         data.biasAnalysis = normalizedBiasAnalysis;
         console.log("Bias Analysis normalizado:", normalizedBiasAnalysis);
       }
@@ -1341,7 +1348,7 @@ const Oraculus = () => {
       if (!data.sources) {
         data.sources = [];
       }
-      
+
       // Asegurar que todas las fuentes tengan análisis CRAAP completo
       if (data.sources && Array.isArray(data.sources)) {
         data.sources = data.sources.map((source: any) => {
@@ -1349,24 +1356,24 @@ const Oraculus = () => {
           if (!source.craap || typeof source.craap !== 'object' || !source.craap.currency) {
             console.log(`⚠️ Fuente "${source.name}" sin CRAAP completo, creando análisis por defecto`);
             source.craap = {
-              currency: { 
-                score: source.craap?.currency?.score || 3, 
+              currency: {
+                score: source.craap?.currency?.score || 3,
                 reasoning: source.craap?.currency?.reasoning || (language === "es" ? "Análisis de actualidad no disponible." : "Currency analysis not available.")
               },
-              relevance: { 
-                score: source.craap?.relevance?.score || 3, 
+              relevance: {
+                score: source.craap?.relevance?.score || 3,
                 reasoning: source.craap?.relevance?.reasoning || (language === "es" ? "Análisis de relevancia no disponible." : "Relevance analysis not available.")
               },
-              authority: { 
-                score: source.craap?.authority?.score || 3, 
+              authority: {
+                score: source.craap?.authority?.score || 3,
                 reasoning: source.craap?.authority?.reasoning || (language === "es" ? "Análisis de autoridad no disponible." : "Authority analysis not available.")
               },
-              accuracy: { 
-                score: source.craap?.accuracy?.score || 3, 
+              accuracy: {
+                score: source.craap?.accuracy?.score || 3,
                 reasoning: source.craap?.accuracy?.reasoning || (language === "es" ? "Análisis de precisión no disponible." : "Accuracy analysis not available.")
               },
-              purpose: { 
-                score: source.craap?.purpose?.score || 3, 
+              purpose: {
+                score: source.craap?.purpose?.score || 3,
                 reasoning: source.craap?.purpose?.reasoning || (language === "es" ? "Análisis de propósito no disponible." : "Purpose analysis not available.")
               },
               overall: source.craap?.overall || "Media"
@@ -1401,21 +1408,21 @@ const Oraculus = () => {
         status: error?.status,
         statusCode: error?.statusCode
       });
-      
+
       // Detectar errores 429 específicamente
       let errorMessage = error?.message || t.errors.analyzing;
-      
-      if (error?.message?.includes('429') || 
-          error?.status === 429 || 
-          error?.statusCode === 429 ||
-          error?.response?.status === 429 ||
-          error?.message?.includes('Too Many Requests') ||
-          error?.message?.includes('Demasiadas solicitudes')) {
-        errorMessage = language === "es" 
-          ? "Demasiadas solicitudes. Por favor, espera unos minutos antes de intentar de nuevo. Si el problema persiste, es posible que hayas alcanzado el límite de tu plan de Supabase." 
+
+      if (error?.message?.includes('429') ||
+        error?.status === 429 ||
+        error?.statusCode === 429 ||
+        error?.response?.status === 429 ||
+        error?.message?.includes('Too Many Requests') ||
+        error?.message?.includes('Demasiadas solicitudes')) {
+        errorMessage = language === "es"
+          ? "Demasiadas solicitudes. Por favor, espera unos minutos antes de intentar de nuevo. Si el problema persiste, es posible que hayas alcanzado el límite de tu plan de Supabase."
           : "Too many requests. Please wait a few minutes before trying again. If the problem persists, you may have reached your Supabase plan limit.";
       }
-      
+
       toast.error(errorMessage);
       setAnalysisResult(null);
       setIsAnalyzing(false);
@@ -1534,7 +1541,7 @@ const Oraculus = () => {
           <div className="space-y-2">
             <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent tracking-tight">
               {t.header.title}
-          </h1>
+            </h1>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto font-light">
               {t.header.subtitle}
             </p>
@@ -1571,10 +1578,10 @@ const Oraculus = () => {
           </TabsList>
 
           <TabsContent value="external" className="mt-4">
-        <Card className="p-6 bg-card/50 backdrop-blur border-border/50 shadow-lg">
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">
+            <Card className="p-6 bg-card/50 backdrop-blur border-border/50 shadow-lg">
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">
                     {t.fileUpload.option1}
                   </label>
                   <div className="flex items-center gap-2">
@@ -1607,7 +1614,7 @@ const Oraculus = () => {
                     {t.fileUpload.description}
                   </p>
                 </div>
-                
+
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
                     <span className="w-full border-t" />
@@ -1618,7 +1625,7 @@ const Oraculus = () => {
                 </div>
 
                 <div>
-              <label className="text-sm font-medium mb-2 block">
+                  <label className="text-sm font-medium mb-2 block">
                     {t.urlInput.option2}
                   </label>
                   <Textarea
@@ -1635,7 +1642,7 @@ const Oraculus = () => {
                     {t.urlInput.description}
                   </p>
                 </div>
-                
+
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
                     <span className="w-full border-t" />
@@ -1648,37 +1655,37 @@ const Oraculus = () => {
                 <div>
                   <label className="text-sm font-medium mb-2 block">
                     {t.textInput.option3}
-              </label>
-              <Textarea
-                value={articleText}
-                onChange={(e) => setArticleText(e.target.value)}
-                placeholder={t.textInput.placeholder}
-                className="min-h-[200px] bg-background/50"
-                disabled={isAnalyzing}
-              />
-            </div>
-            <Button
-              onClick={handleAnalyze}
+                  </label>
+                  <Textarea
+                    value={articleText}
+                    onChange={(e) => setArticleText(e.target.value)}
+                    placeholder={t.textInput.placeholder}
+                    className="min-h-[200px] bg-background/50"
+                    disabled={isAnalyzing}
+                  />
+                </div>
+                <Button
+                  onClick={handleAnalyze}
                   disabled={isAnalyzing || isProcessingFile || (!articleText.trim() && !articleUrl.trim() && !selectedFile)}
-              className="w-full"
-              size="lg"
-            >
+                  className="w-full"
+                  size="lg"
+                >
                   {isExtracting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       {t.buttons.extracting}
                     </>
                   ) : isAnalyzing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t.buttons.analyzing}
-                </>
-              ) : (
-                t.buttons.analyze
-              )}
-            </Button>
-          </div>
-        </Card>
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {t.buttons.analyzing}
+                    </>
+                  ) : (
+                    t.buttons.analyze
+                  )}
+                </Button>
+              </div>
+            </Card>
           </TabsContent>
 
           <TabsContent value="own" className="mt-4">
@@ -1729,7 +1736,7 @@ const Oraculus = () => {
                   <p className="text-xs text-muted-foreground mb-4">
                     {t.fileUpload.description}
                   </p>
-                  
+
                   <div className="relative mb-4">
                     <div className="absolute inset-0 flex items-center">
                       <span className="w-full border-t" />
@@ -1833,11 +1840,10 @@ const Oraculus = () => {
                   <div className="p-4 rounded-lg bg-background/50 border border-border/50">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm font-medium">{t.results.objectivityScore}</p>
-                      <Badge className={`text-lg px-3 py-1 ${
-                        analysisResult.summary.objectivityScore >= 80 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50" :
+                      <Badge className={`text-lg px-3 py-1 ${analysisResult.summary.objectivityScore >= 80 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50" :
                         analysisResult.summary.objectivityScore >= 60 ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/50" :
-                        "bg-red-500/20 text-red-400 border-red-500/50"
-                      }`}>
+                          "bg-red-500/20 text-red-400 border-red-500/50"
+                        }`}>
                         {analysisResult.summary.objectivityScore}/100
                       </Badge>
                     </div>
@@ -1856,17 +1862,16 @@ const Oraculus = () => {
                         <AlertCircle className={`w-4 h-4 ${getPlagiarismColor(analysisResult.summary.plagiarismAnalysis.percentage)}`} />
                         <p className="text-sm font-medium">{t.results.plagiarismRisk}</p>
                       </div>
-                      <Badge className={`text-lg px-3 py-1 ${
-                        analysisResult.summary.plagiarismAnalysis.percentage < 10 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50" :
+                      <Badge className={`text-lg px-3 py-1 ${analysisResult.summary.plagiarismAnalysis.percentage < 10 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50" :
                         analysisResult.summary.plagiarismAnalysis.percentage < 25 ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/50" :
-                        analysisResult.summary.plagiarismAnalysis.percentage < 50 ? "bg-orange-500/20 text-orange-400 border-orange-500/50" :
-                        "bg-red-500/20 text-red-400 border-red-500/50"
-                      }`}>
+                          analysisResult.summary.plagiarismAnalysis.percentage < 50 ? "bg-orange-500/20 text-orange-400 border-orange-500/50" :
+                            "bg-red-500/20 text-red-400 border-red-500/50"
+                        }`}>
                         {analysisResult.summary.plagiarismAnalysis.percentage}%
                       </Badge>
                     </div>
-                    <Progress 
-                      value={analysisResult.summary.plagiarismAnalysis.percentage} 
+                    <Progress
+                      value={analysisResult.summary.plagiarismAnalysis.percentage}
                       className={`h-2 mb-2 ${getPlagiarismColor(analysisResult.summary.plagiarismAnalysis.percentage)}`}
                     />
                     <div className="space-y-2">
@@ -1942,7 +1947,7 @@ const Oraculus = () => {
                     {analysisResult.summary.overallReliability}
                   </p>
                 </div>
-                
+
                 {analysisResult.summary.mainConcerns.length > 0 && (
                   <div>
                     <p className="text-sm font-medium mb-2 flex items-center gap-2">
@@ -1981,12 +1986,12 @@ const Oraculus = () => {
 
             {/* Bias Analysis */}
             {analysisResult.biasAnalysis && Object.entries(analysisResult.biasAnalysis).some(([_, value]) => value && value.severity && value.severity !== "None" && value.severity !== "Nula") && (
-            <Card className="p-6 bg-card/50 backdrop-blur border-border/50 shadow-lg">
-              <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-                <Brain className="w-6 h-6" />
-                {t.results.biasAnalysis}
-              </h2>
-              <div className="grid md:grid-cols-2 gap-4">
+              <Card className="p-6 bg-card/50 backdrop-blur border-border/50 shadow-lg">
+                <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+                  <Brain className="w-6 h-6" />
+                  {t.results.biasAnalysis}
+                </h2>
+                <div className="grid md:grid-cols-2 gap-4">
                   {Object.entries(analysisResult.biasAnalysis)
                     .filter(([_, value]) => value && value.severity && value.severity !== "None" && value.severity !== "Nula")
                     .map(([key, value]) => {
@@ -2007,18 +2012,18 @@ const Oraculus = () => {
                       };
                       const biasName = biasNameMap[key] || key;
                       return (
-                  <div key={key} className="p-4 rounded-lg bg-background/50 border border-border/50">
-                    <div className="flex items-center justify-between mb-2">
+                        <div key={key} className="p-4 rounded-lg bg-background/50 border border-border/50">
+                          <div className="flex items-center justify-between mb-2">
                             <p className="font-medium">{biasName}</p>
-                      <Badge className={getSeverityColor(value.severity)}>
-                        {value.severity === "Leve" || value.severity === "Low" ? t.severity.low :
-                         value.severity === "Significativa" || value.severity === "Significant" ? t.severity.significant :
-                         value.severity === "Moderada" || value.severity === "Moderate" ? t.severity.moderate :
-                         value.severity === "Alta" || value.severity === "High" ? t.severity.high :
-                         value.severity === "Muy Alta" || value.severity === "Very High" ? t.severity.veryHigh :
-                         value.severity === "Nula" || value.severity === "None" ? t.severity.none :
-                         value.severity}
-                      </Badge>
+                            <Badge className={getSeverityColor(value.severity)}>
+                              {value.severity === "Leve" || value.severity === "Low" ? t.severity.low :
+                                value.severity === "Significativa" || value.severity === "Significant" ? t.severity.significant :
+                                  value.severity === "Moderada" || value.severity === "Moderate" ? t.severity.moderate :
+                                    value.severity === "Alta" || value.severity === "High" ? t.severity.high :
+                                      value.severity === "Muy Alta" || value.severity === "Very High" ? t.severity.veryHigh :
+                                        value.severity === "Nula" || value.severity === "None" ? t.severity.none :
+                                          value.severity}
+                            </Badge>
                           </div>
                           {value.explanation ? (
                             <p className="text-sm text-muted-foreground mb-3">{value.explanation}</p>
@@ -2062,9 +2067,9 @@ const Oraculus = () => {
                       {analysisResult.missingCitations.map((claim, idx) => (
                         <div key={idx} className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
                           <p className="text-sm text-muted-foreground italic">"{claim}"</p>
-                  </div>
-                ))}
-              </div>
+                        </div>
+                      ))}
+                    </div>
                   </Card>
                 )}
 
@@ -2090,7 +2095,7 @@ const Oraculus = () => {
                             </Badge>
                             <div className="flex-1 space-y-3">
                               <p className="text-sm font-medium">{suggestion.reason}</p>
-                              
+
                               <div className="space-y-2">
                                 <div>
                                   <p className="text-xs font-medium text-muted-foreground mb-1">{t.source.exampleIssue}:</p>
@@ -2100,7 +2105,7 @@ const Oraculus = () => {
                                     </p>
                                   </div>
                                 </div>
-                                
+
                                 <div>
                                   <p className="text-xs font-medium text-muted-foreground mb-1">{t.source.criticalThinking}:</p>
                                   <div className="bg-emerald-500/10 border border-emerald-500/30 rounded p-2">
@@ -2113,7 +2118,7 @@ const Oraculus = () => {
                                   </p>
                                 </div>
                               </div>
-                              
+
                               {suggestion.location && (
                                 <div className="pt-2 border-t border-border/50">
                                   <p className="text-xs text-muted-foreground">
@@ -2133,7 +2138,7 @@ const Oraculus = () => {
 
             {/* Sources Analysis - Show for both modes (external and own) */}
             {analysisResult.sources && analysisResult.sources.length > 0 && (
-            <Card className="p-6 bg-card/50 backdrop-blur border-border/50 shadow-lg">
+              <Card className="p-6 bg-card/50 backdrop-blur border-border/50 shadow-lg">
                 <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
                   <BookOpen className="w-6 h-6" />
                   {analysisResult.isOwnText ? t.results.craapAnalysis : t.results.sourcesAnalysis}
@@ -2143,133 +2148,132 @@ const Oraculus = () => {
                     {t.results.craapDescription}
                   </p>
                 )}
-              <div className="space-y-4">
+                <div className="space-y-4">
                   {[...analysisResult.sources]
-                  .sort((a, b) => {
-                    // Sort by publication date (most recent first)
-                    const dateA = a.publicationDate && a.publicationDate !== 'Desconocida' && a.publicationDate !== 'Unknown'
-                      ? new Date(a.publicationDate).getTime() 
-                      : 0;
-                    const dateB = b.publicationDate && b.publicationDate !== 'Desconocida' && b.publicationDate !== 'Unknown'
-                      ? new Date(b.publicationDate).getTime() 
-                      : 0;
-                    return dateB - dateA;
-                  })
-                  .map((source, idx) => (
-                  <div key={idx} className="p-4 rounded-lg bg-background/50 border border-border/50">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-start gap-2">
-                        <h3 className="font-semibold text-lg">{source.name}</h3>
-                          {source.confidenceScore !== undefined && (
-                            <Badge className={`text-xs ${
-                              source.confidenceScore >= 80 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50" :
-                              source.confidenceScore >= 60 ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/50" :
-                              "bg-red-500/20 text-red-400 border-red-500/50"
-                            }`}>
-                              {source.confidenceScore}% {t.source.confidence}
+                    .sort((a, b) => {
+                      // Sort by publication date (most recent first)
+                      const dateA = a.publicationDate && a.publicationDate !== 'Desconocida' && a.publicationDate !== 'Unknown'
+                        ? new Date(a.publicationDate).getTime()
+                        : 0;
+                      const dateB = b.publicationDate && b.publicationDate !== 'Desconocida' && b.publicationDate !== 'Unknown'
+                        ? new Date(b.publicationDate).getTime()
+                        : 0;
+                      return dateB - dateA;
+                    })
+                    .map((source, idx) => (
+                      <div key={idx} className="p-4 rounded-lg bg-background/50 border border-border/50">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-start gap-2">
+                              <h3 className="font-semibold text-lg">{source.name}</h3>
+                              {source.confidenceScore !== undefined && (
+                                <Badge className={`text-xs ${source.confidenceScore >= 80 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50" :
+                                  source.confidenceScore >= 60 ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/50" :
+                                    "bg-red-500/20 text-red-400 border-red-500/50"
+                                  }`}>
+                                  {source.confidenceScore}% {t.source.confidence}
+                                </Badge>
+                              )}
+                            </div>
+                            {source.url && (
+                              <a
+                                href={source.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-primary hover:underline mt-1 block truncate max-w-md"
+                              >
+                                {source.url}
+                              </a>
+                            )}
+                            {source.summary && (
+                              <p className="text-sm text-muted-foreground mt-2 italic">{source.summary}</p>
+                            )}
+                            <div className="flex gap-2 mt-2 flex-wrap">
+                              <Badge variant="outline" className="text-xs">{source.type}</Badge>
+                              <Badge variant="outline" className="text-xs">{source.accessibility}</Badge>
+                              {source.publicationDate && source.publicationDate !== 'Desconocida' && source.publicationDate !== 'Unknown' && (
+                                <Badge variant="outline" className="text-xs">
+                                  {new Date(source.publicationDate).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
+                                  })}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          {source.craap && source.craap.overall && (
+                            <Badge className={`${getReliabilityColor(source.craap.overall)} border-current ml-2`}>
+                              {source.craap.overall}
                             </Badge>
                           )}
                         </div>
-                        {source.url && (
-                          <a 
-                            href={source.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-xs text-primary hover:underline mt-1 block truncate max-w-md"
-                          >
-                            {source.url}
-                          </a>
-                        )}
-                        {source.summary && (
-                          <p className="text-sm text-muted-foreground mt-2 italic">{source.summary}</p>
-                        )}
-                        <div className="flex gap-2 mt-2 flex-wrap">
-                          <Badge variant="outline" className="text-xs">{source.type}</Badge>
-                          <Badge variant="outline" className="text-xs">{source.accessibility}</Badge>
-                          {source.publicationDate && source.publicationDate !== 'Desconocida' && source.publicationDate !== 'Unknown' && (
-                            <Badge variant="outline" className="text-xs">
-                              {new Date(source.publicationDate).toLocaleDateString('en-US', { 
-                                year: 'numeric', 
-                                month: 'short', 
-                                day: 'numeric' 
-                              })}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      {source.craap && source.craap.overall && (
-                        <Badge className={`${getReliabilityColor(source.craap.overall)} border-current ml-2`}>
-                        {source.craap.overall}
-                      </Badge>
-                      )}
-                    </div>
 
-                    {source.perspective && (
-                    <div className="grid md:grid-cols-2 gap-3 mb-3">
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">{t.source.tone}</p>
-                          <p className="text-sm font-medium">{source.perspective.tone || t.source.notSpecified}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">{t.source.orientation}</p>
-                          <p className="text-sm font-medium">{source.perspective.orientation || t.source.notSpecified}</p>
-                        </div>
-                      </div>
-                    )}
+                        {source.perspective && (
+                          <div className="grid md:grid-cols-2 gap-3 mb-3">
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">{t.source.tone}</p>
+                              <p className="text-sm font-medium">{source.perspective.tone || t.source.notSpecified}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">{t.source.orientation}</p>
+                              <p className="text-sm font-medium">{source.perspective.orientation || t.source.notSpecified}</p>
+                            </div>
+                          </div>
+                        )}
 
-                    {source.craap ? (
-                      <div className="space-y-3 mt-3 pt-3 border-t border-border/50">
-                        <p className="text-sm font-medium mb-3">{t.craap.score}</p>
-                        <div className="space-y-3">
-                          {Object.entries(source.craap)
-                            .filter(([key]) => key !== "overall")
-                            .map(([key, value]) => {
-                              if (!value || typeof value !== 'object' || !('score' in value)) {
-                                return null;
-                              }
-                              const craapValue = value as CraapScore;
-                              const scoreNames: { [key: string]: string } = {
-                                currency: t.craap.currency,
-                                relevance: t.craap.relevance,
-                                authority: t.craap.authority,
-                                accuracy: t.craap.accuracy,
-                                purpose: t.craap.purpose
-                              };
-                              return (
-                                <div key={key} className="space-y-1.5">
-                                  <div className="flex justify-between items-center text-xs">
-                                    <span className="font-medium text-muted-foreground">
-                                      {scoreNames[key] || key}
-                                    </span>
-                                    <span className="font-bold text-foreground">{craapValue.score}/5</span>
-                                  </div>
-                                  <Progress 
-                                    value={(craapValue.score / 5) * 100} 
-                                    className="h-2" 
-                                  />
-                                  {craapValue.reasoning && (
-                                    <p className="text-xs text-muted-foreground italic mt-1">
-                                      {craapValue.reasoning}
-                                    </p>
-                                  )}
-                                </div>
-                              );
-                            })
-                            .filter(item => item !== null)}
-                        </div>
+                        {source.craap ? (
+                          <div className="space-y-3 mt-3 pt-3 border-t border-border/50">
+                            <p className="text-sm font-medium mb-3">{t.craap.score}</p>
+                            <div className="space-y-3">
+                              {Object.entries(source.craap)
+                                .filter(([key]) => key !== "overall")
+                                .map(([key, value]) => {
+                                  if (!value || typeof value !== 'object' || !('score' in value)) {
+                                    return null;
+                                  }
+                                  const craapValue = value as CraapScore;
+                                  const scoreNames: { [key: string]: string } = {
+                                    currency: t.craap.currency,
+                                    relevance: t.craap.relevance,
+                                    authority: t.craap.authority,
+                                    accuracy: t.craap.accuracy,
+                                    purpose: t.craap.purpose
+                                  };
+                                  return (
+                                    <div key={key} className="space-y-1.5">
+                                      <div className="flex justify-between items-center text-xs">
+                                        <span className="font-medium text-muted-foreground">
+                                          {scoreNames[key] || key}
+                                        </span>
+                                        <span className="font-bold text-foreground">{craapValue.score}/5</span>
+                                      </div>
+                                      <Progress
+                                        value={(craapValue.score / 5) * 100}
+                                        className="h-2"
+                                      />
+                                      {craapValue.reasoning && (
+                                        <p className="text-xs text-muted-foreground italic mt-1">
+                                          {craapValue.reasoning}
+                                        </p>
+                                      )}
+                                    </div>
+                                  );
+                                })
+                                .filter(item => item !== null)}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-3 pt-3 border-t border-border/50">
+                            <p className="text-xs text-muted-foreground italic">
+                              {t.craap.notAvailable}
+                            </p>
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      <div className="mt-3 pt-3 border-t border-border/50">
-                        <p className="text-xs text-muted-foreground italic">
-                          {t.craap.notAvailable}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </Card>
+                    ))}
+                </div>
+              </Card>
             )}
           </div>
         )}
@@ -2281,22 +2285,22 @@ const Oraculus = () => {
           <div className="text-center text-sm text-muted-foreground space-y-4">
             <p>{t.footer.copyright}</p>
             <div className="flex flex-wrap justify-center gap-4 text-xs">
-              <a 
-                href="/privacidad" 
+              <a
+                href="/privacidad"
                 className="hover:text-primary transition-colors underline-offset-4 hover:underline"
               >
                 {t.footer.privacy}
               </a>
               <span className="text-border">•</span>
-              <a 
-                href="/terminos" 
+              <a
+                href="/terminos"
                 className="hover:text-primary transition-colors underline-offset-4 hover:underline"
               >
                 {t.footer.terms}
               </a>
               <span className="text-border">•</span>
-              <a 
-                href="/aviso-legal" 
+              <a
+                href="/aviso-legal"
                 className="hover:text-primary transition-colors underline-offset-4 hover:underline"
               >
                 {t.footer.legal}
