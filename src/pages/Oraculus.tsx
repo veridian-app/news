@@ -469,8 +469,9 @@ const Oraculus = () => {
       // Process PDF files
       if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
         const pdfjsLib = await import('pdfjs-dist');
-        // Use local worker from public folder (more reliable than CDN)
-        pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+        // Use CDN worker matching the exact installed version
+        const pdfjsVersion = pdfjsLib.version;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.mjs`;
 
         const arrayBuffer = await file.arrayBuffer();
         const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
