@@ -29,10 +29,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let data;
 
         if (authorId) {
+            // Sanitize ID: remove any non-numeric characters (or just split by :)
+            const cleanId = (authorId as string).split(':')[0]; // Fix for IDs like "2188760105:1"
+
             // Get Author Details
-            const url = `${SEMANTIC_SCHOLAR_API_BASE}/author/${authorId}?fields=name,aliases,affiliations,homepage,paperCount,citationCount,hIndex,papers.calendarDate,papers.title,papers.venue,papers.citationCount,papers.url`;
+            const url = `${SEMANTIC_SCHOLAR_API_BASE}/author/${cleanId}?fields=name,aliases,affiliations,homepage,paperCount,citationCount,hIndex,papers.calendarDate,papers.title,papers.venue,papers.citationCount,papers.url`;
             const response = await fetch(url, { headers });
-            if (!response.ok) throw new Error(`Semantic Scholar API Error: ${response.status}`);
+
+            if (!response.ok) {
+                const errText = await response.text();
+                console.error(`Semantic Scholar Error (${response.status}): ${errText}`);
+                throw new Error(`Semantic Scholar API Error: ${response.status} ${errText}`);
+            }
+
             data = await response.json();
         } else {
             // Search Author
