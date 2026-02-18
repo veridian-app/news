@@ -143,14 +143,31 @@ export function ResearcherProfileModal({ isOpen, onClose, entityName, entityType
         }
 
         if (error) {
+            const isNotFound = error === "Author not found" || error.includes("not found");
             return (
                 <div className="h-64 flex flex-col items-center justify-center text-muted-foreground gap-2 p-8 text-center">
-                    <p>{error}</p>
-                    <p className="text-xs opacity-50">
-                        {entityType === 'Person'
-                            ? (language === "es" ? "Intenta buscar manualmente en Google Scholar." : "Try searching manually on Google Scholar.")
-                            : (language === "es" ? "Intenta buscar en la web oficial." : "Try checking their official website.")}
-                    </p>
+                    {isNotFound ? (
+                        <>
+                            <div className="p-3 bg-white/5 rounded-full mb-2">
+                                <GraduationCap className="w-8 h-8 opacity-20" />
+                            </div>
+                            <p className="font-medium">{language === "es" ? "Investigador no encontrado" : "Researcher not found"}</p>
+                            <p className="text-xs opacity-50 max-w-xs">
+                                {language === "es"
+                                    ? "No pudimos encontrar un perfil exacto en Semantic Scholar. Puede que el nombre difiera ligeramente."
+                                    : "We couldn't match this exact name in Semantic Scholar. The spelling might differ."}
+                            </p>
+                        </>
+                    ) : (
+                        <>
+                            <p>{error}</p>
+                            <p className="text-xs opacity-50">
+                                {entityType === 'Person'
+                                    ? (language === "es" ? "Intenta buscar manualmente en Google Scholar." : "Try searching manually on Google Scholar.")
+                                    : (language === "es" ? "Intenta buscar en la web oficial." : "Try checking their official website.")}
+                            </p>
+                        </>
+                    )}
                 </div>
             );
         }
