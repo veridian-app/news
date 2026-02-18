@@ -33,7 +33,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const cleanId = (authorId as string).split(':')[0]; // Fix for IDs like "2188760105:1"
 
             // Get Author Details
-            const url = `${SEMANTIC_SCHOLAR_API_BASE}/author/${cleanId}?fields=name,aliases,affiliations,homepage,paperCount,citationCount,hIndex,papers.calendarDate,papers.title,papers.venue,papers.citationCount,papers.url`;
+            // removed aliases, papers.calendarDate
+            const url = `${SEMANTIC_SCHOLAR_API_BASE}/author/${cleanId}?fields=name,affiliations,homepage,paperCount,citationCount,hIndex,papers.year,papers.title,papers.venue,papers.citationCount,papers.url`;
             const response = await fetch(url, { headers });
 
             if (!response.ok) {
