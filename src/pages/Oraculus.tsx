@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2, CheckCircle2, AlertCircle, TrendingUp, TrendingDown, FileText, Edit3, BookOpen, Shield, Brain, Upload, Download, File as FileIcon, Globe, X, History, ChevronRight, Sparkles, LayoutDashboard, Search, ArrowRight, Rocket, ExternalLink, Users, Building2, MapPin, Calendar, Link as LinkIcon } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, TrendingUp, TrendingDown, FileText, Edit3, BookOpen, Shield, Brain, Upload, Download, File as FileIcon, Globe, X, History, ChevronRight, Sparkles, LayoutDashboard, Search, ArrowRight, Rocket, ExternalLink, Users, Building2, MapPin, Calendar, Link as LinkIcon, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
 import { motion, AnimatePresence } from "framer-motion";
@@ -1518,17 +1518,24 @@ const Oraculus = () => {
                                 ))}
                               </div>
 
-                              <div className="flex justify-center gap-2 mt-4">
-                                <Button variant="secondary" size="sm" onClick={(e) => {
-                                  e.preventDefault();
-                                  fileInputRef.current?.click();
-                                }}>
-                                  {language === "es" ? "Añadir más" : "Add more"}
-                                </Button>
-                                <Button variant="destructive" size="sm" onClick={(e) => {
+                              <div className="flex flex-col gap-2 mt-4 w-full">
+                                <div
+                                  className="border-2 border-dashed border-white/10 rounded-lg p-4 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-center gap-2 group/add"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    fileInputRef.current?.click();
+                                  }}
+                                >
+                                  <Plus className="w-5 h-5 text-muted-foreground group-hover/add:text-primary transition-colors" />
+                                  <span className="text-sm text-muted-foreground group-hover/add:text-foreground transition-colors">
+                                    {language === "es" ? "Clic o arrastra para añadir más" : "Click or drag to add more"}
+                                  </span>
+                                </div>
+
+                                <Button variant="ghost" size="sm" onClick={(e) => {
                                   e.preventDefault();
                                   setSelectedFiles([]);
-                                }}>
+                                }} className="self-center text-muted-foreground hover:text-red-400">
                                   {language === "es" ? "Borrar todo" : "Clear all"}
                                 </Button>
                               </div>
