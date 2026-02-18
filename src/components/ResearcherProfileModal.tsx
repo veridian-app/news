@@ -100,9 +100,10 @@ export function ResearcherProfileModal({ isOpen, onClose, entityName, entityType
             }
 
             const authorId = searchData.data[0].authorId;
+            const cleanAuthorId = String(authorId).split(':')[0];
 
             // Then fetch details
-            const detailsRes = await fetch(`/api/scholar/author?authorId=${authorId}`);
+            const detailsRes = await fetch(`/api/scholar/author?authorId=${cleanAuthorId}`);
             if (!detailsRes.ok) throw new Error("Details failed");
             const detailsData = await detailsRes.json();
 
