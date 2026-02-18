@@ -4,9 +4,8 @@ import { ExpandableNewsCard, ExpandableNewsItem } from "./ExpandableNewsCard";
 import { LiquidProgressBar } from "./LiquidProgressBar";
 import { DailyConsensus } from "./DailyConsensus";
 import { GobiernoGasto } from "./GobiernoGasto";
-import { CoffeeTicket } from "./CoffeeTicket";
 import { Button } from "@/components/ui/button";
-import { X, Coffee, Ticket, Loader2 } from "lucide-react";
+import { X, Coffee, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, useScroll, useSpring, useTransform } from "framer-motion";
 import { useHaptic } from "@/hooks/use-haptic";
@@ -41,15 +40,13 @@ export const CafeLayout = () => {
     const navigate = useNavigate();
     const { triggerImpact } = useHaptic();
     const containerRef = useRef<HTMLDivElement>(null);
-    const [showTicket, setShowTicket] = useState(false);
 
     // Data states
     const [cafeNews, setCafeNews] = useState<CafeItem[]>(CAFE_NEWS);
     const [dailyPolls, setDailyPolls] = useState<CafeConsensusPoll[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Passport State
-    const [stamps, setStamps] = useState(9);
+    // Consensus State
     const [hasConsensusVoted, setHasConsensusVoted] = useState(false);
 
     // Scroll Progress
@@ -116,14 +113,7 @@ export const CafeLayout = () => {
     const handleConsensusComplete = () => {
         if (!hasConsensusVoted) {
             setHasConsensusVoted(true);
-            const newStamps = Math.min(stamps + 1, 10);
-            setStamps(newStamps);
-            if (newStamps === 10) {
-                triggerImpact('heavy');
-                setTimeout(() => setShowTicket(true), 1500);
-            } else {
-                triggerImpact('medium');
-            }
+            triggerImpact('medium');
         }
     };
 
@@ -136,11 +126,6 @@ export const CafeLayout = () => {
 
     return (
         <div className="fixed inset-0 bg-zinc-950 text-white flex z-50 overflow-hidden">
-            {/* Golden Ticket Overlay */}
-            <AnimatePresence>
-                {showTicket && <CoffeeTicket onClose={() => setShowTicket(false)} />}
-            </AnimatePresence>
-
             {/* Left/Main Content: Scrollable */}
             <div ref={containerRef} className="flex-1 overflow-y-auto relative custom-scrollbar scroll-smooth">
                 {/* Header Overlay */}

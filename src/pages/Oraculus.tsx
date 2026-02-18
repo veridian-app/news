@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { BottomDock } from "@/components/BottomDock";
 import { ResearchPanel } from "@/components/ResearchPanel";
 import { ArticleReader } from "@/components/ArticleReader";
+import { ResearcherProfileModal } from "@/components/ResearcherProfileModal";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getSourceDNA } from "@/data/sourceDNA";
@@ -124,6 +125,25 @@ interface AnalysisResult {
     sentiment: "Positive" | "Negative" | "Neutral";
   }>;
   extractedLinks?: Array<{ text: string; url: string }>;
+}
+
+interface SynthesisResult {
+  syntheticSummary: string;
+  consensusMatrix: Array<{
+    topic: string;
+    agreement: string;
+    upholdingDocuments: string[];
+  }>;
+  discrepancyMatrix: Array<{
+    topic: string;
+    disagreement: string;
+    perspectives: Array<{ document: string; viewpoint: string }>;
+  }>;
+  conceptGraph: Array<{
+    concept: string;
+    definition: string;
+    relatedTo: string[];
+  }>;
 }
 
 interface AnalysisHistoryItem {
@@ -448,23 +468,30 @@ const Oraculus = () => {
   const t = translations[language];
 
   // Core State
-  const [articleText, setArticleText] = useState("");
-  const [articleUrl, setArticleUrl] = useState("");
-  const [articleTitle, setArticleTitle] = useState("");
   const [citationFormat, setCitationFormat] = useState<string>("APA");
   const [isResearchPanelOpen, setIsResearchPanelOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // UI State
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isExtracting, setIsExtracting] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
-  const [isResearchMode, setIsResearchMode] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [articleText, setArticleText] = useState("");
+  const [articleUrl, setArticleUrl] = useState("");
+  const [articleTitle, setArticleTitle] = useState("");
   const [analysisMode, setAnalysisMode] = useState<"external" | "own">("external");
+  const [isLoading, setIsLoading] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [synthesisResult, setSynthesisResult] = useState<SynthesisResult | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<AnalysisHistoryItem[]>([]);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Data State
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const [history, setHistory] = useState<AnalysisHistoryItem[]>([]);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [isResearchMode, setIsResearchMode] = useState(false);
+  const [selectedResearcher, setSelectedResearcher] = useState<string | null>(null);
+  const [selectedEntityType, setSelectedEntityType] = useState<'Person' | 'Organization'>('Person');
 
   // Load history on mount
   useEffect(() => {
@@ -516,6 +543,7 @@ const Oraculus = () => {
     }
   };
 
+  // Modified processFile to just return text, not setting state directly
   const processFile = async (file: File): Promise<string> => {
     setIsProcessingFile(true);
     try {
@@ -576,20 +604,32 @@ const Oraculus = () => {
   };
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    if (event.target.files && event.target.files.length > 0) {
+      const newFiles = Array.from(event.target.files)
+        .filter(file =>
+          file.type === 'application/pdf' || file.name.endsWith('.pdf') ||
+          file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+          file.name.endsWith('.docx') || file.type === 'text/plain' || file.name.endsWith('.txt')
+        );
 
-    setSelectedFile(file);
-    setArticleUrl(""); // Clear URL when file is selected
-
-    try {
-      const text = await processFile(file);
-      setArticleText(text);
-      toast.success(t.fileUpload.success(file.name));
-    } catch (error: any) {
-      toast.error(error.message || t.errors.fileProcessing);
-      setSelectedFile(null);
+      if (newFiles.length > 0) {
+        // Append new files to existing ones
+        setSelectedFiles(prev => {
+          // Avoid duplicates by name
+          const existingNames = new Set(prev.map(f => f.name));
+          const uniqueNewFiles = newFiles.filter(f => !existingNames.has(f.name));
+          return [...prev, ...uniqueNewFiles];
+        });
+        setArticleUrl(""); // Clear URL when file is selected
+        toast.success(`Added ${newFiles.length} file(s)`);
+      } else {
+        toast.error("Some files were not supported. Use PDF, DOCX or TXT.");
+      }
     }
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const generatePDF = async (result: AnalysisResult) => {
@@ -977,296 +1017,186 @@ const Oraculus = () => {
   };
 
   const handleAnalyze = async () => {
-    const hasText = articleText.trim().length > 0;
-    const hasUrl = articleUrl.trim().length > 0;
-    const urlIsValid = hasUrl && isValidUrl(articleUrl.trim());
-
-    if (analysisMode === "own") {
-      if (!hasText) {
-        toast.error(t.errors.noText);
-        return;
-      }
-    } else {
-      if (!hasText && !hasUrl) {
-        toast.error(t.errors.noInput);
-        return;
-      }
-
-      if (hasUrl && !urlIsValid) {
-        toast.error(t.errors.invalidUrl);
-        return;
-      }
-    }
+    // Basic validation
+    if ((!articleText.trim() && !articleUrl.trim() && selectedFiles.length === 0) || isAnalyzing) return;
 
     setIsAnalyzing(true);
-    setIsExtracting(hasUrl && analysisMode === "external");
     setAnalysisResult(null);
+    setSynthesisResult(null);
+    setIsExtracting(true);
 
-    // Validate text length (100,000 characters for complex papers)
-    const textToAnalyze = hasText ? articleText : "";
-    if (textToAnalyze.length > 100000) {
-      toast.error(t.errors.textTooLong);
-      setIsAnalyzing(false);
-      setIsExtracting(false);
-      return;
-    }
+    // Close research panel if open
+    setIsResearchPanelOpen(false);
 
     try {
-      // Create a 2.5 minute timeout for the request
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error(t.errors.timeout)), 150000);
+      // ─── Multi-Document Synthesis Logic ───
+      if (selectedFiles.length > 1) {
+        setIsProcessingFile(true);
+        const documents = await Promise.all(
+          selectedFiles.map(async (file) => {
+            const text = await processFile(file);
+            return { name: file.name, content: text };
+          })
+        );
+        setIsProcessingFile(false);
+
+        toast.info(language === 'es' ? 'Sintetizando documentos...' : 'Synthesizing documents...');
+
+        const detectedLang = language === 'es' ? 'es' : 'en';
+        const response = await fetch('/api/analyze-multidoc', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documents,
+            language: detectedLang
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || t.errors.analyzing);
+        }
+
+        const data = await response.json();
+        setSynthesisResult(data);
+        toast.success(t.success.analysisCompleted);
+        return;
+      }
+
+      // ─── Single Document/Text/URL Logic ───
+      let textToAnalyze = articleText;
+      let urlToAnalyze = articleUrl;
+
+      // File Processing
+      if (selectedFiles.length === 1) {
+        setIsProcessingFile(true);
+        try {
+          const text = await processFile(selectedFiles[0]);
+          textToAnalyze = `--- START OF DOCUMENT: ${selectedFiles[0].name} ---\n${text}\n--- END OF DOCUMENT: ${selectedFiles[0].name} ---\n`;
+          urlToAnalyze = "";
+          setIsProcessingFile(false);
+          toast.success(language === 'es' ? `Procesando archivo...` : `Processing file...`);
+        } catch (error: any) {
+          console.error("Error processing files:", error);
+          toast.error(t.errors.fileProcessing);
+          setIsAnalyzing(false);
+          setIsProcessingFile(false);
+          return;
+        }
+      }
+
+      console.log("Iniciando análisis...", {
+        hasText: !!textToAnalyze,
+        textLength: textToAnalyze?.length,
+        hasUrl: !!urlToAnalyze,
+        mode: analysisMode
       });
 
-      const analysisPromise = fetch("/api/analyze-article", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      // API Call
+      const detectedLang = language === 'es' ? 'es' : 'en';
+      const response = await fetch('/api/analyze-article', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          articleText: hasText ? articleText : undefined,
-          articleUrl: hasUrl && analysisMode === "external" ? articleUrl.trim() : undefined,
-          isOwnText: analysisMode === "own",
-          citationFormat: analysisMode === "own" ? citationFormat : undefined,
-          language: language,
+          text: textToAnalyze,
+          url: urlToAnalyze,
+          language: detectedLang,
+          mode: analysisMode
         }),
-      }).then(async (resp) => {
-        const json = await resp.json();
-        if (!resp.ok) return { data: null, error: json.error || json };
-        return { data: json, error: null };
       });
 
-
-      let response;
-      try {
-        response = await Promise.race([analysisPromise, timeoutPromise]) as any;
-      } catch (fetchError: any) {
-        // Manejar errores de fetch, incluyendo 429 Too Many Requests
-        console.error("Error en la petición:", fetchError);
-
-        if (fetchError?.message?.includes('429') || fetchError?.response?.status === 429 || fetchError?.status === 429) {
-          throw new Error(language === "es"
-            ? "Demasiadas solicitudes. Por favor, espera unos minutos antes de intentar de nuevo. Si el problema persiste, es posible que hayas alcanzado el límite de tu plan de Supabase."
-            : "Too many requests. Please wait a few minutes before trying again. If the problem persists, you may have reached your Supabase plan limit.");
-        }
-
-        if (fetchError?.message?.includes('non-2xx')) {
-          throw new Error(language === "es"
-            ? "Error del servidor. Por favor, intenta de nuevo en unos momentos."
-            : "Server error. Please try again in a few moments.");
-        }
-
-        throw fetchError;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Error respuesta API:", response.status, errorData);
+        throw new Error(errorData.error || `Error ${response.status}: ${t.errors.analyzing}`);
       }
 
-      // Log completo de la respuesta para debugging
-      console.log("Respuesta completa del backend:", response);
-      console.log("Tipo de respuesta:", typeof response);
-      console.log("Estructura de respuesta:", JSON.stringify(response, null, 2));
+      // Response Handling & Transformation
+      let data = await response.json();
+      console.log("Datos recibidos:", data);
 
-      // Verificar si es una respuesta de Supabase con estructura { data, error }
-      let data, error;
-      if (response && typeof response === 'object') {
-        if ('data' in response && 'error' in response) {
-          // Estructura de Supabase: { data, error }
-          data = response.data;
-          error = response.error;
-        } else if ('error' in response) {
-          // Solo tiene error
-          error = response.error;
-          data = null;
-        } else {
-          // La respuesta completa es el data
-          data = response;
-          error = null;
-        }
-      } else {
-        data = response;
-        error = null;
+      if (!data) throw new Error(t.errors.analyzing);
+
+      // --- Data Transformation Logic ---
+      // Transformar sesgo a biasAnalysis
+      if (data.sesgo) {
+        const nivel = data.sesgo.nivel || data.sesgo.severity || "Nula";
+        const severity = nivel === "Moderado" || nivel === "Significativa" ? "Significant" :
+          nivel === "Leve" ? "Low" : "None";
+
+        data.biasAnalysis = {
+          selectionBias: {
+            severity: severity,
+            explanation: data.sesgo.justificacion || data.sesgo.explanation || "",
+            quotes: []
+          }
+        };
       }
 
-      if (error) {
-        console.error("Error del backend:", error);
+      // Transformar confiabilidad a summary
+      if (data.confiabilidad || data.sesgo) {
+        let confiabilidadNivel = "Media";
+        let justificacion = "";
+        let plagiarismAnalysis = {
+          percentage: 0,
+          level: "None" as const,
+          explanation: language === "es" ? "No se detectó riesgo de plagio." : "No plagiarism risk detected.",
+          flaggedSections: [] as any[]
+        };
 
-        // Manejar errores 429 específicamente
-        if (error?.message?.includes('429') || error?.status === 429 || (typeof error === 'object' && error?.response?.status === 429)) {
-          throw new Error(language === "es"
-            ? "Demasiadas solicitudes. Por favor, espera unos minutos antes de intentar de nuevo. Si el problema persiste, es posible que hayas alcanzado el límite de tu plan de Supabase."
-            : "Too many requests. Please wait a few minutes before trying again. If the problem persists, you may have reached your Supabase plan limit.");
-        }
-
-        throw new Error(typeof error === 'string' ? error : (error?.message || t.errors.analyzing));
-      }
-
-      // Verificar si la respuesta tiene un error en el campo error
-      if (data && data.error) {
-        console.error("Error en data.error:", data.error);
-        throw new Error(typeof data.error === 'string' ? data.error : (data.error?.message || t.errors.analyzing));
-      }
-
-      // Validar que la respuesta tenga la estructura mínima esperada
-      if (!data) {
-        console.error("Respuesta vacía del backend");
-        throw new Error(language === "es" ? "El análisis no devolvió resultados válidos. Por favor, intenta de nuevo." : "Analysis did not return valid results. Please try again.");
-      }
-
-      // Transformar formato antiguo (fuentes, analisis_craap, sesgo, confiabilidad) al formato nuevo
-      if (data.fuentes || data.analisis_craap || data.sesgo || data.confiabilidad) {
-        console.log("⚠️ Detectado formato antiguo, transformando...");
-        console.log("Estructura recibida:", JSON.stringify(data, null, 2));
-
-        // Transformar fuentes a sources
-        if (data.fuentes && Array.isArray(data.fuentes)) {
-          data.sources = data.fuentes.map((fuente: any) => {
-            // Si la fuente ya tiene craap completo, usarlo; si no, crear uno por defecto
-            let craap;
-            if (fuente.craap && typeof fuente.craap === 'object') {
-              // Ya tiene craap, usarlo
-              craap = fuente.craap;
-            } else {
-              // Crear craap por defecto usando analisis_craap global si existe
-              craap = {
-                currency: {
-                  score: 3,
-                  reasoning: data.analisis_craap?.currency || fuente.currency || ""
-                },
-                relevance: {
-                  score: 3,
-                  reasoning: data.analisis_craap?.relevance || fuente.relevance || ""
-                },
-                authority: {
-                  score: 3,
-                  reasoning: data.analisis_craap?.authority || fuente.authority || ""
-                },
-                accuracy: {
-                  score: 3,
-                  reasoning: data.analisis_craap?.accuracy || fuente.accuracy || ""
-                },
-                purpose: {
-                  score: 3,
-                  reasoning: data.analisis_craap?.purpose || fuente.purpose || ""
-                },
-                overall: "Media"
-              };
-            }
-
-            return {
-              name: fuente.nombre || fuente.name || "Fuente desconocida",
-              url: fuente.url || "",
-              type: fuente.tipo || fuente.type || "mención",
-              accessibility: fuente.accessibility || "Desconocida",
-              publicationDate: fuente.publicationDate || "Desconocida",
-              summary: fuente.detalles || fuente.summary || "",
-              confidenceScore: fuente.confidenceScore !== undefined ? fuente.confidenceScore : 50,
-              craap: craap,
-              perspective: fuente.perspective || {
-                tone: "Neutral",
-                orientation: "Centro"
-              }
-            };
-          });
-        }
-
-        // Transformar sesgo a biasAnalysis
-        if (data.sesgo) {
-          const nivel = data.sesgo.nivel || data.sesgo.severity || "Nula";
-          const severity = nivel === "Moderado" || nivel === "Significativa" ? "Significant" :
-            nivel === "Leve" ? "Low" : "None";
-
-          data.biasAnalysis = {
-            selectionBias: {
-              severity: severity,
-              explanation: data.sesgo.justificacion || data.sesgo.explanation || "",
-              quotes: []
-            }
-          };
-        }
-
-        // Transformar confiabilidad a summary - manejar múltiples estructuras posibles
-        if (data.confiabilidad || data.sesgo) {
-          let confiabilidadNivel = "Media";
-          let justificacion = "";
-          let plagiarismAnalysis = {
-            percentage: 0,
-            level: "None" as const,
-            explanation: language === "es" ? "No se detectó riesgo de plagio." : "No plagiarism risk detected.",
-            flaggedSections: [] as any[]
-          };
-
-          // Manejar diferentes estructuras de confiabilidad
-          if (data.confiabilidad) {
-            // Estructura 1: { nivel: "Alta", justificacion: "..." }
-            if (data.confiabilidad.nivel) {
-              confiabilidadNivel = data.confiabilidad.nivel;
-              justificacion = data.confiabilidad.justificacion || "";
-            }
-            // Estructura 2: { credibility: "Alta", notes: "..." }
-            else if (data.confiabilidad.credibility) {
-              confiabilidadNivel = data.confiabilidad.credibility;
-              justificacion = data.confiabilidad.notes || data.confiabilidad.justificacion || "";
-            }
-            // Estructura 3: { level: "High", justification: "..." }
-            else if (data.confiabilidad.level) {
-              confiabilidadNivel = data.confiabilidad.level;
-              justificacion = data.confiabilidad.justification || data.confiabilidad.justificacion || "";
-            }
-
-            // Extraer plagiarismAnalysis si existe dentro de confiabilidad
-            if (data.confiabilidad.plagiarismAnalysis) {
-              plagiarismAnalysis = data.confiabilidad.plagiarismAnalysis;
-            }
+        if (data.confiabilidad) {
+          if (data.confiabilidad.nivel) {
+            confiabilidadNivel = data.confiabilidad.nivel;
+            justificacion = data.confiabilidad.justificacion || "";
+          } else if (data.confiabilidad.credibility) {
+            confiabilidadNivel = data.confiabilidad.credibility;
+            justificacion = data.confiabilidad.notes || data.confiabilidad.justificacion || "";
+          } else if (data.confiabilidad.level) {
+            confiabilidadNivel = data.confiabilidad.level;
+            justificacion = data.confiabilidad.justification || data.confiabilidad.justificacion || "";
           }
 
-          // Si no hay confiabilidad pero hay sesgo, usar sesgo
-          if (!data.confiabilidad && data.sesgo) {
-            justificacion = data.sesgo.justificacion || data.sesgo.explanation || "";
+          if (data.confiabilidad.plagiarismAnalysis) {
+            plagiarismAnalysis = data.confiabilidad.plagiarismAnalysis;
           }
-
-          const overallReliability = confiabilidadNivel === "Alta" || confiabilidadNivel === "High" ? "High" :
-            confiabilidadNivel === "Muy Alta" || confiabilidadNivel === "Very High" ? "Very High" :
-              confiabilidadNivel === "Media" || confiabilidadNivel === "Medium" ? "Medium" :
-                confiabilidadNivel === "Baja" || confiabilidadNivel === "Low" ? "Low" : "Very Low";
-
-          // Calcular objectivityScore basado en confiabilidad
-          let objectivityScore = 60;
-          if (confiabilidadNivel === "Alta" || confiabilidadNivel === "High") {
-            objectivityScore = 75;
-          } else if (confiabilidadNivel === "Muy Alta" || confiabilidadNivel === "Very High") {
-            objectivityScore = 85;
-          } else if (confiabilidadNivel === "Media" || confiabilidadNivel === "Medium") {
-            objectivityScore = 60;
-          } else if (confiabilidadNivel === "Baja" || confiabilidadNivel === "Low") {
-            objectivityScore = 45;
-          } else {
-            objectivityScore = 35;
-          }
-
-          data.summary = {
-            overallReliability: overallReliability,
-            mainConcerns: justificacion ? [justificacion] : [],
-            strengths: [],
-            objectivityScore: objectivityScore,
-            objectivityExplanation: justificacion || "",
-            hoaxAlerts: [],
-            plagiarismAnalysis: plagiarismAnalysis
-          };
         }
 
-        // Limpiar campos antiguos
-        delete data.fuentes;
-        delete data.analisis_craap;
-        delete data.sesgo;
-        delete data.confiabilidad;
+        if (!data.confiabilidad && data.sesgo) {
+          justificacion = data.sesgo.justificacion || data.sesgo.explanation || "";
+        }
 
-        console.log("✅ Formato transformado correctamente");
-        console.log("Estructura transformada:", JSON.stringify(data, null, 2));
+        const overallReliability = confiabilidadNivel === "Alta" || confiabilidadNivel === "High" ? "High" :
+          confiabilidadNivel === "Muy Alta" || confiabilidadNivel === "Very High" ? "Very High" :
+            confiabilidadNivel === "Media" || confiabilidadNivel === "Medium" ? "Medium" :
+              confiabilidadNivel === "Baja" || confiabilidadNivel === "Low" ? "Low" : "Very Low";
+
+        let objectivityScore = 60;
+        if (confiabilidadNivel === "Alta" || confiabilidadNivel === "High") objectivityScore = 75;
+        else if (confiabilidadNivel === "Muy Alta" || confiabilidadNivel === "Very High") objectivityScore = 85;
+        else if (confiabilidadNivel === "Media" || confiabilidadNivel === "Medium") objectivityScore = 60;
+        else if (confiabilidadNivel === "Baja" || confiabilidadNivel === "Low") objectivityScore = 45;
+        else objectivityScore = 35;
+
+        data.summary = {
+          overallReliability: overallReliability,
+          mainConcerns: justificacion ? [justificacion] : [],
+          strengths: [],
+          objectivityScore: objectivityScore,
+          objectivityExplanation: justificacion || "",
+          hoaxAlerts: [],
+          plagiarismAnalysis: plagiarismAnalysis
+        };
       }
+
+      // Cleanup old fields
+      delete data.fuentes;
+      delete data.analisis_craap;
+      delete data.sesgo;
+      delete data.confiabilidad;
 
       // Transformar summary si tiene estructura incorrecta
       if (data.summary && (!data.summary.overallReliability || !Array.isArray(data.summary.mainConcerns) || !Array.isArray(data.summary.strengths))) {
-        console.log("⚠️ Detectado summary con estructura incorrecta, transformando...");
-        console.log("Summary recibido:", JSON.stringify(data.summary, null, 2));
-
         const oldSummary = data.summary;
-
-        // Extraer valores de diferentes estructuras posibles
         let overallReliability = "Medium";
         let mainConcerns: string[] = [];
         let strengths: string[] = [];
@@ -1280,7 +1210,6 @@ const Oraculus = () => {
           flaggedSections: [] as any[]
         };
 
-        // Estructura 1: { credibility: "Alta", reason: "...", plagiarismAnalysis: {...} }
         if (oldSummary.credibility) {
           const credibility = oldSummary.credibility;
           overallReliability = credibility === "Alta" || credibility === "High" ? "High" :
@@ -1291,20 +1220,12 @@ const Oraculus = () => {
           objectivityExplanation = oldSummary.reason || oldSummary.justificacion || oldSummary.explanation || "";
           mainConcerns = objectivityExplanation ? [objectivityExplanation] : [];
 
-          if (credibility === "Alta" || credibility === "High") {
-            objectivityScore = 75;
-          } else if (credibility === "Muy Alta" || credibility === "Very High") {
-            objectivityScore = 85;
-          } else if (credibility === "Media" || credibility === "Medium") {
-            objectivityScore = 60;
-          } else if (credibility === "Baja" || credibility === "Low") {
-            objectivityScore = 45;
-          } else {
-            objectivityScore = 35;
-          }
-        }
-        // Estructura 2: { nivel: "Alta", justificacion: "..." }
-        else if (oldSummary.nivel) {
+          if (credibility === "Alta" || credibility === "High") objectivityScore = 75;
+          else if (credibility === "Muy Alta" || credibility === "Very High") objectivityScore = 85;
+          else if (credibility === "Media" || credibility === "Medium") objectivityScore = 60;
+          else if (credibility === "Baja" || credibility === "Low") objectivityScore = 45;
+          else objectivityScore = 35;
+        } else if (oldSummary.nivel) {
           const nivel = oldSummary.nivel;
           overallReliability = nivel === "Alta" ? "High" :
             nivel === "Muy Alta" ? "Very High" :
@@ -1314,158 +1235,88 @@ const Oraculus = () => {
           objectivityExplanation = oldSummary.justificacion || oldSummary.explanation || "";
           mainConcerns = objectivityExplanation ? [objectivityExplanation] : [];
 
-          if (nivel === "Alta") {
-            objectivityScore = 75;
-          } else if (nivel === "Muy Alta") {
-            objectivityScore = 85;
-          } else if (nivel === "Media") {
-            objectivityScore = 60;
-          } else if (nivel === "Baja") {
-            objectivityScore = 45;
-          } else {
-            objectivityScore = 35;
-          }
-        }
-        // Estructura 3: Intentar extraer de campos existentes
-        else {
+          if (nivel === "Alta") objectivityScore = 75;
+          else if (nivel === "Muy Alta") objectivityScore = 85;
+          else if (nivel === "Media") objectivityScore = 60;
+          else if (nivel === "Baja") objectivityScore = 45;
+          else objectivityScore = 35;
+        } else {
           overallReliability = oldSummary.overallReliability || "Medium";
-          mainConcerns = Array.isArray(oldSummary.mainConcerns) ? oldSummary.mainConcerns :
-            oldSummary.mainConcerns ? [oldSummary.mainConcerns] : [];
-          strengths = Array.isArray(oldSummary.strengths) ? oldSummary.strengths :
-            oldSummary.strengths ? [oldSummary.strengths] : [];
+          mainConcerns = Array.isArray(oldSummary.mainConcerns) ? oldSummary.mainConcerns : oldSummary.mainConcerns ? [oldSummary.mainConcerns] : [];
+          strengths = Array.isArray(oldSummary.strengths) ? oldSummary.strengths : oldSummary.strengths ? [oldSummary.strengths] : [];
           objectivityScore = oldSummary.objectivityScore || 60;
           objectivityExplanation = oldSummary.objectivityExplanation || oldSummary.explanation || "";
           hoaxAlerts = Array.isArray(oldSummary.hoaxAlerts) ? oldSummary.hoaxAlerts : [];
         }
 
-        // Extraer plagiarismAnalysis si existe
-        if (oldSummary.plagiarismAnalysis) {
-          plagiarismAnalysis = oldSummary.plagiarismAnalysis;
-        }
+        if (oldSummary.plagiarismAnalysis) plagiarismAnalysis = oldSummary.plagiarismAnalysis;
 
-        // Reconstruir summary con estructura correcta
         data.summary = {
-          overallReliability: overallReliability,
-          mainConcerns: mainConcerns,
-          strengths: strengths,
-          objectivityScore: objectivityScore,
-          objectivityExplanation: objectivityExplanation,
-          hoaxAlerts: hoaxAlerts,
-          plagiarismAnalysis: plagiarismAnalysis
+          overallReliability,
+          mainConcerns,
+          strengths,
+          objectivityScore,
+          objectivityExplanation,
+          hoaxAlerts,
+          plagiarismAnalysis
         };
-
-        console.log("✅ Summary transformado correctamente");
-        console.log("Summary transformado:", JSON.stringify(data.summary, null, 2));
       }
 
-      if (!data.summary) {
-        console.error("Respuesta sin summary:", data);
-        console.error("Claves disponibles en data:", Object.keys(data));
-        throw new Error(language === "es" ? "El análisis no devolvió resultados válidos. Por favor, intenta de nuevo." : "Analysis did not return valid results. Please try again.");
-      }
+      if (!data.summary) throw new Error(t.errors.analyzing);
 
-      // Validar estructura mínima de summary después de la transformación
-      if (!data.summary.overallReliability || !Array.isArray(data.summary.mainConcerns) || !Array.isArray(data.summary.strengths)) {
-        console.error("Estructura de summary inválida después de transformación:", data.summary);
-        throw new Error(language === "es" ? "La estructura del análisis es inválida. Por favor, intenta de nuevo." : "Analysis structure is invalid. Please try again.");
-      }
-
-      // Normalizar estructura de sesgos si viene en formato incorrecto
+      // Normalizar biasAnalysis
       if (data && data.biasAnalysis) {
         const normalizedBiasAnalysis: any = {};
-
         Object.entries(data.biasAnalysis).forEach(([key, value]) => {
-          // Si el valor es un array (formato incorrecto), convertirlo al formato correcto
           if (Array.isArray(value)) {
             normalizedBiasAnalysis[key] = {
-              severity: "Low", // By default, if there are quotes it's at least "Low"
-              explanation: `${value.length} instance(s) of this bias detected in the text.`,
+              severity: "Low",
+              explanation: `${value.length} instance(s) detected.`,
               quotes: value
             };
-          }
-          // Si ya es un objeto con la estructura correcta, mantenerlo
-          else if (value && typeof value === 'object' && 'severity' in value) {
+          } else if (value && typeof value === 'object' && 'severity' in value) {
             normalizedBiasAnalysis[key] = value;
           }
-          // Si es null o undefined, omitirlo
         });
-
         data.biasAnalysis = normalizedBiasAnalysis;
-        console.log("Bias Analysis normalizado:", normalizedBiasAnalysis);
       }
 
-      // Debug: verificar estructura de fuentes
-      if (data && data.sources) {
-        console.log("Sources recibidas:", data.sources);
-        data.sources.forEach((source: any, idx: number) => {
-          console.log(`Fuente ${idx + 1} (${source.name}):`, {
-            hasCraap: !!source.craap,
-            craap: source.craap,
-            hasConfidenceScore: source.confidenceScore !== undefined,
-            confidenceScore: source.confidenceScore
-          });
-        });
-      }
-
-      // Asegurar que sources y biasAnalysis existan como arrays/objetos
-      if (!data.sources) {
-        data.sources = [];
-      }
-
-      // Asegurar que todas las fuentes tengan análisis CRAAP completo
-      if (data.sources && Array.isArray(data.sources)) {
+      // Asegurar sources
+      if (!data.sources) data.sources = [];
+      if (Array.isArray(data.sources)) {
         data.sources = data.sources.map((source: any) => {
-          // Si la fuente no tiene craap o tiene estructura incorrecta, crear uno completo
           if (!source.craap || typeof source.craap !== 'object' || !source.craap.currency) {
-            console.log(`⚠️ Fuente "${source.name}" sin CRAAP completo, creando análisis por defecto`);
             source.craap = {
-              currency: {
-                score: source.craap?.currency?.score || 3,
-                reasoning: source.craap?.currency?.reasoning || (language === "es" ? "Análisis de actualidad no disponible." : "Currency analysis not available.")
-              },
-              relevance: {
-                score: source.craap?.relevance?.score || 3,
-                reasoning: source.craap?.relevance?.reasoning || (language === "es" ? "Análisis de relevancia no disponible." : "Relevance analysis not available.")
-              },
-              authority: {
-                score: source.craap?.authority?.score || 3,
-                reasoning: source.craap?.authority?.reasoning || (language === "es" ? "Análisis de autoridad no disponible." : "Authority analysis not available.")
-              },
-              accuracy: {
-                score: source.craap?.accuracy?.score || 3,
-                reasoning: source.craap?.accuracy?.reasoning || (language === "es" ? "Análisis de precisión no disponible." : "Accuracy analysis not available.")
-              },
-              purpose: {
-                score: source.craap?.purpose?.score || 3,
-                reasoning: source.craap?.purpose?.reasoning || (language === "es" ? "Análisis de propósito no disponible." : "Purpose analysis not available.")
-              },
-              overall: source.craap?.overall || "Media"
+              currency: { score: 3, reasoning: "N/A" },
+              relevance: { score: 3, reasoning: "N/A" },
+              authority: { score: 3, reasoning: "N/A" },
+              accuracy: { score: 3, reasoning: "N/A" },
+              purpose: { score: 3, reasoning: "N/A" },
+              overall: "Media"
             };
           }
           return source;
         });
       }
-      if (!data.biasAnalysis) {
-        data.biasAnalysis = {};
-      }
-      if (!data.summary.hoaxAlerts) {
-        data.summary.hoaxAlerts = [];
-      }
+      if (!data.biasAnalysis) data.biasAnalysis = {};
+      if (!data.summary.hoaxAlerts) data.summary.hoaxAlerts = [];
       if (!data.summary.plagiarismAnalysis) {
         data.summary.plagiarismAnalysis = {
           percentage: 0,
-          level: language === "es" ? "Ninguno" : "None",
-          explanation: language === "es" ? "No se detectó riesgo de plagio." : "No plagiarism risk detected.",
+          level: "None",
+          explanation: "No plagiarism risk detected.",
           flaggedSections: []
         };
       }
 
+      // Add to History
       addToHistory(
         data,
-        analysisMode === 'own' ? 'text' : (articleUrl ? 'url' : (selectedFile ? 'file' : 'text')),
-        articleUrl || (selectedFile ? selectedFile.name : (articleText.substring(0, 50) + "..."))
+        analysisMode === 'own' ? 'text' : (articleUrl ? 'url' : (selectedFiles.length > 0 ? 'file' : 'text')),
+        articleUrl || (selectedFiles.length > 0 ? `${selectedFiles.length} files` : (articleText.substring(0, 50) + "..."))
       );
       setAnalysisResult(data);
+
       if (data.extractedLinks && data.extractedLinks.length > 0) {
         setTimeout(() => toast.success(language === 'es'
           ? `Se han detectado ${data.extractedLinks.length} fuentes externas`
@@ -1474,17 +1325,9 @@ const Oraculus = () => {
         }), 1000);
       }
       toast.success(analysisMode === "own" ? t.success.auditCompleted : t.success.analysisCompleted);
+
     } catch (error: any) {
       console.error("Error analyzing:", error);
-      console.error("Error details:", {
-        message: error?.message,
-        stack: error?.stack,
-        response: error?.response,
-        status: error?.status,
-        statusCode: error?.statusCode
-      });
-
-      // Detectar errores 429 específicamente
       let errorMessage = error?.message || t.errors.analyzing;
 
       if (error?.message?.includes('429') ||
@@ -1500,11 +1343,10 @@ const Oraculus = () => {
 
       toast.error(errorMessage);
       setAnalysisResult(null);
-      setIsAnalyzing(false);
-      setIsExtracting(false);
     } finally {
       setIsAnalyzing(false);
       setIsExtracting(false);
+      setIsProcessingFile(false);
     }
   };
 
@@ -1575,7 +1417,7 @@ const Oraculus = () => {
         </header>
 
         <AnimatePresence mode="wait">
-          {!analysisResult ? (
+          {!analysisResult && !synthesisResult ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1619,52 +1461,90 @@ const Oraculus = () => {
                         className={cn(
                           "relative rounded-xl border-2 border-dashed border-white/10 bg-black/20 transition-all duration-300",
                           "hover:border-primary/50 hover:bg-black/30 group-hover:shadow-[0_0_20px_-5px_rgba(16,185,129,0.1)]",
-                          (selectedFile || articleText || articleUrl) && "border-primary/50 bg-primary/5"
+                          (selectedFiles.length > 0 || articleText || articleUrl) && "border-primary/50 bg-primary/5"
                         )}
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={(e) => {
                           e.preventDefault();
-                          const file = e.dataTransfer.files[0];
-                          if (file) {
-                            if (file.type === 'application/pdf' || file.name.endsWith('.pdf') ||
+                          if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                            const newFiles = Array.from(e.dataTransfer.files).filter(file =>
+                              file.type === 'application/pdf' || file.name.endsWith('.pdf') ||
                               file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-                              file.name.endsWith('.docx') || file.type === 'text/plain' || file.name.endsWith('.txt')) {
-                              setSelectedFile(file);
+                              file.name.endsWith('.docx') || file.type === 'text/plain' || file.name.endsWith('.txt')
+                            );
+
+                            if (newFiles.length > 0) {
+                              setSelectedFiles(prev => [...prev, ...newFiles]);
                               setArticleText("");
                               setArticleUrl("");
+                              toast.success(language === 'es' ? `${newFiles.length} archivos añadidos` : `${newFiles.length} files added`);
                             } else {
-                              toast.error("File type not supported. Use PDF, DOCX or TXT.");
+                              toast.error(language === 'es' ? "Tipo de archivo no soportado. Usa PDF, DOCX o TXT." : "File type not supported. Use PDF, DOCX or TXT.");
                             }
                           }
                         }}
                       >
                         <label className="flex flex-col items-center justify-center w-full min-h-[200px] cursor-pointer p-8 text-center">
-                          {selectedFile ? (
-                            <div className="space-y-3 animate-in fade-in zoom-in duration-300">
+                          {selectedFiles.length > 0 ? (
+                            <div className="space-y-3 animate-in fade-in zoom-in duration-300 w-full max-w-md">
                               <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-2">
                                 <FileIcon className="w-8 h-8 text-primary" />
                               </div>
-                              <p className="font-medium text-lg text-primary-foreground">{selectedFile.name}</p>
-                              <p className="text-sm text-muted-foreground">{(selectedFile.size / 1024).toFixed(1)} KB</p>
-                              <Button variant="ghost" size="sm" onClick={(e) => { e.preventDefault(); setSelectedFile(null); }}>
-                                <X className="w-4 h-4 mr-2" />
-                                {language === "es" ? "Cambiar archivo" : "Change file"}
-                              </Button>
+                              <h3 className="font-medium text-lg text-primary-foreground">
+                                {language === "es" ? `${selectedFiles.length} archivos seleccionados` : `${selectedFiles.length} files selected`}
+                              </h3>
+
+                              <div className="max-h-40 overflow-y-auto space-y-2 custom-scrollbar my-2">
+                                {selectedFiles.map((file, idx) => (
+                                  <div key={idx} className="flex items-center justify-between bg-white/5 p-2 rounded-md text-sm border border-white/5 group">
+                                    <div className="flex items-center gap-2 truncate">
+                                      <FileText className="w-4 h-4 text-primary/50" />
+                                      <span className="truncate max-w-[180px] text-zinc-300">{file.name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs text-zinc-500">{(file.size / 1024).toFixed(0)} KB</span>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeFile(idx); }}
+                                        className="h-6 w-6 p-0 hover:bg-red-500/20 hover:text-red-400"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+
+                              <div className="flex justify-center gap-2 mt-4">
+                                <Button variant="secondary" size="sm" onClick={(e) => {
+                                  e.preventDefault();
+                                  fileInputRef.current?.click();
+                                }}>
+                                  {language === "es" ? "Añadir más" : "Add more"}
+                                </Button>
+                                <Button variant="destructive" size="sm" onClick={(e) => {
+                                  e.preventDefault();
+                                  setSelectedFiles([]);
+                                }}>
+                                  {language === "es" ? "Borrar todo" : "Clear all"}
+                                </Button>
+                              </div>
                             </div>
                           ) : <>
                             <div
                               className="mb-4 p-4 rounded-full bg-white/5 hover:bg-primary/20 transition-all cursor-pointer group-hover:scale-110 duration-300"
                               onClick={(e) => {
                                 e.preventDefault();
-                                document.getElementById('file-upload')?.click();
+                                fileInputRef.current?.click();
                               }}
                             >
                               <Upload className="w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors" />
                             </div>
                             <p className="text-lg font-medium mb-2">
                               {analysisMode === 'external'
-                                ? (language === "es" ? "Arrastra un archivo o pega una URL" : "Drag a file or paste a URL")
-                                : (language === "es" ? "Pega tu texto aquí o sube un archivo" : "Paste your text here or upload a file")}
+                                ? (language === "es" ? "Arrastra archivos o pega una URL" : "Drag files or paste a URL")
+                                : (language === "es" ? "Pega tu texto aquí o sube archivos" : "Paste your text here or upload files")}
                             </p>
                             <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
                               PDF, DOCX, TXT {language === "es" ? "o enlaces directos a artículos" : "or direct article links"}
@@ -1677,6 +1557,7 @@ const Oraculus = () => {
                                   {articleUrl ? <Globe className="w-4 h-4 text-primary" /> : <FileText className="w-4 h-4 text-muted-foreground" />}
                                 </div>
                                 <Textarea
+                                  ref={textareaRef}
                                   value={articleText || articleUrl}
                                   onChange={(e) => {
                                     const val = e.target.value;
@@ -1717,7 +1598,8 @@ const Oraculus = () => {
                               accept=".pdf,.doc,.docx,.txt"
                               onChange={handleFileSelect}
                               className="hidden"
-                              id="file-upload"
+                              ref={fileInputRef}
+                              multiple
                             />
                           </>
                           }
@@ -1726,7 +1608,7 @@ const Oraculus = () => {
 
                       <Button
                         onClick={handleAnalyze}
-                        disabled={isAnalyzing || isProcessingFile || (!articleText.trim() && !articleUrl.trim() && !selectedFile)}
+                        disabled={isAnalyzing || isProcessingFile || (!articleText.trim() && !articleUrl.trim() && selectedFiles.length === 0)}
                         className="w-full h-12 text-lg font-medium shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all bg-gradient-to-r from-primary to-emerald-600 hover:from-primary/90 hover:to-emerald-600/90"
                         size="lg"
                       >
@@ -1743,7 +1625,7 @@ const Oraculus = () => {
                         ) : (
                           <>
                             <Sparkles className="mr-2 h-5 w-5" />
-                            {t.buttons.analyze}
+                            {selectedFiles.length > 1 ? (language === "es" ? "Sintetizar Documentos" : "Synthesize Documents") : t.buttons.analyze}
                           </>
                         )}
                       </Button>
@@ -1793,6 +1675,96 @@ const Oraculus = () => {
                   </div>
                 )}
               </div>
+            </motion.div>
+          ) : synthesisResult ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              id="synthesis-results"
+              className="space-y-6 pb-12"
+            >
+              <div className="flex items-center justify-between">
+                <Button variant="ghost" className="hover:bg-white/5 -ml-2 text-muted-foreground hover:text-foreground" onClick={() => setSynthesisResult(null)}>
+                  <ArrowRight className="w-4 h-4 mr-2 rotate-180" />
+                  {language === "es" ? "Nuevo Análisis" : "New Analysis"}
+                </Button>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-emerald-400 bg-clip-text text-transparent">
+                  {language === "es" ? "Síntesis de Investigación" : "Research Synthesis"}
+                </h2>
+              </div>
+
+              <Card className="p-6 bg-card/40 backdrop-blur border-border/50">
+                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  {language === "es" ? "Resumen Ejecutivo" : "Executive Summary"}
+                </h3>
+                <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">{synthesisResult.syntheticSummary}</p>
+              </Card>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <Card className="p-6 bg-emerald-500/5 border-emerald-500/20">
+                  <h3 className="text-lg font-semibold text-emerald-400 mb-4 flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5" />
+                    {language === "es" ? "Consenso" : "Consensus"}
+                  </h3>
+                  <div className="space-y-4">
+                    {synthesisResult.consensusMatrix.map((item, i) => (
+                      <div key={i} className="p-3 bg-black/20 rounded-lg border border-emerald-500/10">
+                        <p className="font-medium text-emerald-100">{item.topic}</p>
+                        <p className="text-sm text-emerald-200/70 mt-1">{item.agreement}</p>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {item.upholdingDocuments.map((doc, d) => (
+                            <Badge key={d} variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 h-5 px-1.5">{doc}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+
+                <Card className="p-6 bg-orange-500/5 border-orange-500/20">
+                  <h3 className="text-lg font-semibold text-orange-400 mb-4 flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5" />
+                    {language === "es" ? "Discrepancias" : "Discrepancies"}
+                  </h3>
+                  <div className="space-y-4">
+                    {synthesisResult.discrepancyMatrix.map((item, i) => (
+                      <div key={i} className="p-3 bg-black/20 rounded-lg border border-orange-500/10">
+                        <p className="font-medium text-orange-100">{item.topic}</p>
+                        <p className="text-sm text-orange-200/70 mt-1">{item.disagreement}</p>
+                        <div className="mt-2 space-y-2">
+                          {item.perspectives.map((p, d) => (
+                            <div key={d} className="text-xs flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-4 p-1.5 rounded bg-orange-500/5">
+                              <span className="text-orange-300 font-medium shrink-0">{p.document}:</span>
+                              <span className="text-muted-foreground">{p.viewpoint}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
+
+              <Card className="p-6 bg-card/40 backdrop-blur border-border/50">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Brain className="w-5 h-5 text-purple-400" />
+                  {language === "es" ? "Grafo de Conceptos" : "Concept Graph"}
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {synthesisResult.conceptGraph.map((c, i) => (
+                    <div key={i} className="p-4 bg-primary/5 rounded-lg border border-primary/10 hover:border-primary/30 transition-colors">
+                      <p className="font-medium text-primary mb-1">{c.concept}</p>
+                      <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{c.definition}</p>
+                      <div className="flex flex-wrap gap-1">
+                        {c.relatedTo.map((rel, r) => (
+                          <span key={r} className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary/70">{rel}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
             </motion.div>
           ) : (
             <motion.div
@@ -1979,9 +1951,21 @@ const Oraculus = () => {
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           {analysisResult.entities.map((entity, i) => (
-                            <div key={i} className="p-4 rounded-lg bg-black/20 border border-white/5 hover:border-primary/20 transition-colors">
+                            <div
+                              key={i}
+                              className={cn(
+                                "p-4 rounded-lg bg-black/20 border border-white/5 transition-all",
+                                (entity.type === 'Person' || entity.type === 'Organization') ? "hover:border-primary/50 cursor-pointer hover:bg-white/5 group" : "hover:border-primary/20"
+                              )}
+                              onClick={() => {
+                                if (entity.type === 'Person' || entity.type === 'Organization') {
+                                  setSelectedResearcher(entity.name);
+                                  setSelectedEntityType(entity.type as 'Person' | 'Organization');
+                                }
+                              }}
+                            >
                               <div className="flex justify-between items-start mb-2">
-                                <div className="p-2 bg-white/5 rounded-md">
+                                <div className="p-2 bg-white/5 rounded-md group-hover:bg-primary/20 transition-colors">
                                   {entity.type === 'Person' && <Users className="w-4 h-4 text-primary" />}
                                   {entity.type === 'Organization' && <Building2 className="w-4 h-4 text-orange-400" />}
                                   {entity.type === 'Location' && <MapPin className="w-4 h-4 text-emerald-400" />}
@@ -1996,7 +1980,10 @@ const Oraculus = () => {
                                   {entity.sentiment}
                                 </Badge>
                               </div>
-                              <h4 className="font-medium text-sm text-white mb-1">{entity.name}</h4>
+                              <h4 className="font-medium text-sm text-white mb-1 group-hover:text-primary transition-colors flex items-center gap-2">
+                                {entity.name}
+                                {(entity.type === 'Person' || entity.type === 'Organization') && <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />}
+                              </h4>
                               <p className="text-xs text-muted-foreground line-clamp-2">{entity.role}</p>
                             </div>
                           ))}
@@ -2172,6 +2159,12 @@ const Oraculus = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      <ResearcherProfileModal
+        isOpen={!!selectedResearcher}
+        onClose={() => setSelectedResearcher(null)}
+        entityName={selectedResearcher || ""}
+        entityType={selectedEntityType}
+      />
     </div >
   );
 };
