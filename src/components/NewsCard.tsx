@@ -289,32 +289,39 @@ export const NewsCard = ({ item, isActive, index, onLike, onShare, onReadMore, o
             >
                 <DoubleTapOverlay showLike={showDoubleTapHeart} position={tapPosition} />
 
-                {/* Background Image */}
+                {/* Background Image with Parallax & Zoom */}
                 <div className="absolute inset-0 z-0">
                     {item.image ? (
-                        <NewsImage
-                            src={item.image}
-                            alt={item.title}
-                            className="h-full w-full object-cover opacity-90 transition-transform duration-[20s] ease-linear scale-110"
-                            priority={index < 2}
-                        />
+                        <div className="w-full h-full overflow-hidden">
+                            <NewsImage
+                                src={item.image}
+                                alt={item.title}
+                                className={cn(
+                                    "h-full w-full object-cover opacity-90 transition-all duration-[20s] ease-linear will-change-transform",
+                                    isActive ? "scale-110" : "scale-100"
+                                )}
+                                priority={index < 2}
+                            />
+                        </div>
                     ) : (
                         <div className="h-full w-full bg-gradient-to-br from-slate-900 to-black" />
                     )}
-                    {/* Gradient Overlay for Text Readability */}
-                    <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent via-50% to-black/90 to-90%" />
+
+                    {/* Enhanced Gradient Overlay for Text Readability - Multi-layer for depth */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent via-40% to-black/95 to-90%" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60" />
                 </div>
 
-                {/* Content Layer - adjusted padding for smaller dock */}
-                <div className="absolute bottom-0 left-0 right-0 z-10 p-4 pb-20 md:p-8 md:pb-28 flex flex-col gap-3 md:gap-5 max-w-full mx-auto pr-16 md:pr-24">
-                    {/* Source Pill */}
+                {/* Content Layer - adjusted padding for cleaner look */}
+                <div className="absolute bottom-0 left-0 right-0 z-10 p-5 pb-24 md:p-10 md:pb-32 flex flex-col gap-4 max-w-full mx-auto pr-16 md:pr-24">
+                    {/* Source Pill with Glassmorphism */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={isActive ? { opacity: 1, y: 0 } : {}}
-                        transition={{ delay: 0.1 }}
-                        className="flex items-center gap-2"
+                        transition={{ delay: 0.2, duration: 0.5 }}
+                        className="flex items-center gap-2.5"
                     >
-                        <div className="rounded-full bg-white/10 backdrop-blur-md px-3 py-1 text-xs font-medium text-white border border-white/5 shadow-sm">
+                        <div className="rounded-full bg-white/10 backdrop-blur-xl px-3.5 py-1 text-[11px] font-semibold text-white border border-white/10 shadow-lg tracking-wide uppercase">
                             {(() => {
                                 let clean = item.source || 'Veridian';
                                 clean = clean.replace(/\(URLs?:?\s*/gi, '').replace(/\)/g, '');
@@ -329,45 +336,55 @@ export const NewsCard = ({ item, isActive, index, onLike, onShare, onReadMore, o
                         </div>
                         {category && (
                             <>
-                                <span className="text-xs text-white/40">•</span>
-                                <div className="rounded-full bg-emerald-500/20 backdrop-blur-md px-3 py-1 text-xs font-medium text-emerald-400 border border-emerald-500/20 shadow-sm uppercase tracking-wider">
+                                <span className="text-[10px] text-white/50">•</span>
+                                <div className="rounded-full bg-emerald-500/10 backdrop-blur-xl px-3 py-1 text-[10px] font-bold text-emerald-300 border border-emerald-500/20 shadow-lg uppercase tracking-widest">
                                     {category}
                                 </div>
                             </>
                         )}
-                        <span className="text-xs text-white/70 shadow-black drop-shadow-md">• {new Date(item.date).toLocaleDateString()}</span>
+                        <span className="text-[10px] text-white/60 shadow-black drop-shadow-md font-medium tracking-wide">
+                            {new Date(item.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        </span>
                     </motion.div>
 
-                    {/* Title */}
+                    {/* Title with improved typography */}
                     <motion.h2
                         initial={{ opacity: 0, y: 20 }}
                         animate={isActive ? { opacity: 1, y: 0 } : {}}
-                        transition={{ delay: 0.2 }}
-                        className="text-2xl md:text-3xl font-bold text-white leading-tight drop-shadow-lg pr-4"
+                        transition={{ delay: 0.3, duration: 0.6, ease: "easeOut" }}
+                        className="text-[28px] md:text-4xl lg:text-5xl font-bold text-white leading-[1.1] tracking-tight drop-shadow-2xl pr-2"
+                        style={{ textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}
                     >
                         {item.title}
                     </motion.h2>
 
-                    {/* Summary */}
-                    <motion.p
+                    {/* Summary with better readability */}
+                    <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={isActive ? { opacity: 1, y: 0 } : {}}
-                        transition={{ delay: 0.3 }}
-                        className="text-sm md:text-base text-white/90 line-clamp-3 font-light leading-relaxed drop-shadow-md"
+                        transition={{ delay: 0.4, duration: 0.6 }}
+                        className="relative"
                         onClick={(e) => {
                             e.stopPropagation();
                             onReadMore();
                         }}
                     >
-                        {item.summary}
-                        <span className="text-white font-semibold ml-1 cursor-pointer hover:underline">Leer más</span>
-                    </motion.p>
+                        <p className="text-[15px] md:text-[17px] text-zinc-100 line-clamp-3 font-normal leading-relaxed drop-shadow-lg text-shadow-sm pr-2 opacity-90">
+                            {item.summary}
+                        </p>
+                        <motion.button
+                            className="mt-3 text-xs font-bold text-white flex items-center gap-1 opacity-80 hover:opacity-100 transition-opacity uppercase tracking-widest group"
+                            whileHover={{ x: 5 }}
+                        >
+                            Leer historia completa <span className="text-emerald-400 group-hover:translate-x-1 transition-transform">→</span>
+                        </motion.button>
+                    </motion.div>
                 </div>
 
-                {/* Side Actions (Like TikTok) - 4 buttons now */}
-                <div className="absolute right-2 bottom-24 md:right-8 md:bottom-32 z-20 flex flex-col gap-2.5 md:gap-4 items-center w-12 md:w-16">
+                {/* Side Actions (Like TikTok) - polished animations */}
+                <div className="absolute right-3 bottom-24 md:right-8 md:bottom-32 z-20 flex flex-col gap-4 md:gap-6 items-center w-12 md:w-16">
                     <ActionButton
-                        icon={<Heart className={item.isLiked ? "fill-emerald-500 text-emerald-500" : "text-white"} />}
+                        icon={<Heart className={cn("w-6 h-6 md:w-7 md:h-7 transition-colors duration-300", item.isLiked ? "fill-emerald-500 text-emerald-500" : "text-white drop-shadow-md")} />}
                         label={formatNumber(item.likes || 0)}
                         onClick={(e) => {
                             e.preventDefault();
@@ -375,29 +392,25 @@ export const NewsCard = ({ item, isActive, index, onLike, onShare, onReadMore, o
                             onLike();
                             haptic('light');
                         }}
-                        delay={0.4}
-                        isActive={isActive}
-                        animate={item.isLiked}
-                    />
-                    <ActionButton
-                        icon={<Bookmark className={item.isSaved ? "fill-yellow-500 text-yellow-500" : "text-white"} />}
-                        label="Guardar"
-                        onClick={handleSave}
                         delay={0.5}
                         isActive={isActive}
+                        animate={item.isLiked}
+                        activeColor="bg-emerald-500/20 border-emerald-500/30"
                     />
                     <ActionButton
-                        icon={<CheckCircle className={item.isRead ? "text-emerald-400" : "text-white"} fill={item.isRead ? "rgba(16,185,129,0.3)" : "none"} />}
-                        label={item.isRead ? "Leído" : "Marcar"}
-                        onClick={handleMarkAsRead}
-                        delay={0.55}
+                        icon={<Bookmark className={cn("w-6 h-6 md:w-7 md:h-7 transition-colors duration-300", item.isSaved ? "fill-yellow-400 text-yellow-400" : "text-white drop-shadow-md")} />}
+                        label="Guardar"
+                        onClick={handleSave}
+                        delay={0.6}
                         isActive={isActive}
+                        animate={item.isSaved}
+                        activeColor="bg-yellow-500/20 border-yellow-500/30"
                     />
                     <ActionButton
-                        icon={<Share2 className="text-white" />}
+                        icon={<Share2 className="w-6 h-6 md:w-7 md:h-7 text-white drop-shadow-md" />}
                         label="Compartir"
                         onClick={handleShare}
-                        delay={0.6}
+                        delay={0.7}
                         isActive={isActive}
                     />
                 </div>
@@ -413,7 +426,7 @@ export const NewsCard = ({ item, isActive, index, onLike, onShare, onReadMore, o
     );
 };
 
-const ActionButton = ({ icon, label, onClick, isActive, delay, animate }: { icon: React.ReactNode, label?: string, onClick: (e: any) => void, isActive: boolean, delay: number, animate?: boolean }) => (
+const ActionButton = ({ icon, label, onClick, isActive, delay, animate, activeColor }: { icon: React.ReactNode, label?: string, onClick: (e: any) => void, isActive: boolean, delay: number, animate?: boolean, activeColor?: string }) => (
     <motion.button
         type="button"
         initial={{ opacity: 0, x: 20 }}
@@ -424,18 +437,24 @@ const ActionButton = ({ icon, label, onClick, isActive, delay, animate }: { icon
         } : {}}
         transition={{
             delay,
-            scale: { duration: 0.3, ease: "easeOut" }
+            scale: { duration: 0.4, type: "spring", stiffness: 300, damping: 15 }
         }}
         onClick={onClick}
         className="flex flex-col items-center gap-1 group"
     >
         <motion.div
-            className="p-3 rounded-full bg-white/10 backdrop-blur-md border border-white/10 active:scale-90 transition-all hover:bg-white/20"
+            className={cn(
+                "p-3 rounded-full backdrop-blur-xl border active:scale-90 transition-all duration-300 shadow-lg",
+                animate && activeColor
+                    ? activeColor
+                    : "bg-black/20 hover:bg-black/40 border-white/10 hover:border-white/20"
+            )}
             whileTap={{ scale: 0.85 }}
+            whileHover={{ scale: 1.1 }}
         >
             {icon}
         </motion.div>
-        {label && <span className="text-[10px] font-medium text-white drop-shadow-md">{label}</span>}
+        {label && <span className="text-[10px] font-medium text-white drop-shadow-lg tracking-wide opacity-90">{label}</span>}
     </motion.button>
 );
 
