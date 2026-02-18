@@ -137,7 +137,8 @@ function buildArticleSystemPrompt(isOwnText: boolean, language: string, citation
         "objectivityScore": 0-100,
         "objectivityExplanation": "...",
         "hoaxAlerts": [],
-        "plagiarismAnalysis": { "percentage": 0, "level": "None", "explanation": "...", "flaggedSections": [] }
+        "plagiarismAnalysis": { "percentage": 0, "level": "None", "explanation": "...", "flaggedSections": [] },
+        "searchKeywords": ["Keyword 1", "Keyword 2", "Keyword 3"]
       },
       "isOwnText": ${isOwnText}
     }`;
@@ -305,7 +306,9 @@ async function analyzeMultidoc(body: any) {
         "objectivityScore": 0-100,
         "objectivityExplanation": "Brief explanation",
         "hoaxAlerts": [],
-        "plagiarismAnalysis": { "percentage": 0, "level": "None", "explanation": "N/A", "flaggedSections": [] }
+        "hoaxAlerts": [],
+        "plagiarismAnalysis": { "percentage": 0, "level": "None", "explanation": "N/A", "flaggedSections": [] },
+        "searchKeywords": ["Keyword 1", "Keyword 2", "Keyword 3"]
       },
       "biasAnalysis": {
          "selectionBias": { "severity": "None | Low | Significant", "explanation": "...", "quotes": [] },
@@ -380,6 +383,56 @@ async function researchChat(body: any) {
     return { role: 'assistant', content: reply };
 }
 
+// ─── Related News Logic ───────────────────────────────────────────
+
+async function findRelatedNews(keywords: string[]) {
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+    if (!supabaseUrl || !supabaseKey || !keywords || keywords.length === 0) return [];
+
+    try {
+        const { createClient } = require('@supabase/supabase-js');
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        // Construct a simple OR query for the top 3 keywords to avoid hitting URL length limits or complex query issues
+        const searchTerms = keywords.slice(0, 3).map(k => k.trim()).filter(k => k.length > 3);
+
+        if (searchTerms.length === 0) return [];
+
+        // Using textSearch on title if possible, or fallback to ILIKE
+        // We'll try a simple text search on title first as it's more performant if indexed
+        // combining keywords with OR operator
+        const queryStr = searchTerms.join(' | ');
+
+        const { data, error } = await supabase
+            .from('daily_news')
+            .select('id, title, summary, image, published_at, url, source, category')
+            .textSearch('title', queryStr, { config: 'english', type: 'websearch' })
+            .order('published_at', { ascending: false })
+            .limit(4);
+
+        if (error || !data || data.length === 0) {
+            // Fallback to ILIKE if textSearch fails or returns nothing (e.g. no index)
+            // Construct filter like: title.ilike.%kwd1%,title.ilike.%kwd2%
+            const orFilter = searchTerms.map(term => `title.ilike.%${term}%`).join(',');
+            const { data: fallbackData } = await supabase
+                .from('daily_news')
+                .select('id, title, summary, image, published_at, url, source, category')
+                .or(orFilter)
+                .order('published_at', { ascending: false })
+                .limit(4);
+
+            return fallbackData || [];
+        }
+
+        return data;
+    } catch (error) {
+        console.error('Error finding related news:', error);
+        return [];
+    }
+}
+
 // ─── Main Handler ─────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -398,6 +451,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 break;
             case 'multidoc':
                 result = await analyzeMultidoc(body);
+                // Add related news for multidoc
+                if (result.summary && result.summary.searchKeywords) {
+                    const related = await findRelatedNews(result.summary.searchKeywords);
+                    result.relatedNews = related;
+                }
                 break;
             case 'chat':
                 result = await researchChat(body);
@@ -405,8 +463,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             case 'article':
             default:
                 // If type is not specified but text/url is present, assume article
-                if (!type && !body.articleText && !body.articleUrl) throw new Error('Unknown analysis type');
+                if (!type && !body.articleText && !body.articleUrl && !body.text && !body.url) throw new Error('Unknown analysis type');
                 result = await analyzeArticle(body);
+                // Add related news for single article
+                if (result.summary && result.summary.searchKeywords) {
+                    const related = await findRelatedNews(result.summary.searchKeywords);
+                    result.relatedNews = related;
+                }
                 break;
         }
 

@@ -106,17 +106,18 @@ interface AnalysisResult {
       reason: string;
     }>;
     plagiarismAnalysis?: PlagiarismAnalysis;
+    searchKeywords?: string[];
   };
   // Nuevos campos para modo "auditar propio texto"
   isOwnText?: boolean;
-  detectedSources?: string[]; // Fuentes mencionadas en el texto
-  missingCitations?: string[]; // Afirmaciones sin citar
+  detectedSources?: string[];
+  missingCitations?: string[];
   citationSuggestions?: CitationSuggestion[];
   improvementSuggestions?: ImprovementSuggestion[];
   detectedReferences?: Array<{
     name: string;
     url?: string;
-    context: string; // Dónde aparece en el texto
+    context: string;
   }>;
   entities?: Array<{
     name: string;
@@ -135,7 +136,10 @@ interface AnalysisResult {
     discrepancyMatrix: Array<{
       topic: string;
       disagreement: string;
-      perspectives: Array<{ document: string; viewpoint: string }>;
+      perspectives: Array<{
+        document: string;
+        viewpoint: string;
+      }>;
     }>;
     conceptGraph: Array<{
       concept: string;
@@ -143,7 +147,20 @@ interface AnalysisResult {
       relatedTo: string[];
     }>;
   };
+  relatedNews?: RelatedNewsItem[];
 }
+
+interface RelatedNewsItem {
+  id: string;
+  title: string;
+  summary: string;
+  image?: string;
+  published_at: string;
+  url?: string;
+  source?: string;
+  category?: string;
+}
+
 
 interface AnalysisHistoryItem {
   id: string;
@@ -1911,6 +1928,54 @@ const Oraculus = () => {
                           ))}
                         </div>
                       </Card>
+                    )}
+
+                    {/* Related News Section */}
+                    {analysisResult.relatedNews && analysisResult.relatedNews.length > 0 && (
+                      <div className="mt-8 pt-8 border-t border-border/40 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-primary/90">
+                          <BookOpen className="w-5 h-5" />
+                          {language === "es" ? "Noticias Relacionadas en Veridian" : "Related News in Veridian"}
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {analysisResult.relatedNews.map((news) => (
+                            <a
+                              key={news.id}
+                              href={`/veridian-news?newsId=${news.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="group flex gap-3 p-3 rounded-xl bg-card/30 border border-border/40 hover:bg-card/50 hover:border-primary/30 transition-all items-start"
+                            >
+                              {news.image && (
+                                <img
+                                  src={news.image}
+                                  alt={news.title}
+                                  className="w-20 h-20 rounded-lg object-cover bg-muted shrink-0"
+                                />
+                              )}
+                              <div className="flex-1 min-w-0 py-0.5">
+                                <div className="flex items-center gap-2 mb-1.5">
+                                  {news.category && (
+                                    <Badge variant="outline" className="text-[10px] h-5 px-1.5 border-primary/20 text-primary/80 bg-primary/5">
+                                      {news.category}
+                                    </Badge>
+                                  )}
+                                  <span className="text-[10px] text-muted-foreground/80">
+                                    {new Date(news.published_at).toLocaleDateString()}
+                                  </span>
+                                </div>
+                                <h4 className="font-medium text-sm leading-snug group-hover:text-primary transition-colors line-clamp-2 mb-1 text-white/90">
+                                  {news.title}
+                                </h4>
+                                <p className="text-xs text-muted-foreground line-clamp-1">
+                                  {news.source || 'Veridian News'}
+                                </p>
+                              </div>
+                              <ArrowRight className="w-4 h-4 text-primary/50 self-center opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all shrink-0" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </TabsContent>
 
