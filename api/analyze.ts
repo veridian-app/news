@@ -244,9 +244,12 @@ async function analyzeMultidoc(body: any) {
     const { documents, language = 'en' } = body;
     if (!documents || !Array.isArray(documents)) throw new Error('No documents provided');
 
+    // Combine all documents into one large text for standard analysis
     const fullInput = documents.map((doc: any, idx: number) =>
         `--- DOCUMENT ${idx + 1}: ${doc.name} ---\n${doc.content}\n--- END DOCUMENT ${idx + 1} ---\n`
-    ).join('\n\n').substring(0, 100000);
+    ).join('\n\n');
+
+    const truncatedInput = fullInput.substring(0, 100000);
 
     const es = language === 'es';
 
@@ -284,7 +287,22 @@ async function analyzeMultidoc(body: any) {
            ${schema}
            Ensure 'consensusMatrix', 'discrepancyMatrix', and 'conceptGraph' are ALWAYS arrays, even if empty.`;
 
-    return await callOpenAI([{ role: 'user', content: fullInput }], instructions, 'gpt-4o-mini', 0.2, true);
+    // Run parallel tasks: Synthesis AND Standard Analysis
+    const [synthesisResult, standardAnalysisResult] = await Promise.all([
+        callOpenAI([{ role: 'user', content: truncatedInput }], instructions, 'gpt-4o-mini', 0.2, true),
+        analyzeArticle({
+            articleText: truncatedInput,
+            isOwnText: true, // Treat as "own text" to avoid URL extraction logic but get full analysis
+            language,
+            citationFormat: 'APA'
+        })
+    ]);
+
+    // Merge results
+    return {
+        ...standardAnalysisResult,
+        synthesis: synthesisResult
+    };
 }
 
 // ─── Research Chat Logic ──────────────────────────────────────────

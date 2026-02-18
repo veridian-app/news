@@ -125,25 +125,24 @@ interface AnalysisResult {
     sentiment: "Positive" | "Negative" | "Neutral";
   }>;
   extractedLinks?: Array<{ text: string; url: string }>;
-}
-
-interface SynthesisResult {
-  syntheticSummary: string;
-  consensusMatrix: Array<{
-    topic: string;
-    agreement: string;
-    upholdingDocuments: string[];
-  }>;
-  discrepancyMatrix: Array<{
-    topic: string;
-    disagreement: string;
-    perspectives: Array<{ document: string; viewpoint: string }>;
-  }>;
-  conceptGraph: Array<{
-    concept: string;
-    definition: string;
-    relatedTo: string[];
-  }>;
+  synthesis?: {
+    syntheticSummary: string;
+    consensusMatrix: Array<{
+      topic: string;
+      agreement: string;
+      upholdingDocuments: string[];
+    }>;
+    discrepancyMatrix: Array<{
+      topic: string;
+      disagreement: string;
+      perspectives: Array<{ document: string; viewpoint: string }>;
+    }>;
+    conceptGraph: Array<{
+      concept: string;
+      definition: string;
+      relatedTo: string[];
+    }>;
+  };
 }
 
 interface AnalysisHistoryItem {
@@ -481,7 +480,6 @@ const Oraculus = () => {
   const [analysisMode, setAnalysisMode] = useState<"external" | "own">("external");
   const [isLoading, setIsLoading] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const [synthesisResult, setSynthesisResult] = useState<SynthesisResult | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<AnalysisHistoryItem[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1022,7 +1020,6 @@ const Oraculus = () => {
 
     setIsAnalyzing(true);
     setAnalysisResult(null);
-    setSynthesisResult(null);
     setIsExtracting(true);
 
     // Close research panel if open
@@ -1059,7 +1056,7 @@ const Oraculus = () => {
         }
 
         const data = await response.json();
-        setSynthesisResult(data);
+        setAnalysisResult(data);
         toast.success(t.success.analysisCompleted);
         return;
       }
@@ -1419,7 +1416,7 @@ const Oraculus = () => {
         </header>
 
         <AnimatePresence mode="wait">
-          {!analysisResult && !synthesisResult ? (
+          {!analysisResult ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1685,96 +1682,6 @@ const Oraculus = () => {
                 )}
               </div>
             </motion.div>
-          ) : synthesisResult ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              id="synthesis-results"
-              className="space-y-6 pb-12"
-            >
-              <div className="flex items-center justify-between">
-                <Button variant="ghost" className="hover:bg-white/5 -ml-2 text-muted-foreground hover:text-foreground" onClick={() => setSynthesisResult(null)}>
-                  <ArrowRight className="w-4 h-4 mr-2 rotate-180" />
-                  {language === "es" ? "Nuevo Análisis" : "New Analysis"}
-                </Button>
-                <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-emerald-400 bg-clip-text text-transparent">
-                  {language === "es" ? "Síntesis de Investigación" : "Research Synthesis"}
-                </h2>
-              </div>
-
-              <Card className="p-6 bg-card/40 backdrop-blur border-border/50">
-                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-primary" />
-                  {language === "es" ? "Resumen Ejecutivo" : "Executive Summary"}
-                </h3>
-                <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">{synthesisResult.syntheticSummary}</p>
-              </Card>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                <Card className="p-6 bg-emerald-500/5 border-emerald-500/20">
-                  <h3 className="text-lg font-semibold text-emerald-400 mb-4 flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5" />
-                    {language === "es" ? "Consenso" : "Consensus"}
-                  </h3>
-                  <div className="space-y-4">
-                    {synthesisResult.consensusMatrix?.map((item, i) => (
-                      <div key={i} className="p-3 bg-black/20 rounded-lg border border-emerald-500/10">
-                        <p className="font-medium text-emerald-100">{item.topic}</p>
-                        <p className="text-sm text-emerald-200/70 mt-1">{item.agreement}</p>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {item.upholdingDocuments?.map((doc, d) => (
-                            <Badge key={d} variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 h-5 px-1.5">{doc}</Badge>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-
-                <Card className="p-6 bg-orange-500/5 border-orange-500/20">
-                  <h3 className="text-lg font-semibold text-orange-400 mb-4 flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5" />
-                    {language === "es" ? "Discrepancias" : "Discrepancies"}
-                  </h3>
-                  <div className="space-y-4">
-                    {synthesisResult.discrepancyMatrix?.map((item, i) => (
-                      <div key={i} className="p-3 bg-black/20 rounded-lg border border-orange-500/10">
-                        <p className="font-medium text-orange-100">{item.topic}</p>
-                        <p className="text-sm text-orange-200/70 mt-1">{item.disagreement}</p>
-                        <div className="mt-2 space-y-2">
-                          {item.perspectives?.map((p, d) => (
-                            <div key={d} className="text-xs flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-4 p-1.5 rounded bg-orange-500/5">
-                              <span className="text-orange-300 font-medium shrink-0">{p.document}:</span>
-                              <span className="text-muted-foreground">{p.viewpoint}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              </div>
-
-              <Card className="p-6 bg-card/40 backdrop-blur border-border/50">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <Brain className="w-5 h-5 text-purple-400" />
-                  {language === "es" ? "Grafo de Conceptos" : "Concept Graph"}
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {synthesisResult.conceptGraph?.map((c, i) => (
-                    <div key={i} className="p-4 bg-primary/5 rounded-lg border border-primary/10 hover:border-primary/30 transition-colors">
-                      <p className="font-medium text-primary mb-1">{c.concept}</p>
-                      <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{c.definition}</p>
-                      <div className="flex flex-wrap gap-1">
-                        {c.relatedTo?.map((rel, r) => (
-                          <span key={r} className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary/70">{rel}</span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            </motion.div>
           ) : (
             <motion.div
               initial={{ opacity: 0 }}
@@ -1897,6 +1804,12 @@ const Oraculus = () => {
                       {language === "es" ? "Mejoras" : "Improvements"}
                     </TabsTrigger>
                   )}
+                  {analysisResult.synthesis && (
+                    <TabsTrigger value="synthesis" className="rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20 transition-all py-3">
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      {language === "es" ? "Síntesis" : "Synthesis"}
+                    </TabsTrigger>
+                  )}
                 </TabsList>
 
                 <div className="mt-6 space-y-6">
@@ -2000,6 +1913,83 @@ const Oraculus = () => {
                       </Card>
                     )}
                   </TabsContent>
+
+                  {analysisResult.synthesis && (
+                    <TabsContent value="synthesis" className="space-y-6 focus-visible:ring-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                      <Card className="p-6 bg-card/40 backdrop-blur border-border/50">
+                        <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-primary" />
+                          {language === "es" ? "Resumen Ejecutivo de la Colección" : "Collection Executive Summary"}
+                        </h3>
+                        <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">{analysisResult.synthesis.syntheticSummary}</p>
+                      </Card>
+
+                      <div className="grid md:grid-cols-2 gap-6">
+                        <Card className="p-6 bg-emerald-500/5 border-emerald-500/20">
+                          <h3 className="text-lg font-semibold text-emerald-400 mb-4 flex items-center gap-2">
+                            <CheckCircle2 className="w-5 h-5" />
+                            {language === "es" ? "Consenso" : "Consensus"}
+                          </h3>
+                          <div className="space-y-4">
+                            {analysisResult.synthesis.consensusMatrix?.map((item, i) => (
+                              <div key={i} className="p-3 bg-black/20 rounded-lg border border-emerald-500/10">
+                                <p className="font-medium text-emerald-100">{item.topic}</p>
+                                <p className="text-sm text-emerald-200/70 mt-1">{item.agreement}</p>
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                  {item.upholdingDocuments?.map((doc, d) => (
+                                    <Badge key={d} variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 h-5 px-1.5">{doc}</Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </Card>
+
+                        <Card className="p-6 bg-orange-500/5 border-orange-500/20">
+                          <h3 className="text-lg font-semibold text-orange-400 mb-4 flex items-center gap-2">
+                            <AlertCircle className="w-5 h-5" />
+                            {language === "es" ? "Discrepancias" : "Discrepancies"}
+                          </h3>
+                          <div className="space-y-4">
+                            {analysisResult.synthesis.discrepancyMatrix?.map((item, i) => (
+                              <div key={i} className="p-3 bg-black/20 rounded-lg border border-orange-500/10">
+                                <p className="font-medium text-orange-100">{item.topic}</p>
+                                <p className="text-sm text-orange-200/70 mt-1">{item.disagreement}</p>
+                                <div className="mt-2 space-y-2">
+                                  {item.perspectives?.map((p, d) => (
+                                    <div key={d} className="text-xs flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-4 p-1.5 rounded bg-orange-500/5">
+                                      <span className="text-orange-300 font-medium shrink-0">{p.document}:</span>
+                                      <span className="text-muted-foreground">{p.viewpoint}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </Card>
+                      </div>
+
+                      <Card className="p-6 bg-card/40 backdrop-blur border-border/50">
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <Brain className="w-5 h-5 text-purple-400" />
+                          {language === "es" ? "Grafo de Conceptos" : "Concept Graph"}
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {analysisResult.synthesis.conceptGraph?.map((c, i) => (
+                            <div key={i} className="p-4 bg-primary/5 rounded-lg border border-primary/10 hover:border-primary/30 transition-colors">
+                              <p className="font-medium text-primary mb-1">{c.concept}</p>
+                              <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{c.definition}</p>
+                              <div className="flex flex-wrap gap-1">
+                                {c.relatedTo?.map((rel, r) => (
+                                  <span key={r} className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary/70">{rel}</span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </Card>
+                    </TabsContent>
+                  )}
 
                   <TabsContent value="bias" className="focus-visible:ring-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
                     <div className="grid md:grid-cols-2 gap-4">
