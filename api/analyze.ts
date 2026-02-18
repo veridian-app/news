@@ -244,64 +244,119 @@ async function analyzeMultidoc(body: any) {
     const { documents, language = 'en' } = body;
     if (!documents || !Array.isArray(documents)) throw new Error('No documents provided');
 
-    // Combine all documents into one large text for standard analysis
+    // Combine all documents into one large text
     const fullInput = documents.map((doc: any, idx: number) =>
         `--- DOCUMENT ${idx + 1}: ${doc.name} ---\n${doc.content}\n--- END DOCUMENT ${idx + 1} ---\n`
     ).join('\n\n');
 
     const truncatedInput = fullInput.substring(0, 100000);
-
     const es = language === 'es';
 
-    // Define strict JSON schema
+    // ─── Unified System Prompt ───
+
+    // 1. Roles & Rules
+    const role = es
+        ? 'Eres Oraculus, un analista experto en inteligencia. Realiza una "Fusión de Inteligencia" completa de los documentos provistos.'
+        : 'You are Oraculus, an expert intelligence analyst. Perform a full "Intelligence Fusion" of the provided documents.';
+
+    const langRules = es
+        ? `REGLA CRÍTICA: Responde ABSOLUTAMENTE TODO en español.`
+        : `CRITICAL RULE: Respond ABSOLUTELY EVERYTHING in English.`;
+
+    // 2. Instructions (Combined Standard + Synthesis)
+    const instructions = es
+        ? `Tu tarea es doble:
+           A) ANÁLISIS ESTÁNDAR: Evalúa la calidad, sesgos, entidades y fiabilidad del conjunto como si fuera un solo corpus.
+           B) SÍNTESIS COMPARATIVA: Identifica consensos, discrepancias y relaciones entre los documentos.
+
+           Puntos clave a analizar:
+           1. RESUMEN Y FIABILIDAD: Score de objetividad, preocupaciones principales y fortalezas.
+           2. SESGOS: Detecta sesgos (selección, encuadre, etc.) en el conjunto.
+           3. ENTIDADES: Actores clave (Personas/Organizaciones) mencionados.
+           4. SÍNTESIS:
+              - Matriz de Consenso: ¿En qué están de acuerdo todos los documentos?
+              - Matriz de Discrepancia: ¿Dónde se contradicen? Cita qué documento dice qué.
+              - Grafo de Conceptos: Conceptos clave y sus relaciones.`
+        : `Your task is twofold:
+           A) STANDARD ANALYSIS: Evaluate quality, biases, entities, and reliability of the set as a single corpus.
+           B) COMPARATIVE SYNTHESIS: Identify consensus, discrepancies, and relationships between documents.
+
+           Key points to analyze:
+           1. SUMMARY & RELIABILITY: Objectivity score, main concerns, strengths.
+           2. BIASES: Detect biases (selection, framing, etc.) in the set.
+           3. ENTITIES: Key actors (People/Organizations).
+           4. SYNTHESIS:
+              - Consensus Matrix: What do all documents agree on?
+              - Discrepancy Matrix: Where do they contradict? Cite which document says what.
+              - Concept Graph: Key concepts and their relationships.`;
+
+    // 3. Strict Unified JSON Schema
     const schema = `
     {
-      "syntheticSummary": "Comprehensive summary synthesizing all documents...",
-      "consensusMatrix": [
-        { "topic": "Topic A", "agreement": "All docs agree that...", "upholdingDocuments": ["Doc 1", "Doc 2"] }
+      "summary": {
+        "overallReliability": "Very High | High | Medium | Low | Very Low",
+        "mainConcerns": ["Concern 1", "Concern 2"],
+        "strengths": ["Strength 1"],
+        "objectivityScore": 0-100,
+        "objectivityExplanation": "Brief explanation",
+        "hoaxAlerts": [],
+        "plagiarismAnalysis": { "percentage": 0, "level": "None", "explanation": "N/A", "flaggedSections": [] }
+      },
+      "biasAnalysis": {
+         "selectionBias": { "severity": "None | Low | Significant", "explanation": "...", "quotes": [] },
+         "framing": { "severity": "None | Low | Significant", "explanation": "...", "quotes": [] },
+         "confirmationBias": { "severity": "None | Low | Significant", "explanation": "...", "quotes": [] }
+      },
+      "entities": [
+        { "name": "Name", "type": "Person | Organization | Location", "role": "Role", "sentiment": "Positive | Negative | Neutral" }
       ],
-      "discrepancyMatrix": [
-        { 
-          "topic": "Topic B", 
-          "disagreement": "There is disagreement on...", 
-          "perspectives": [
-            { "document": "Doc 1", "viewpoint": "Says X" },
-            { "document": "Doc 2", "viewpoint": "Says Y" }
-          ]
-        }
-      ],
-      "conceptGraph": [
-        { "concept": "Concept X", "definition": "Brief definition", "relatedTo": ["Concept Y", "Concept Z"] }
-      ]
+      "sources": [], 
+      "synthesis": {
+        "syntheticSummary": "Comprehensive executive summary synthesizing all documents...",
+        "consensusMatrix": [
+          { "topic": "Topic A", "agreement": "All docs agree that...", "upholdingDocuments": ["Doc 1", "Doc 2"] }
+        ],
+        "discrepancyMatrix": [
+          { 
+            "topic": "Topic B", 
+            "disagreement": "There is disagreement on...", 
+            "perspectives": [
+              { "document": "Doc 1", "viewpoint": "Says X" },
+              { "document": "Doc 2", "viewpoint": "Says Y" }
+            ]
+          }
+        ],
+        "conceptGraph": [
+          { "concept": "Concept X", "definition": "Brief definition", "relatedTo": ["Concept Y"] }
+        ]
+      }
     }`;
 
-    const instructions = es
-        ? `Analiza los documentos proporcionados. Eres un experto en síntesis de información.
-           Genera un análisis comparativo en formato JSON estricto.
-           IMPORTANTE: Responde SOLO con un objeto JSON válido que siga EXACTAMENTE esta estructura:
-           ${schema}
-           Asegúrate de que 'consensusMatrix', 'discrepancyMatrix' y 'conceptGraph' sean SIEMPRE arrays, incluso si están vacíos.`
-        : `Analyze the provided documents. You are an expert in information synthesis.
-           Generate a comparative analysis in strict JSON format.
-           IMPORTANT: Respond ONLY with a valid JSON object following EXACTLY this structure:
-           ${schema}
-           Ensure 'consensusMatrix', 'discrepancyMatrix', and 'conceptGraph' are ALWAYS arrays, even if empty.`;
+    // 4. Final Prompt Assembly
+    const systemPrompt = `
+    ${role}
+    ${langRules}
+    ${instructions}
 
-    // Run parallel tasks: Synthesis AND Standard Analysis
-    const [synthesisResult, standardAnalysisResult] = await Promise.all([
-        callOpenAI([{ role: 'user', content: truncatedInput }], instructions, 'gpt-4o-mini', 0.2, true),
-        analyzeArticle({
-            articleText: truncatedInput,
-            isOwnText: true, // Treat as "own text" to avoid URL extraction logic but get full analysis
-            language,
-            citationFormat: 'APA'
-        })
-    ]);
+    IMPORTANT: Respond ONLY with a valid JSON object following EXACTLY this structure:
+    ${schema}
+    
+    Ensure all arrays (entities, consensusMatrix, etc.) are always present, even if empty.
+    For 'biasAnalysis', include at least the 3 fields shown in schema, others are optional.
+    `;
 
-    // Merge results
+    // Single OpenAI Call (High Performance)
+    const mergedResult = await callOpenAI(
+        [{ role: 'user', content: truncatedInput }],
+        systemPrompt,
+        'gpt-4o-mini',
+        0.2,
+        true
+    );
+
     return {
-        ...standardAnalysisResult,
-        synthesis: synthesisResult
+        ...mergedResult,
+        extractedLinks: [] // No external link extraction for raw text uploads
     };
 }
 
