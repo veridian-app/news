@@ -1933,45 +1933,61 @@ const Oraculus = () => {
                     {/* Related News Section */}
                     {analysisResult.relatedNews && analysisResult.relatedNews.length > 0 && (
                       <div className="mt-8 pt-8 border-t border-border/40 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
-                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-primary/90">
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-primary/90 px-1">
                           <BookOpen className="w-5 h-5" />
-                          {language === "es" ? "Noticias Relacionadas en Veridian" : "Related News in Veridian"}
+                          {language === "es" ? "Contexto Veridian" : "Veridian Context"}
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                        {/* Horizontal Scroll Container */}
+                        <div className="relative -mx-6 px-6 overflow-x-auto pb-4 flex gap-4 snap-x snap-mandatory no-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                          <style>{`
+                            .no-scrollbar::-webkit-scrollbar {
+                              display: none;
+                            }
+                          `}</style>
                           {analysisResult.relatedNews.map((news) => (
                             <a
                               key={news.id}
                               href={`/veridian-news?newsId=${news.id}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="group flex gap-3 p-3 rounded-xl bg-card/30 border border-border/40 hover:bg-card/50 hover:border-primary/30 transition-all items-start"
+                              target="_self"
+                              className="group snap-center shrink-0 w-[240px] h-[320px] relative rounded-2xl overflow-hidden border border-white/10 bg-zinc-900 transition-all hover:scale-[1.02] hover:border-primary/50"
                             >
-                              {news.image && (
+                              {/* Background Image */}
+                              {news.image ? (
                                 <img
                                   src={news.image}
                                   alt={news.title}
-                                  className="w-20 h-20 rounded-lg object-cover bg-muted shrink-0"
+                                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100"
                                 />
+                              ) : (
+                                <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-zinc-950" />
                               )}
-                              <div className="flex-1 min-w-0 py-0.5">
-                                <div className="flex items-center gap-2 mb-1.5">
+
+                              {/* Gradient Overlay */}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+
+                              {/* Content */}
+                              <div className="absolute inset-0 p-4 flex flex-col justify-end">
+                                <div className="flex items-center gap-2 mb-2">
                                   {news.category && (
-                                    <Badge variant="outline" className="text-[10px] h-5 px-1.5 border-primary/20 text-primary/80 bg-primary/5">
+                                    <Badge variant="outline" className="text-[10px] h-5 px-1.5 border-white/20 text-white/90 bg-white/10 backdrop-blur-md">
                                       {news.category}
                                     </Badge>
                                   )}
-                                  <span className="text-[10px] text-muted-foreground/80">
-                                    {new Date(news.published_at).toLocaleDateString()}
+                                  <span className="text-[10px] text-white/60 shadow-black drop-shadow-md">
+                                    {new Date(news.published_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                   </span>
                                 </div>
-                                <h4 className="font-medium text-sm leading-snug group-hover:text-primary transition-colors line-clamp-2 mb-1 text-white/90">
+
+                                <h4 className="font-bold text-sm leading-tight text-white mb-1 line-clamp-3 drop-shadow-lg group-hover:text-primary transition-colors">
                                   {news.title}
                                 </h4>
-                                <p className="text-xs text-muted-foreground line-clamp-1">
-                                  {news.source || 'Veridian News'}
-                                </p>
+
+                                <div className="flex items-center gap-1 mt-2 text-xs text-white/70">
+                                  <span className="truncate max-w-[120px]">{news.source || 'Veridian News'}</span>
+                                  <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity ml-auto text-primary" />
+                                </div>
                               </div>
-                              <ArrowRight className="w-4 h-4 text-primary/50 self-center opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all shrink-0" />
                             </a>
                           ))}
                         </div>

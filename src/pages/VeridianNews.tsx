@@ -343,22 +343,33 @@ const VeridianNews = () => {
   // DEEP LINKING EFFECT
   useEffect(() => {
     const newsId = searchParams.get('newsId');
-    if (newsId && news.length > 0 && !selectedNews) {
+    // Esperar a que las noticias estén cargadas y el contenedor también
+    if (newsId && news.length > 0 && feedContainerRef.current) {
       console.log('🔗 Deep link detectado para newsId:', newsId);
-      const linkedNews = news.find(n => n.id === newsId);
 
-      if (linkedNews) {
-        console.log('✅ Noticia encontrada, abriendo modal...');
-        openFullContent(linkedNews);
+      const index = news.findIndex(n => n.id === newsId);
 
-        // Limpiar el parámetro de la URL para que no se reabra al recargar
-        // pero mantener otros parámetros si existen
+      if (index !== -1) {
+        console.log(`✅ Noticia encontrada en índice ${index}, haciendo scroll...`);
+
+        // Scroll inmediato al índice
+        // Calculamos la posición basada en la altura de la ventana (100dvh)
+        const scrollPosition = index * window.innerHeight;
+
+        feedContainerRef.current.scrollTo({
+          top: scrollPosition,
+          behavior: 'instant' // Instantáneo para que parezca que carga ahí
+        });
+
+        setCurrentVisibleNews(news[index]);
+
+        // Limpiar el parámetro de la URL
         const newParams = new URLSearchParams(searchParams);
         newParams.delete('newsId');
         setSearchParams(newParams, { replace: true });
       }
     }
-  }, [news, searchParams, setSearchParams, selectedNews]);
+  }, [news, searchParams, setSearchParams]);
 
   useEffect(() => {
     // No usar mockNews - solo cargar del Excel
