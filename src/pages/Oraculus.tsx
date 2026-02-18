@@ -1717,12 +1717,12 @@ const Oraculus = () => {
                     {language === "es" ? "Consenso" : "Consensus"}
                   </h3>
                   <div className="space-y-4">
-                    {synthesisResult.consensusMatrix.map((item, i) => (
+                    {synthesisResult.consensusMatrix?.map((item, i) => (
                       <div key={i} className="p-3 bg-black/20 rounded-lg border border-emerald-500/10">
                         <p className="font-medium text-emerald-100">{item.topic}</p>
                         <p className="text-sm text-emerald-200/70 mt-1">{item.agreement}</p>
                         <div className="flex flex-wrap gap-2 mt-2">
-                          {item.upholdingDocuments.map((doc, d) => (
+                          {item.upholdingDocuments?.map((doc, d) => (
                             <Badge key={d} variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 h-5 px-1.5">{doc}</Badge>
                           ))}
                         </div>
@@ -1737,12 +1737,12 @@ const Oraculus = () => {
                     {language === "es" ? "Discrepancias" : "Discrepancies"}
                   </h3>
                   <div className="space-y-4">
-                    {synthesisResult.discrepancyMatrix.map((item, i) => (
+                    {synthesisResult.discrepancyMatrix?.map((item, i) => (
                       <div key={i} className="p-3 bg-black/20 rounded-lg border border-orange-500/10">
                         <p className="font-medium text-orange-100">{item.topic}</p>
                         <p className="text-sm text-orange-200/70 mt-1">{item.disagreement}</p>
                         <div className="mt-2 space-y-2">
-                          {item.perspectives.map((p, d) => (
+                          {item.perspectives?.map((p, d) => (
                             <div key={d} className="text-xs flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-4 p-1.5 rounded bg-orange-500/5">
                               <span className="text-orange-300 font-medium shrink-0">{p.document}:</span>
                               <span className="text-muted-foreground">{p.viewpoint}</span>
@@ -1761,12 +1761,12 @@ const Oraculus = () => {
                   {language === "es" ? "Grafo de Conceptos" : "Concept Graph"}
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {synthesisResult.conceptGraph.map((c, i) => (
+                  {synthesisResult.conceptGraph?.map((c, i) => (
                     <div key={i} className="p-4 bg-primary/5 rounded-lg border border-primary/10 hover:border-primary/30 transition-colors">
                       <p className="font-medium text-primary mb-1">{c.concept}</p>
                       <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{c.definition}</p>
                       <div className="flex flex-wrap gap-1">
-                        {c.relatedTo.map((rel, r) => (
+                        {c.relatedTo?.map((rel, r) => (
                           <span key={r} className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary/70">{rel}</span>
                         ))}
                       </div>

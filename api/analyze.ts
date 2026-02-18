@@ -249,11 +249,42 @@ async function analyzeMultidoc(body: any) {
     ).join('\n\n').substring(0, 100000);
 
     const es = language === 'es';
-    const instructions = es
-        ? "Analiza los documentos. Genera JSON: consensusMatrix, discrepancyMatrix, conceptGraph, syntheticSummary. En Español."
-        : "Analyze documents. Generate JSON: consensusMatrix, discrepancyMatrix, conceptGraph, syntheticSummary. In English.";
 
-    return await callOpenAI([{ role: 'user', content: fullInput }], instructions);
+    // Define strict JSON schema
+    const schema = `
+    {
+      "syntheticSummary": "Comprehensive summary synthesizing all documents...",
+      "consensusMatrix": [
+        { "topic": "Topic A", "agreement": "All docs agree that...", "upholdingDocuments": ["Doc 1", "Doc 2"] }
+      ],
+      "discrepancyMatrix": [
+        { 
+          "topic": "Topic B", 
+          "disagreement": "There is disagreement on...", 
+          "perspectives": [
+            { "document": "Doc 1", "viewpoint": "Says X" },
+            { "document": "Doc 2", "viewpoint": "Says Y" }
+          ]
+        }
+      ],
+      "conceptGraph": [
+        { "concept": "Concept X", "definition": "Brief definition", "relatedTo": ["Concept Y", "Concept Z"] }
+      ]
+    }`;
+
+    const instructions = es
+        ? `Analiza los documentos proporcionados. Eres un experto en síntesis de información.
+           Genera un análisis comparativo en formato JSON estricto.
+           IMPORTANTE: Responde SOLO con un objeto JSON válido que siga EXACTAMENTE esta estructura:
+           ${schema}
+           Asegúrate de que 'consensusMatrix', 'discrepancyMatrix' y 'conceptGraph' sean SIEMPRE arrays, incluso si están vacíos.`
+        : `Analyze the provided documents. You are an expert in information synthesis.
+           Generate a comparative analysis in strict JSON format.
+           IMPORTANT: Respond ONLY with a valid JSON object following EXACTLY this structure:
+           ${schema}
+           Ensure 'consensusMatrix', 'discrepancyMatrix', and 'conceptGraph' are ALWAYS arrays, even if empty.`;
+
+    return await callOpenAI([{ role: 'user', content: fullInput }], instructions, 'gpt-4o-mini', 0.2, true);
 }
 
 // ─── Research Chat Logic ──────────────────────────────────────────
