@@ -155,12 +155,13 @@ export function ResearchPanel({ isOpen, onClose, articleContext, articleTitle, v
         setIsLoading(true);
 
         try {
-            const response = await fetch('/api/research-chat', {
+            const response = await fetch('/api/analyze', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
+                    type: 'chat',
                     messages: [...messages, userMsg], // Send full history
                     articleContext,
                     articleTitle,

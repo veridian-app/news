@@ -1043,12 +1043,13 @@ const Oraculus = () => {
         toast.info(language === 'es' ? 'Sintetizando documentos...' : 'Synthesizing documents...');
 
         const detectedLang = language === 'es' ? 'es' : 'en';
-        const response = await fetch('/api/analyze-multidoc', {
+        const response = await fetch('/api/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             documents,
-            language: detectedLang
+            language: detectedLang,
+            type: 'multidoc'
           }),
         });
 
@@ -1094,14 +1095,15 @@ const Oraculus = () => {
 
       // API Call
       const detectedLang = language === 'es' ? 'es' : 'en';
-      const response = await fetch('/api/analyze-article', {
+      const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: textToAnalyze,
           url: urlToAnalyze,
           language: detectedLang,
-          mode: analysisMode
+          mode: analysisMode,
+          type: 'article'
         }),
       });
 

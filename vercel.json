@@ -1,27 +1,27 @@
 {
   "crons": [
     {
-      "path": "/api/cron/generate-covers",
+      "path": "/api/cron-handler?job=generate-covers",
       "schedule": "0 6 * * *"
     },
     {
-      "path": "/api/cron/curate-cafe",
+      "path": "/api/cron-handler?job=curate-cafe",
       "schedule": "0 7 * * *"
     },
     {
-      "path": "/api/cron/generate-polls",
+      "path": "/api/cron-handler?job=generate-polls",
       "schedule": "30 7 * * *"
     },
     {
-      "path": "/api/cron/analyze-sources?source=boe",
+      "path": "/api/cron-handler?job=analyze-sources&source=boe",
       "schedule": "0 9 * * 1-5"
     },
     {
-      "path": "/api/cron/analyze-sources?source=bdns",
+      "path": "/api/cron-handler?job=analyze-sources&source=bdns",
       "schedule": "30 9 * * *"
     },
     {
-      "path": "/api/cron/analyze-sources?source=placsp",
+      "path": "/api/cron-handler?job=analyze-sources&source=placsp",
       "schedule": "0 10 * * *"
     }
   ],

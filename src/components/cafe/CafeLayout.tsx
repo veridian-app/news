@@ -73,7 +73,7 @@ export const CafeLayout = () => {
         const fetchData = async () => {
             try {
                 // Fetch featured news
-                const newsResponse = await fetch('/api/cafe/featured-news');
+                const newsResponse = await fetch('/api/cafe?type=featured');
                 if (newsResponse.ok) {
                     const newsData = await newsResponse.json();
                     if (newsData.news && newsData.news.length > 0) {
@@ -82,7 +82,7 @@ export const CafeLayout = () => {
                 }
 
                 // Fetch polls
-                const pollsResponse = await fetch('/api/cafe/polls');
+                const pollsResponse = await fetch('/api/cafe?type=polls');
                 if (pollsResponse.ok) {
                     const pollsData = await pollsResponse.json();
                     if (pollsData.polls && pollsData.polls.length > 0) {
@@ -187,10 +187,10 @@ export const CafeLayout = () => {
                                             const fingerprint = `${navigator.userAgent}-${screen.width}x${screen.height}`;
 
                                             try {
-                                                const response = await fetch('/api/cafe/polls', {
+                                                const response = await fetch('/api/cafe?type=vote', {
                                                     method: 'POST',
                                                     headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({ pollId, optionId, fingerprint })
+                                                    body: JSON.stringify({ pollId, optionId, fingerprint, type: 'vote' })
                                                 });
 
                                                 if (response.ok) {

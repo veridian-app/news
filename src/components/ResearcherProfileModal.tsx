@@ -68,10 +68,10 @@ export function ResearcherProfileModal({ isOpen, onClose, entityName, entityType
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch('/api/analyze-entity', {
+            const response = await fetch('/api/analyze', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ entityName, language: language === 'es' ? 'es' : 'en' })
+                body: JSON.stringify({ entityName, language: language === 'es' ? 'es' : 'en', type: 'entity' })
             });
 
             if (!response.ok) throw new Error("Analysis failed");
