@@ -251,8 +251,8 @@ export function ResearchPanel({ isOpen, onClose, articleContext, articleTitle, v
                                                         {dna && (
                                                             <Badge variant="outline" className={cn(
                                                                 "text-[9px] px-1 h-3.5 border-dashed",
-                                                                dna.bias === 'Left' || dna.bias === 'Center-Left' ? "text-blue-400 border-blue-500/30 bg-blue-500/10" :
-                                                                    dna.bias === 'Right' || dna.bias === 'Center-Right' ? "text-red-400 border-red-500/30 bg-red-500/10" :
+                                                                dna.bias === 'Left' || dna.bias === 'Center-Left' ? "text-red-400 border-red-500/30 bg-red-500/10" :
+                                                                    dna.bias === 'Right' || dna.bias === 'Center-Right' ? "text-blue-400 border-blue-500/30 bg-blue-500/10" :
                                                                         "text-gray-400 border-gray-500/30 bg-gray-500/10"
                                                             )}>
                                                                 {dna.bias}

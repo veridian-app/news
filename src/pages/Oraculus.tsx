@@ -2048,8 +2048,8 @@ const Oraculus = () => {
                                   if (dna) return (
                                     <Badge variant="outline" className={cn(
                                       "ml-2 text-xs",
-                                      dna.bias === 'Left' || dna.bias === 'Center-Left' ? "text-blue-400 border-blue-500/30" :
-                                        dna.bias === 'Right' || dna.bias === 'Center-Right' ? "text-red-400 border-red-500/30" :
+                                      dna.bias === 'Left' || dna.bias === 'Center-Left' ? "text-red-400 border-red-500/30" :
+                                        dna.bias === 'Right' || dna.bias === 'Center-Right' ? "text-blue-400 border-blue-500/30" :
                                           "text-gray-400 border-gray-500/30"
                                     )}>
                                       {dna.bias} • {dna.reliability} Reliability
