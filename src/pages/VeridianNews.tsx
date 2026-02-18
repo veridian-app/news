@@ -7,7 +7,7 @@ import "./VeridianNews.css";
 import { supabase, isSupabaseConfigured } from "../integrations/supabase/client";
 import { useIsMobile, useScreenSize } from "../hooks/use-mobile";
 import { Clock, Brain, ThumbsUp, ThumbsDown, X, ExternalLink, Search } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { BottomDock } from "../components/BottomDock";
 import { NewsCard } from "@/components/NewsCard";
 import { toast } from "sonner";
@@ -1392,148 +1392,118 @@ const VeridianNews = () => {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_rgba(59,130,246,0.1),_transparent_70%)] opacity-40" />
       </div>
 
-      {/* Botón de Ordenar / Filtro */}
-      <div className="fixed top-4 left-4 z-50 animate-in fade-in duration-700">
-        <button
-          onClick={() => {
-            const newSort = sortBy === 'recommended' ? 'recent' : 'recommended';
-            setSortBy(newSort);
-            toast({
-              title: newSort === 'recent' ? "📅 Ordenado por fecha" : "✨ Ordenado por relevancia",
-              description: newSort === 'recent' ? "Mostrando las noticias más nuevas primero." : "Mostrando noticias personalizadas para ti.",
-              duration: 2000
-            });
-            // Haptic feedback
-            if (navigator.vibrate) navigator.vibrate(10);
-            // Scroll to top
-            if (feedContainerRef.current) {
-              feedContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-          }}
-          className={cn(
-            "flex items-center gap-2 px-3 py-1.5 backdrop-blur-md border rounded-full shadow-[0_0_15px_rgba(0,0,0,0.3)] transition-all duration-300",
-            sortBy === 'recent'
-              ? "bg-blue-500/20 border-blue-500/50 text-blue-200 hover:bg-blue-500/30"
-              : "bg-black/30 border-white/10 text-white/70 hover:bg-white/10"
-          )}
-        >
-          {sortBy === 'recent' ? <Clock className="w-4 h-4" /> : <Brain className="w-4 h-4" />}
-          <span className="text-xs font-medium">
-            {sortBy === 'recent' ? 'Recientes' : 'Relevantes'}
-          </span>
-        </button>
-      </div>
-
       {/* Modal de Búsqueda */}
-      {showSearchModal && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[60] flex items-start justify-center pt-12 bg-black/80 backdrop-blur-sm"
-          onClick={() => closeSearch()}
-        >
+      <AnimatePresence>
+        {showSearchModal && (
           <motion.div
-            initial={{ y: -20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="w-full max-w-md mx-4 bg-zinc-900/95 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl max-h-[80vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-start justify-center pt-12 bg-black/80 backdrop-blur-sm"
+            onClick={() => closeSearch()}
           >
-            {/* Header con input de búsqueda */}
-            <div className="p-4 border-b border-white/10">
-              <div className="flex items-center gap-3">
-                <Search className="w-5 h-5 text-white/50" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Buscar noticias..."
-                  autoFocus
-                  className="flex-1 bg-transparent border-none text-white text-lg placeholder:text-white/40 focus:outline-none"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-                  >
-                    <X className="w-4 h-4 text-white/70" />
-                  </button>
-                )}
+            <motion.div
+              initial={{ y: -20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="w-full max-w-md mx-4 bg-zinc-900/95 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl max-h-[80vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header con input de búsqueda */}
+              <div className="p-4 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <Search className="w-5 h-5 text-white/50" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Buscar noticias..."
+                    autoFocus
+                    className="flex-1 bg-transparent border-none text-white text-lg placeholder:text-white/40 focus:outline-none"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                    >
+                      <X className="w-4 h-4 text-white/70" />
+                    </button>
+                  )}
+                </div>
+                <div className="text-xs text-white/40 mt-2">
+                  {searchQuery ? `${news.length} resultado${news.length !== 1 ? 's' : ''}` : 'Busca por título, fuente o contenido'}
+                </div>
               </div>
-              <div className="text-xs text-white/40 mt-2">
-                {searchQuery ? `${news.length} resultado${news.length !== 1 ? 's' : ''}` : 'Busca por título, fuente o contenido'}
-              </div>
-            </div>
 
-            {/* Lista de resultados scrolleable */}
-            {searchQuery && news.length > 0 && (
-              <div className="flex-1 overflow-y-auto">
-                {news.slice(0, 20).map((item, idx) => (
-                  <motion.button
-                    key={item.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.03 }}
-                    onClick={() => {
-                      closeSearch();
-                      setSelectedNews(item);
-                      setShowContentModal(true);
-                    }}
-                    className="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors border-b border-white/5 text-left"
-                  >
-                    {/* Thumbnail */}
-                    {item.image && (
-                      <img
-                        src={item.image}
-                        alt=""
-                        className="w-14 h-14 rounded-lg object-cover flex-shrink-0 bg-zinc-800"
-                      />
-                    )}
-                    {!item.image && (
-                      <div className="w-14 h-14 rounded-lg bg-zinc-800 flex items-center justify-center flex-shrink-0">
-                        <span className="text-2xl">📰</span>
-                      </div>
-                    )}
+              {/* Lista de resultados scrolleable */}
+              {searchQuery && news.length > 0 && (
+                <div className="flex-1 overflow-y-auto">
+                  {news.slice(0, 20).map((item, idx) => (
+                    <motion.button
+                      key={item.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.03 }}
+                      onClick={() => {
+                        closeSearch();
+                        setSelectedNews(item);
+                        setShowContentModal(true);
+                      }}
+                      className="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors border-b border-white/5 text-left"
+                    >
+                      {/* Thumbnail */}
+                      {item.image && (
+                        <img
+                          src={item.image}
+                          alt=""
+                          className="w-14 h-14 rounded-lg object-cover flex-shrink-0 bg-zinc-800"
+                        />
+                      )}
+                      {!item.image && (
+                        <div className="w-14 h-14 rounded-lg bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                          <span className="text-2xl">📰</span>
+                        </div>
+                      )}
 
-                    {/* Contenido */}
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-white text-sm font-medium line-clamp-2 leading-tight">
-                        {item.title}
-                      </h4>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-white/40">{item.source}</span>
-                        {item.date && (
-                          <>
-                            <span className="text-white/20">•</span>
-                            <span className="text-xs text-white/40">
-                              {new Date(item.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-                            </span>
-                          </>
-                        )}
+                      {/* Contenido */}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-white text-sm font-medium line-clamp-2 leading-tight">
+                          {item.title}
+                        </h4>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-white/40">{item.source}</span>
+                          {item.date && (
+                            <>
+                              <span className="text-white/20">•</span>
+                              <span className="text-xs text-white/40">
+                                {new Date(item.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
+                    </motion.button>
+                  ))}
+
+                  {news.length > 20 && (
+                    <div className="p-3 text-center text-xs text-white/40">
+                      +{news.length - 20} más resultados
                     </div>
-                  </motion.button>
-                ))}
+                  )}
+                </div>
+              )}
 
-                {news.length > 20 && (
-                  <div className="p-3 text-center text-xs text-white/40">
-                    +{news.length - 20} más resultados
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Estado vacío */}
-            {searchQuery && news.length === 0 && (
-              <div className="p-8 text-center">
-                <span className="text-4xl mb-3 block">🔍</span>
-                <p className="text-white/50 text-sm">No se encontraron noticias</p>
-              </div>
-            )}
+              {/* Estado vacío */}
+              {searchQuery && news.length === 0 && (
+                <div className="p-8 text-center">
+                  <span className="text-4xl mb-3 block">🔍</span>
+                  <p className="text-white/50 text-sm">No se encontraron noticias</p>
+                </div>
+              )}
+            </motion.div>
           </motion.div>
-        </motion.div>
-      )}
+        )}
+      </AnimatePresence>
 
       <main
         ref={feedContainerRef}
@@ -1597,195 +1567,197 @@ const VeridianNews = () => {
 
       {/* Modals (Keep existing ones intact for now, just ensure z-index is high enough) */}
       {/* Modal de Contenido Completo */}
-      {showContentModal && selectedNews && (
-        <motion.div
-          className="fixed inset-0 z-50 bg-zinc-950 flex flex-col"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          {/* Header elegante con gradiente */}
-          <div className="flex items-center justify-between p-4 border-b border-white/10 bg-gradient-to-b from-zinc-900/95 to-transparent backdrop-blur-xl sticky top-0 z-10">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-white text-sm font-bold">
-                V
+      {
+        showContentModal && selectedNews && (
+          <motion.div
+            className="fixed inset-0 z-50 bg-zinc-950 flex flex-col"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            {/* Header elegante con gradiente */}
+            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-gradient-to-b from-zinc-900/95 to-transparent backdrop-blur-xl sticky top-0 z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-white text-sm font-bold">
+                  V
+                </div>
+                <span className="text-white/60 text-sm font-medium">Veridian News</span>
               </div>
-              <span className="text-white/60 text-sm font-medium">Veridian News</span>
+              <button
+                onClick={() => setShowContentModal(false)}
+                className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all duration-200 hover:scale-105"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <button
-              onClick={() => setShowContentModal(false)}
-              className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all duration-200 hover:scale-105"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
 
-          <div className="flex-1 overflow-y-auto pb-32">
-            {/* Imagen hero con gradiente overlay */}
-            {selectedNews.image && (
-              <motion.div
-                className="relative w-full aspect-[16/9] md:aspect-[21/9]"
-                initial={{ scale: 1.05 }}
-                animate={{ scale: 1 }}
-                transition={{ duration: 0.6 }}
-              >
-                <img
-                  src={selectedNews.image}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent" />
-              </motion.div>
-            )}
-
-            <div className="px-5 md:px-8 lg:px-12 max-w-3xl mx-auto">
-              {/* Metadata con estilo editorial */}
-              <motion.div
-                className="flex items-center gap-3 text-sm py-6"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 font-medium border border-emerald-500/30">
-                  {selectedNews.source}
-                </span>
-                <span className="text-white/40">•</span>
-                <span className="text-white/50">{new Date(selectedNews.date).toLocaleDateString('es-ES', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric'
-                })}</span>
-              </motion.div>
-
-              {/* Título con animación */}
-              <motion.h1
-                className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight mb-8 tracking-tight"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15, duration: 0.4 }}
-              >
-                {selectedNews.title}
-              </motion.h1>
-
-              {/* Contenido con formato automático */}
-              <div className="space-y-8">
-                {(() => {
-                  const rawContent = selectedNews.content && selectedNews.content.trim().length > 30 && !selectedNews.content.toLowerCase().includes("sin contenido")
-                    ? selectedNews.content
-                    : selectedNews.summary;
-
-                  // Función para dividir texto largo en párrafos legibles
-                  const formatTextIntoParagraphs = (text: string): string[] => {
-                    // Si ya tiene saltos de línea, usarlos
-                    if (text.includes('\n')) {
-                      return text.split('\n').filter(p => p.trim().length > 0);
-                    }
-
-                    // Si no, dividir inteligentemente por oraciones (cada 2-3 oraciones = 1 párrafo)
-                    const sentences = text.split(/(?<=[.!?])\s+/);
-                    const paragraphs: string[] = [];
-                    let currentParagraph: string[] = [];
-
-                    sentences.forEach((sentence, i) => {
-                      currentParagraph.push(sentence);
-                      // Crear nuevo párrafo cada 2-3 oraciones o si la oración es muy larga
-                      if (currentParagraph.length >= 3 ||
-                        (currentParagraph.length >= 2 && currentParagraph.join(' ').length > 400)) {
-                        paragraphs.push(currentParagraph.join(' '));
-                        currentParagraph = [];
-                      }
-                    });
-
-                    // Añadir el último párrafo si queda algo
-                    if (currentParagraph.length > 0) {
-                      paragraphs.push(currentParagraph.join(' '));
-                    }
-
-                    return paragraphs;
-                  };
-
-                  const paragraphs = formatTextIntoParagraphs(rawContent);
-
-                  return paragraphs.map((paragraph, idx) => {
-                    const isFirstParagraph = idx === 0;
-                    const showDivider = idx > 0 && idx % 3 === 0;
-
-                    return (
-                      <motion.div
-                        key={idx}
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{
-                          delay: 0.15 + (idx * 0.06),
-                          duration: 0.35,
-                          ease: [0.25, 0.1, 0.25, 1]
-                        }}
-                      >
-                        {/* Separador minimalista cada 3 párrafos */}
-                        {showDivider && (
-                          <div className="flex items-center justify-center py-6 mb-6">
-                            <div className="w-16 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-                          </div>
-                        )}
-
-                        <p className={cn(
-                          "text-zinc-300 leading-[1.9] tracking-wide",
-                          isFirstParagraph
-                            ? "text-[17px] md:text-lg text-zinc-200 font-medium"
-                            : "text-base md:text-[17px]"
-                        )}>
-                          {paragraph}
-                        </p>
-                      </motion.div>
-                    );
-                  });
-                })()}
-              </div>
-
-              {/* Footer con acciones */}
-              {selectedNews.url && (
+            <div className="flex-1 overflow-y-auto pb-32">
+              {/* Imagen hero con gradiente overlay */}
+              {selectedNews.image && (
                 <motion.div
-                  className="mt-12 pt-8 border-t border-white/10"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.5 }}
+                  className="relative w-full aspect-[16/9] md:aspect-[21/9]"
+                  initial={{ scale: 1.05 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.6 }}
                 >
-                  <a
-                    href={selectedNews.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2.5 px-6 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 rounded-full text-emerald-400 hover:text-emerald-300 font-medium transition-all duration-300 group"
-                  >
-                    <span>Leer fuente original</span>
-                    <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                  </a>
+                  <img
+                    src={selectedNews.image}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent" />
                 </motion.div>
               )}
-            </div>
-          </div>
 
-          {/* Floating AI Button - diseño mejorado */}
-          <div className="absolute bottom-8 right-6">
-            <motion.button
-              onClick={() => openAIChat(selectedNews)}
-              className="flex items-center gap-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-6 py-3.5 rounded-full shadow-lg shadow-blue-900/50 font-medium transition-all duration-300 group"
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.4, type: "spring", stiffness: 200 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Brain className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-              <span>Analizar con IA</span>
-            </motion.button>
-          </div>
-        </motion.div>
-      )}
+              <div className="px-5 md:px-8 lg:px-12 max-w-3xl mx-auto">
+                {/* Metadata con estilo editorial */}
+                <motion.div
+                  className="flex items-center gap-3 text-sm py-6"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 font-medium border border-emerald-500/30">
+                    {selectedNews.source}
+                  </span>
+                  <span className="text-white/40">•</span>
+                  <span className="text-white/50">{new Date(selectedNews.date).toLocaleDateString('es-ES', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  })}</span>
+                </motion.div>
+
+                {/* Título con animación */}
+                <motion.h1
+                  className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight mb-8 tracking-tight"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15, duration: 0.4 }}
+                >
+                  {selectedNews.title}
+                </motion.h1>
+
+                {/* Contenido con formato automático */}
+                <div className="space-y-8">
+                  {(() => {
+                    const rawContent = selectedNews.content && selectedNews.content.trim().length > 30 && !selectedNews.content.toLowerCase().includes("sin contenido")
+                      ? selectedNews.content
+                      : selectedNews.summary;
+
+                    // Función para dividir texto largo en párrafos legibles
+                    const formatTextIntoParagraphs = (text: string): string[] => {
+                      // Si ya tiene saltos de línea, usarlos
+                      if (text.includes('\n')) {
+                        return text.split('\n').filter(p => p.trim().length > 0);
+                      }
+
+                      // Si no, dividir inteligentemente por oraciones (cada 2-3 oraciones = 1 párrafo)
+                      const sentences = text.split(/(?<=[.!?])\s+/);
+                      const paragraphs: string[] = [];
+                      let currentParagraph: string[] = [];
+
+                      sentences.forEach((sentence, i) => {
+                        currentParagraph.push(sentence);
+                        // Crear nuevo párrafo cada 2-3 oraciones o si la oración es muy larga
+                        if (currentParagraph.length >= 3 ||
+                          (currentParagraph.length >= 2 && currentParagraph.join(' ').length > 400)) {
+                          paragraphs.push(currentParagraph.join(' '));
+                          currentParagraph = [];
+                        }
+                      });
+
+                      // Añadir el último párrafo si queda algo
+                      if (currentParagraph.length > 0) {
+                        paragraphs.push(currentParagraph.join(' '));
+                      }
+
+                      return paragraphs;
+                    };
+
+                    const paragraphs = formatTextIntoParagraphs(rawContent);
+
+                    return paragraphs.map((paragraph, idx) => {
+                      const isFirstParagraph = idx === 0;
+                      const showDivider = idx > 0 && idx % 3 === 0;
+
+                      return (
+                        <motion.div
+                          key={idx}
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{
+                            delay: 0.15 + (idx * 0.06),
+                            duration: 0.35,
+                            ease: [0.25, 0.1, 0.25, 1]
+                          }}
+                        >
+                          {/* Separador minimalista cada 3 párrafos */}
+                          {showDivider && (
+                            <div className="flex items-center justify-center py-6 mb-6">
+                              <div className="w-16 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                            </div>
+                          )}
+
+                          <p className={cn(
+                            "text-zinc-300 leading-[1.9] tracking-wide",
+                            isFirstParagraph
+                              ? "text-[17px] md:text-lg text-zinc-200 font-medium"
+                              : "text-base md:text-[17px]"
+                          )}>
+                            {paragraph}
+                          </p>
+                        </motion.div>
+                      );
+                    });
+                  })()}
+                </div>
+
+                {/* Footer con acciones */}
+                {selectedNews.url && (
+                  <motion.div
+                    className="mt-12 pt-8 border-t border-white/10"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                  >
+                    <a
+                      href={selectedNews.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2.5 px-6 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 rounded-full text-emerald-400 hover:text-emerald-300 font-medium transition-all duration-300 group"
+                    >
+                      <span>Leer fuente original</span>
+                      <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                    </a>
+                  </motion.div>
+                )}
+              </div>
+            </div>
+
+            {/* Floating AI Button - diseño mejorado */}
+            <div className="absolute bottom-8 right-6">
+              <motion.button
+                onClick={() => openAIChat(selectedNews)}
+                className="flex items-center gap-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-6 py-3.5 rounded-full shadow-lg shadow-blue-900/50 font-medium transition-all duration-300 group"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.4, type: "spring", stiffness: 200 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Brain className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                <span>Analizar con IA</span>
+              </motion.button>
+            </div>
+          </motion.div>
+        )
+      }
 
       {/* Other modals (Comments, AI, etc) - keeping minimal logic for brevity but ensuring they render */}
       {/* Modals removed */}
-    </div>
+    </div >
   );
 };
 

@@ -2212,6 +2212,14 @@ const Oraculus = () => {
         </AnimatePresence>
       </div>
 
+      <ResearchPanel
+        isOpen={isResearchPanelOpen}
+        onClose={() => setIsResearchPanelOpen(false)}
+        articleContext={analysisMode === 'own' ? articleText : (articleText || "No context available")}
+        articleTitle={articleTitle}
+        variant="overlay"
+        extractedLinks={analysisResult?.extractedLinks || []}
+      />
       <BottomDock />
 
       {/* Research Chat FAB */}
