@@ -179,13 +179,18 @@ async function extractTextFromUrl(url: string): Promise<{ text: string; links: a
 }
 
 async function analyzeArticle(body: any) {
-    const { articleText, articleUrl, isOwnText, citationFormat, language = 'en' } = body;
-    let finalText = articleText || '';
+    let { articleText, articleUrl, text, url, isOwnText, mode, citationFormat, language = 'en' } = body;
+
+    // Normalize inputs (Frontend sends 'text'/'url'/'mode', Backend expected 'articleText'/'articleUrl'/'isOwnText')
+    let finalText = articleText || text || '';
+    const finalUrl = articleUrl || url;
+    const finalIsOwnText = isOwnText || mode === 'own';
+
     let extractedLinks: any[] = [];
 
-    if (articleUrl && !isOwnText) {
+    if (finalUrl && !finalIsOwnText) {
         try {
-            const extraction = await extractTextFromUrl(articleUrl);
+            const extraction = await extractTextFromUrl(finalUrl);
             finalText = extraction.text;
             extractedLinks = extraction.links;
         } catch (e: any) {
@@ -195,7 +200,7 @@ async function analyzeArticle(body: any) {
 
     if (!finalText || finalText.trim().length === 0) throw new Error('No content to analyze');
 
-    const systemPrompt = buildArticleSystemPrompt(!!isOwnText, language, citationFormat);
+    const systemPrompt = buildArticleSystemPrompt(!!finalIsOwnText, language, citationFormat);
     const result = await callOpenAI([{ role: 'user', content: finalText.substring(0, 100000) }], systemPrompt);
 
     // Save anonymous stats (fire-and-forget)
@@ -208,7 +213,7 @@ async function analyzeArticle(body: any) {
             body: JSON.stringify({
                 analysis_date: new Date().toISOString().split('T')[0],
                 objectivity_score: result.summary?.objectivityScore,
-                article_url: articleUrl
+                article_url: finalUrl
             })
         }).catch(console.error);
     }
