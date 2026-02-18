@@ -381,30 +381,14 @@ export const NewsCard = ({ item, isActive, index, onLike, onShare, onReadMore, o
                     </motion.div>
                 </div>
 
-                {/* Side Actions (Like TikTok) - polished animations */}
+                {/* Side Actions (Like TikTok) - Share & Read Status only */}
                 <div className="absolute right-3 bottom-24 md:right-8 md:bottom-32 z-20 flex flex-col gap-4 md:gap-6 items-center w-12 md:w-16">
                     <ActionButton
-                        icon={<Heart className={cn("w-6 h-6 md:w-7 md:h-7 transition-colors duration-300", item.isLiked ? "fill-emerald-500 text-emerald-500" : "text-white drop-shadow-md")} />}
-                        label={formatNumber(item.likes || 0)}
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            onLike();
-                            haptic('light');
-                        }}
-                        delay={0.5}
+                        icon={<CheckCircle className={item.isRead ? "text-emerald-400" : "text-white"} fill={item.isRead ? "rgba(16,185,129,0.3)" : "none"} />}
+                        label={item.isRead ? "Leído" : "Marcar"}
+                        onClick={handleMarkAsRead}
+                        delay={0.55}
                         isActive={isActive}
-                        animate={item.isLiked}
-                        activeColor="bg-emerald-500/20 border-emerald-500/30"
-                    />
-                    <ActionButton
-                        icon={<Bookmark className={cn("w-6 h-6 md:w-7 md:h-7 transition-colors duration-300", item.isSaved ? "fill-yellow-400 text-yellow-400" : "text-white drop-shadow-md")} />}
-                        label="Guardar"
-                        onClick={handleSave}
-                        delay={0.6}
-                        isActive={isActive}
-                        animate={item.isSaved}
-                        activeColor="bg-yellow-500/20 border-yellow-500/30"
                     />
                     <ActionButton
                         icon={<Share2 className="w-6 h-6 md:w-7 md:h-7 text-white drop-shadow-md" />}
