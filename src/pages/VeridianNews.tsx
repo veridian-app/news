@@ -12,7 +12,6 @@ import { BottomDock } from "../components/BottomDock";
 import { NewsCard } from "@/components/NewsCard";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { useReadNews } from "@/hooks/use-read-news";
 import { useSearch } from "@/contexts/SearchContext";
 
 
@@ -295,8 +294,7 @@ const VeridianNews = () => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Read news tracking
-  const { isRead, toggleRead, sortByReadStatus } = useReadNews();
+
 
 
 
@@ -1525,7 +1523,7 @@ const VeridianNews = () => {
           return (
             <div key={item.id} data-index={index} className="news-card h-[100dvh] w-full snap-start">
               <NewsCard
-                item={{ ...item, isRead: isRead(item.id), isLiked: likedNewsIds.has(item.id) }}
+                item={{ ...item, isLiked: likedNewsIds.has(item.id) }}
                 index={index}
                 isActive={isActive}
                 onLike={() => {
@@ -1548,7 +1546,6 @@ const VeridianNews = () => {
                   }
                 }}
                 onReadMore={() => openFullContent(item)}
-                onMarkAsRead={() => toggleRead(item.id)}
                 category={item.category || detectCategory(item.title, item.content)}
               />
             </div>

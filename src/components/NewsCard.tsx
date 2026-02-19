@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { NewsImage } from "./NewsImage";
 import { cn } from "@/lib/utils";
-import { Heart, Share2, Bookmark, X, CheckCircle } from "lucide-react";
+import { Heart, Share2, Bookmark, X } from "lucide-react";
 import { DoubleTapOverlay } from "./DoubleTapOverlay";
 import { useHaptic } from "@/hooks/use-haptic";
 import { toast } from "@/hooks/use-toast";
@@ -32,7 +32,6 @@ interface NewsCardProps {
     onLike: () => void;
     onShare: () => void;
     onReadMore: () => void;
-    onMarkAsRead?: () => void;
     category?: string;
 }
 
@@ -212,7 +211,7 @@ const ShareModal = ({ isOpen, onClose, item }: { isOpen: boolean; onClose: () =>
     );
 };
 
-export const NewsCard = ({ item, isActive, index, onLike, onShare, onReadMore, onMarkAsRead, category }: NewsCardProps) => {
+export const NewsCard = ({ item, isActive, index, onLike, onShare, onReadMore, category }: NewsCardProps) => {
     // Logic for double tap
     const lastTap = useRef<number>(0);
     const [showDoubleTapHeart, setShowDoubleTapHeart] = useState(false);
@@ -272,14 +271,6 @@ export const NewsCard = ({ item, isActive, index, onLike, onShare, onReadMore, o
         setShowShareModal(true);
     };
 
-    const handleMarkAsRead = (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        haptic('light');
-        if (onMarkAsRead) {
-            onMarkAsRead();
-        }
-    };
 
     return (
         <>
@@ -383,13 +374,6 @@ export const NewsCard = ({ item, isActive, index, onLike, onShare, onReadMore, o
 
                 {/* Side Actions (Like TikTok) - Share & Read Status only */}
                 <div className="absolute right-3 bottom-24 md:right-8 md:bottom-32 z-20 flex flex-col gap-4 md:gap-6 items-center w-12 md:w-16">
-                    <ActionButton
-                        icon={<CheckCircle className={item.isRead ? "text-emerald-400" : "text-white"} fill={item.isRead ? "rgba(16,185,129,0.3)" : "none"} />}
-                        label={item.isRead ? "Leído" : "Marcar"}
-                        onClick={handleMarkAsRead}
-                        delay={0.55}
-                        isActive={isActive}
-                    />
                     <ActionButton
                         icon={<Share2 className="w-6 h-6 md:w-7 md:h-7 text-white drop-shadow-md" />}
                         label="Compartir"
