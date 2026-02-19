@@ -1369,7 +1369,8 @@ const VeridianNews = () => {
     }
   }, [displayNews]);
 
-  if (displayNews.length === 0) {
+  // Only show full screen loading if we are actually loading and have no data
+  if (isLoading && rawNews.length === 0) {
     return (
       <div className="h-[100dvh] w-full flex items-center justify-center bg-black text-white">
         <div className="flex flex-col items-center gap-4">
