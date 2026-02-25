@@ -7,7 +7,7 @@ interface AuthContextType {
     session: Session | null;
     isLoading: boolean;
     isAuthenticated: boolean;
-    signInWithMagicLink: (email: string) => Promise<{ error: AuthError | null }>;
+    signInWithMagicLink: (email: string, metadata?: { phone?: string; full_name?: string }) => Promise<{ error: AuthError | null }>;
     signOut: () => Promise<void>;
 }
 
@@ -97,7 +97,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     };
 
-    const signInWithMagicLink = async (email: string) => {
+    const signInWithMagicLink = async (email: string, metadata?: { phone?: string; full_name?: string }) => {
         if (!isSupabaseConfigured()) {
             return { error: { message: 'Supabase no configurado' } as AuthError };
         }
@@ -109,6 +109,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             email,
             options: {
                 emailRedirectTo: `${siteUrl}/veridian-news`,
+                data: metadata,
             },
         });
 

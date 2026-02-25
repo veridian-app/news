@@ -10,6 +10,11 @@ const translations = {
       oraculus: "Oraculus",
       joinWaitlist: "Unirse",
       forInstitutions: "Para Instituciones",
+      // Landing-specific nav
+      features: "Características",
+      technology: "Tecnología",
+      manifesto: "Manifiesto",
+      join: "Unirse a la lista",
     },
     // Hero
     hero: {
@@ -19,6 +24,12 @@ const translations = {
       ctaPrimary: "Unirme a la plataforma",
       ctaSecondary: "Ver Oraculus",
       ctaInstitutions: "Soy una institución",
+      // Landing-specific hero
+      landingTitle: "Veridian News.",
+      landingSubtitle: "Periodismo en el que puedes confiar.",
+      landingDescription: "En una era donde la desinformación viaja 6 veces más rápido que la verdad, nosotros verificamos cada dato. Sin opiniones. Sin agenda. Solo hechos.",
+      landingCta: "Unirse al movimiento",
+      landingCtaSecondary: "Cómo funciona",
     },
     // Platform Section
     platform: {
@@ -75,6 +86,87 @@ const translations = {
       cta: "Solicitar demo para instituciones",
       ctaSecondary: "Probar Oraculus gratis",
     },
+    // Landing Features
+    landingFeatures: {
+      title: "La nueva era de la información",
+      subtitle: "Diseñado para la claridad, no para el clic.",
+      items: [
+        {
+          title: "Hechos, no opiniones",
+          description: "Nuestros algoritmos filtran adjetivos cargados y opiniones editoriales. Recibes la noticia pura.",
+          icon: "Shield"
+        },
+        {
+          title: "Impulsado por Oraculus",
+          description: "Nuestra IA analiza miles de fuentes globales en segundos para triangular la verdad más probable.",
+          icon: "Brain"
+        },
+        {
+          title: "Cero clickbait",
+          description: "No competimos por tu atención con titulares alarmistas. Respetamos tu tiempo y tu inteligencia.",
+          icon: "Eye"
+        }
+      ]
+    },
+    // CRAAP Methodology
+    methodology: {
+      title: "El Método CRAAP",
+      subtitle: "Nuestro algoritmo Oraculus evalúa cada fuente basándose en el estándar académico CRAAP para garantizar neutralidad.",
+      items: [
+        { letter: "C", title: "Currency (Actualidad)", description: "¿Es la información reciente o se ha actualizado? ¿Es obsoleta?" },
+        { letter: "R", title: "Relevance (Relevancia)", description: "¿A quién va dirigida? ¿Responde a las preguntas importantes?" },
+        { letter: "A", title: "Authority (Autoridad)", description: "¿Quién es el autor o medio? ¿Cuáles son sus credenciales y reputación?" },
+        { letter: "A", title: "Accuracy (Exactitud)", description: "¿Está la información respaldada por evidencia? ¿Hay errores verificables?" },
+        { letter: "P", title: "Purpose (Propósito)", description: "¿Informa, enseña, vende o entretiene? ¿Hay sesgos evidentes?" }
+      ]
+    },
+    // Mission
+    mission: {
+      title: "Nuestra Misión",
+      description: "Restaurar la confianza en el periodismo a través de la transparencia radical y la tecnología.",
+      stat1: "100% Objetivo",
+      stat2: "0% Anuncios"
+    },
+    // Testimonials
+    testimonials: {
+      title: "En quién confían los expertos",
+      subtitle: "Analistas y periodistas ya están usando Veridian para verificar sus fuentes.",
+      items: [
+        {
+          quote: "La herramienta que el periodismo necesitaba. Detecta sesgos que incluso a mí se me escapaban.",
+          author: "Elena R.",
+          role: "Periodista de Investigación"
+        },
+        {
+          quote: "Oraculus ha reducido mi tiempo de verificación en un 80%. Es indispensable.",
+          author: "Dr. Marcos T.",
+          role: "Profesor de Ciencias Políticas"
+        },
+        {
+          quote: "Por fin una fuente que no intenta manipularme emocionalmente. Solo datos.",
+          author: "Sarah L.",
+          role: "Analista de Mercados"
+        }
+      ]
+    },
+    // FAQ
+    faq: {
+      title: "Preguntas Frecuentes",
+      items: [
+        {
+          question: "¿Cómo garantiza Veridian la neutralidad?",
+          answer: "Utilizamos IA para analizar múltiples fuentes y eliminar adjetivos cargados, presentando solo los hechos verificables."
+        },
+        {
+          question: "¿Es gratis?",
+          answer: "Actualmente estamos en fase beta gratuita para los primeros usuarios. En el futuro habrá planes premium para herramientas avanzadas."
+        },
+        {
+          question: "¿Puedo usarlo para mi investigación académica?",
+          answer: "Sí, el método CRAAP está diseñado específicamente para cumplir con estándares académicos de verificación."
+        }
+      ]
+    },
     // Benefits Section
     benefits: {
       title: "Por qué Veridian",
@@ -107,6 +199,13 @@ const translations = {
       step2: "Comparte tu enlace de referido",
       step3: "Desbloquea recompensas exclusivas",
       step4: "Accede primero cuando lancemos",
+      // Landing-specific waitlist
+      landingTitle: "Únete a Veridian",
+      landingDescription: "El acceso es limitado. Regístrate para asegurar tu lugar en la plataforma que cambiará tu forma de informarte.",
+      landingPlaceholder: "tu@email.com",
+      landingCta: "Solicitar acceso",
+      landingSuccess: "¡Estás dentro!",
+      landingShare: "Invita a otros para subir puestos en la lista.",
     },
     // Referral Program Section
     referral: {
@@ -166,11 +265,13 @@ const translations = {
       privacy: "Privacidad",
       terms: "Términos",
       legalNotice: "Aviso Legal",
+      rights: "Todos los derechos reservados.",
     },
     // Form
     form: {
       name: "Tu nombre",
       email: "tu@email.com",
+      phone: "Tu teléfono",
       referralCode: "Código de referido (opcional)",
       submit: "Unirme a la lista",
       submitting: "Registrando...",
@@ -189,6 +290,10 @@ const translations = {
       oraculus: "Oraculus",
       joinWaitlist: "Join Waitlist",
       forInstitutions: "For Institutions",
+      features: "Features",
+      technology: "Technology",
+      manifesto: "Manifesto",
+      join: "Join Waitlist",
     },
     // Hero
     hero: {
@@ -198,6 +303,11 @@ const translations = {
       ctaPrimary: "Join the platform",
       ctaSecondary: "See Oraculus",
       ctaInstitutions: "I'm an institution",
+      landingTitle: "Veridian News.",
+      landingSubtitle: "Journalism you can trust.",
+      landingDescription: "In an era where misinformation travels 6x faster than the truth, we verify every fact. No opinions. No agenda. Just facts.",
+      landingCta: "Join the movement",
+      landingCtaSecondary: "How it works",
     },
     // Platform Section
     platform: {
@@ -254,6 +364,87 @@ const translations = {
       cta: "Request demo for institutions",
       ctaSecondary: "Try Oraculus free",
     },
+    // Landing Features
+    landingFeatures: {
+      title: "The new era of information",
+      subtitle: "Designed for clarity, not for clicks.",
+      items: [
+        {
+          title: "Facts, not opinions",
+          description: "Our algorithms filter loaded adjectives and editorial opinions. You get the raw news.",
+          icon: "Shield"
+        },
+        {
+          title: "Powered by Oraculus",
+          description: "Our AI analyzes thousands of global sources in seconds to triangulate the most probable truth.",
+          icon: "Brain"
+        },
+        {
+          title: "Zero clickbait",
+          description: "We don't compete for your attention with alarmist headlines. We respect your time and intelligence.",
+          icon: "Eye"
+        }
+      ]
+    },
+    // CRAAP Methodology
+    methodology: {
+      title: "The CRAAP Method",
+      subtitle: "Our Oraculus algorithm evaluates every source based on the academic CRAAP standard to guarantee neutrality.",
+      items: [
+        { letter: "C", title: "Currency", description: "Is the information current? Has it been updated or is it obsolete?" },
+        { letter: "R", title: "Relevance", description: "Who is the intended audience? Does it answer the important questions?" },
+        { letter: "A", title: "Authority", description: "Who is the author or publisher? What are their credentials?" },
+        { letter: "A", title: "Accuracy", description: "Is the information supported by evidence? Are there verifiable errors?" },
+        { letter: "P", title: "Purpose", description: "Does it inform, teach, sell, or entertain? Are there obvious biases?" }
+      ]
+    },
+    // Mission
+    mission: {
+      title: "Our Mission",
+      description: "To restore trust in journalism through radical transparency and technology.",
+      stat1: "100% Objective",
+      stat2: "0% Ads"
+    },
+    // Testimonials
+    testimonials: {
+      title: "Trusted by Experts",
+      subtitle: "Analysts and journalists are already using Veridian to verify their sources.",
+      items: [
+        {
+          quote: "The tool journalism needed. It detects biases that even I missed.",
+          author: "Elena R.",
+          role: "Investigative Journalist"
+        },
+        {
+          quote: "Oraculus has reduced my verification time by 80%. Essential.",
+          author: "Dr. Marcos T.",
+          role: "Political Science Professor"
+        },
+        {
+          quote: "Finally a source that doesn't try to manipulate me emotionally. Just data.",
+          author: "Sarah L.",
+          role: "Market Analyst"
+        }
+      ]
+    },
+    // FAQ
+    faq: {
+      title: "Frequently Asked Questions",
+      items: [
+        {
+          question: "How does Veridian guarantee neutrality?",
+          answer: "We use AI to analyze multiple sources and strip away loaded adjectives, presenting only verifiable facts."
+        },
+        {
+          question: "Is it free?",
+          answer: "We are currently in a free beta phase for early adopters. Future premium plans will be available for advanced tools."
+        },
+        {
+          question: "Can I use it for academic research?",
+          answer: "Yes, the CRAAP method is specifically designed to meet academic verification standards."
+        }
+      ]
+    },
     // Benefits Section
     benefits: {
       title: "Why Veridian",
@@ -286,6 +477,12 @@ const translations = {
       step2: "Share your referral link",
       step3: "Unlock exclusive rewards",
       step4: "Get first access when we launch",
+      landingTitle: "Join Veridian",
+      landingDescription: "Access is limited. Sign up to secure your spot on the platform that will change how you stay informed.",
+      landingPlaceholder: "your@email.com",
+      landingCta: "Request access",
+      landingSuccess: "You're in!",
+      landingShare: "Invite others to move up the list.",
     },
     // Referral Program Section
     referral: {
@@ -345,11 +542,13 @@ const translations = {
       privacy: "Privacy",
       terms: "Terms",
       legalNotice: "Legal Notice",
+      rights: "All rights reserved.",
     },
     // Form
     form: {
       name: "Your name",
       email: "your@email.com",
+      phone: "Your phone",
       referralCode: "Referral code (optional)",
       submit: "Join the waitlist",
       submitting: "Registering...",
