@@ -18,59 +18,64 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 98%;
+    /* Tactical Geopolitics Design Tokens */
+    --background: 220 30% 2%;
+    --foreground: 210 20% 98%;
 
-    --card: 0 0% 7%;
-    --card-foreground: 0 0% 98%;
+    --card: 220 25% 4%;
+    --card-foreground: 210 20% 98%;
 
-    --popover: 0 0% 7%;
-    --popover-foreground: 0 0% 98%;
-
-    --primary: 152 58% 25%;
-    --primary-foreground: 0 0% 98%;
+    --primary: 152 70% 45%;
+    --primary-glow: 152 70% 55%;
     
-    --primary-dark: 152 58% 18%;
-    --primary-light: 152 48% 35%;
-    --primary-glow: 152 58% 40%;
+    --risk-low: 152 70% 45%;
+    --risk-medium: 45 90% 50%;
+    --risk-high: 0 84% 60%;
+    --risk-critical: 280 80% 60%;
 
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 98%;
-
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 60%;
-
-    --accent: 152 58% 25%;
-    --accent-foreground: 0 0% 98%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 0 0% 20%;
-    --input: 0 0% 15%;
-    --ring: 152 58% 40%;
-
-    --radius: 0.75rem;
-
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(152 58% 18%) 0%, hsl(152 48% 35%) 100%);
-    --gradient-glow: linear-gradient(135deg, hsl(152 58% 25%) 0%, hsl(152 58% 40%) 100%);
-    --gradient-hero: radial-gradient(ellipse at top, hsl(152 58% 15% / 0.3) 0%, transparent 50%);
+    --tactical-bg: 220 30% 3%;
+    --tactical-border: 210 20% 15%;
     
-    /* Shadows */
-    --shadow-glow: 0 0 40px hsl(152 58% 40% / 0.3);
-    --shadow-card: 0 10px 30px -10px hsl(152 58% 10% / 0.5);
+    --radius: 0.5rem; /* Sharper for technical feel */
+  }
+
+  .light-mode {
+    --background: 210 20% 98%;
+    --foreground: 224 71% 4%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 224 71% 4%;
+    
+    --primary: 221 83% 53%; 
+    --primary-glow: 221 83% 70%;
+    
+    --tactical-bg: 210 20% 94%;
+    --tactical-border: 220 15% 85%;
+
+    --border: 220 13% 91%;
+    --ring: 221 83% 53%;
+    
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
   }
 }
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border/60;
   }
 
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  /* FORCE GLOBAL SCROLL - NO LIMITS */
+  html, body, #root {
+    height: auto !important;
+    min-height: 100vh !important;
+    overflow: visible !important;
+    overflow-x: hidden !important;
   }
   
   h1, h2, h3, h4, h5, h6 {
@@ -142,3 +147,91 @@ All colors MUST be HSL.
     box-shadow: 0 0 40px hsl(152 58% 40% / 0.6);
   }
 }
+
+/* Tactical Intelligence Utilities */
+.tactical-scan {
+  position: relative;
+  overflow: hidden;
+}
+
+.tactical-scan::after {
+  content: "";
+  position: absolute;
+  top: -100%;
+  left: 0;
+  width: 100%;
+  height: 200%;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(16, 185, 129, 0.05) 45%,
+    rgba(16, 185, 129, 0.2) 50%,
+    rgba(16, 185, 129, 0.05) 55%,
+    transparent 100%
+  );
+  animation: scan 4s linear infinite;
+  pointer-events: none;
+  z-index: 5;
+}
+
+@keyframes scan {
+  from { transform: translateY(0); }
+  to { transform: translateY(50%); }
+}
+
+.radar-pulse {
+  position: relative;
+}
+
+.radar-pulse::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: inherit;
+  animation: radar-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes radar-ping {
+  75%, 100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.intelligence-grid {
+  background-image: 
+    linear-gradient(rgba(16, 185, 129, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 185, 129, 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.font-tactical {
+  font-family: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.glass-intelligence {
+  background: rgba(10, 15, 25, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  box-shadow: inset 0 0 20px rgba(16, 185, 129, 0.05);
+}
+
+.corner-accent {
+  position: relative;
+}
+
+.corner-accent::before,
+.corner-accent::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: rgba(16, 185, 129, 0.5);
+  border-style: solid;
+}
+
+.corner-accent-tl::before { top: 0; left: 0; border-width: 2px 0 0 2px; }
+.corner-accent-br::after { bottom: 0; right: 0; border-width: 0 2px 2px 0; }

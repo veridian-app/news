@@ -11,7 +11,7 @@
     min-height: 100dvh; /* Usar dynamic viewport height */
     position: relative;
     /* Ocultar barras del navegador */
-    overscroll-behavior: none;
+    overscroll-behavior: contain;
     width: 100%;
     height: 100%;
     display: block !important;
@@ -150,14 +150,10 @@
 
 /* Feed Container - Estilo TikTok Mejorado con scroll más fluido */
 .veridian-news-container .feed-container {
-    margin-top: 0;
-    padding-top: 0;
     padding-bottom: calc(60px + env(safe-area-inset-bottom)); /* Espacio para el BottomDock integrado */
-    /* Usar dvh (dynamic viewport height) para adaptarse a barras del navegador */
-    height: 100dvh;
-    min-height: 100svh; /* Fallback para navegadores sin soporte dvh */
-    max-height: 100vh; /* Fallback para navegadores antiguos */
-    overflow-y: scroll;
+    /* Altura controlada por Tailwind en VeridianNews.tsx */
+    height: 100%;
+    overflow-y: auto;
     overflow-x: hidden;
     scroll-behavior: smooth; /* Cambiado a smooth para scroll más suave */
     scroll-snap-type: y mandatory;
@@ -179,7 +175,7 @@
     perspective: 1000px;
     -webkit-perspective: 1000px;
     /* Scroll suave mejorado */
-    scroll-padding-top: 0;
+    z-index: 1;
     /* Momentum scrolling mejorado para iOS */
     -webkit-overflow-scrolling: touch;
     /* Prevenir scroll horizontal accidental */
@@ -218,16 +214,9 @@
 /* News Card - Estilo Tarjeta con Expansión */
 .veridian-news-container .news-card {
     width: 100%;
-    min-height: 100dvh;
-    height: 100dvh;
-    max-height: 100dvh;
-    /* Fallbacks */
-    min-height: 100svh;
-    height: 100svh;
-    max-height: 100svh;
-    min-height: 100vh;
-    height: 100vh;
-    max-height: 100vh;
+    min-height: 100%;
+    height: 100%;
+    max-height: 100%;
     position: relative;
     overflow: hidden;
     display: flex;
@@ -286,15 +275,8 @@
 
 /* Card Expandida - Ocupa toda la altura */
 .veridian-news-container .news-card.expanded {
-    min-height: calc(100dvh - 70px);
-    height: calc(100dvh - 70px);
-    max-height: calc(100dvh - 70px);
-    min-height: calc(100svh - 70px);
-    height: calc(100svh - 70px);
-    max-height: calc(100svh - 70px);
-    min-height: calc(100vh - 70px);
-    height: calc(100vh - 70px);
-    max-height: calc(100vh - 70px);
+    height: 100% !important;
+    width: 100% !important;
     background: linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--background)) 100%);
     border-radius: 0;
     margin: 0;
@@ -2524,212 +2506,46 @@
 }
 
 /* Desktop Small (1024px - 1279px) - Tira Continua */
+/* Desktop Layout Optimization - Mantener uno en uno (TikTok style) */
 @media (min-width: 1024px) {
     .veridian-news-container .feed-container {
-        /* Cambiar a grid continuo para escritorio */
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-        grid-auto-rows: min-content;
-        gap: 24px;
-        padding: 32px;
-        padding-bottom: calc(80px + env(safe-area-inset-bottom));
-        height: auto;
-        min-height: 100vh;
-        max-height: none;
-        overflow-y: auto;
-        overflow-x: hidden;
-        scroll-behavior: smooth;
-        /* Eliminar scroll snap en escritorio */
-        scroll-snap-type: none;
-        -webkit-scroll-snap-type: none;
-        /* Permitir scroll continuo */
-        overscroll-behavior-y: auto;
-        /* Centrar contenido */
-        max-width: 1400px;
-        margin: 0 auto;
-        align-content: start;
+        display: flex;
+        flex-direction: column;
+        height: 100dvh !important;
+        scroll-snap-type: y mandatory !important;
+        overflow-y: auto !important;
+        padding: 0;
+        max-width: none;
+        margin: 0;
     }
 
     .veridian-news-container .news-card {
-        /* Tarjetas más compactas para escritorio */
-        width: 100%;
-        min-height: auto;
-        height: auto;
-        max-height: none;
-        border-radius: 16px;
-        box-shadow: 
-            0 4px 16px hsl(var(--background) / 0.2),
-            0 2px 8px hsl(var(--primary) / 0.08);
-        margin: 0;
-        padding: 24px;
-        display: flex;
-        flex-direction: column;
-        cursor: pointer;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        border: 1px solid hsl(var(--border));
-        background: hsl(var(--card));
-        /* Eliminar scroll snap */
-        scroll-snap-align: none;
-        scroll-snap-stop: normal;
-        /* Hover effect para escritorio */
-        user-select: none;
-    }
-
-    .veridian-news-container .news-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 
-            0 8px 24px hsl(var(--background) / 0.3),
-            0 4px 12px hsl(var(--primary) / 0.12);
-        border-color: hsl(var(--primary) / 0.3);
-    }
-
-    .veridian-news-container .news-card:active {
-        transform: translateY(-2px);
-    }
-
-    /* Ajustar imagen en escritorio */
-    .veridian-news-container .news-card .news-image {
-        width: 100%;
-        height: 200px;
-        object-fit: cover;
-        border-radius: 12px;
-        margin-bottom: 16px;
-    }
-
-    .veridian-news-container .news-card .news-gradient-header {
-        width: 100%;
-        height: 200px;
-        border-radius: 12px;
-        margin-bottom: 16px;
-    }
-
-    /* Ajustar contenido */
-    .veridian-news-container .news-card .news-content {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        padding: 0;
-    }
-
-    .veridian-news-container .news-card .news-header {
-        margin-bottom: 16px;
-    }
-
-    .veridian-news-container .news-card .news-title {
-        font-size: 20px;
-        line-height: 1.4;
-        margin-bottom: 12px;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
-
-    .veridian-news-container .news-card .news-key-points {
-        margin-top: 12px;
-        flex: 1;
-    }
-
-    .veridian-news-container .news-card .key-point-item {
-        font-size: 14px;
-        line-height: 1.5;
-        margin-bottom: 8px;
-    }
-
-    .veridian-news-container .news-card .news-date {
-        margin-top: auto;
-        padding-top: 16px;
-        font-size: 12px;
-    }
-
-    /* Ocultar elementos innecesarios en escritorio */
-    .veridian-news-container .news-card .news-source {
-        font-size: 12px;
-        padding: 6px 12px;
-        margin-bottom: 12px;
-    }
-
-    /* Modal en escritorio */
-    .veridian-news-container .modal-content {
-        max-width: 900px;
-        width: 90%;
-        height: auto;
-        max-height: 90vh;
-        border-radius: 20px;
-        margin: auto;
-        position: relative;
-        top: 50%;
-        transform: translateY(-50%);
-    }
-
-    .veridian-news-container .modal-header {
-        border-radius: 20px 20px 0 0;
-    }
-
-    /* Scrollbar personalizado para escritorio */
-    .veridian-news-container .feed-container::-webkit-scrollbar {
-        width: 10px;
-    }
-
-    .veridian-news-container .feed-container::-webkit-scrollbar-track {
-        background: hsl(var(--background));
-        border-radius: 10px;
-    }
-
-    .veridian-news-container .feed-container::-webkit-scrollbar-thumb {
-        background: hsl(var(--border));
-        border-radius: 10px;
-        border: 2px solid hsl(var(--background));
-    }
-
-    .veridian-news-container .feed-container::-webkit-scrollbar-thumb:hover {
-        background: hsl(var(--primary) / 0.5);
+        max-width: 600px; /* Ancho optimizado para lectura en escritorio */
+        margin: 0 auto;
+        border-left: 1px solid rgba(16, 185, 129, 0.1);
+        border-right: 1px solid rgba(16, 185, 129, 0.1);
+        box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+        border-radius: 0; /* Pantalla completa */
+        background: transparent;
     }
 }
 
+
 /* Desktop Medium y Large (1280px+) - Grid más amplio */
+/* Desktop Medium adjustments - mantener feed central */
 @media (min-width: 1280px) {
-    .veridian-news-container .feed-container {
-        grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
-        gap: 32px;
-        padding: 40px;
-        max-width: 1600px;
-    }
-
     .veridian-news-container .news-card {
+        max-width: 650px;
         padding: 28px;
-        border-radius: 20px;
-    }
-
-    .veridian-news-container .news-card .news-image,
-    .veridian-news-container .news-card .news-gradient-header {
-        height: 240px;
-    }
-
-    .veridian-news-container .news-card .news-title {
-        font-size: 22px;
-    }
-
-    .veridian-news-container .news-card .key-point-item {
-        font-size: 15px;
     }
 }
 
 /* Desktop Extra Large (1600px+) - Grid aún más amplio */
+/* Desktop Large adjustments */
 @media (min-width: 1600px) {
-    .veridian-news-container .feed-container {
-        grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
-        gap: 40px;
-        max-width: 1800px;
-    }
-
     .veridian-news-container .news-card {
+        max-width: 700px;
         padding: 32px;
-    }
-
-    .veridian-news-container .news-card .news-image,
-    .veridian-news-container .news-card .news-gradient-header {
-        height: 260px;
     }
 }
 
@@ -2946,6 +2762,75 @@
     background: var(--accent-hover);
 }
 
-.veridian-news-container #submitChat:active {
-    transform: scale(0.95);
+/* Utility Animations for Tactical UI */
+@keyframes infinite-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.animate-infinite-scroll {
+  animation: infinite-scroll 20s linear infinite;
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 12s linear infinite;
+}
+
+@keyframes reverse-spin {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+.animate-reverse-spin {
+  animation: reverse-spin 15s linear infinite;
+}
+
+/* Scroll Container Fixes */
+.feed-container {
+    height: 100% !important;
+    overflow-y: auto !important;
+    scroll-snap-type: y mandatory !important;
+    /* Removed scroll-behavior: smooth as it conflicts with mandatory snapping */
+    -webkit-overflow-scrolling: touch;
+}
+
+.feed-container .news-card {
+    scroll-snap-align: start !important;
+    scroll-snap-stop: always !important;
+    height: 100% !important;
+    width: 100% !important;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Tactical Animations */
+@keyframes scan-y {
+  0% { top: 0; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+.animate-scan-y {
+  animation: scan-y 3s linear infinite;
+}
+
+@keyframes tactical-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+.animate-tactical-pulse {
+  animation: tactical-pulse 4s ease-in-out infinite;
 }

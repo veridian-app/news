@@ -1401,11 +1401,12 @@ const Oraculus = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-24 font-sans selection:bg-primary/20">
+    <div className="h-[100dvh] w-full bg-background text-foreground overflow-hidden flex flex-col font-sans selection:bg-primary/20">
       {/* Ambient Background */}
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-background to-background pointer-events-none" />
 
-      <div className="relative max-w-5xl mx-auto px-4 pt-6 md:pt-12">
+      <main className="flex-1 overflow-y-auto no-scrollbar pb-32">
+        <div className="relative max-w-5xl mx-auto px-4 pt-6 md:pt-12">
         {/* Header */}
         <header className="flex items-center justify-between mb-8 md:mb-12">
           <div className="flex items-center gap-4">
@@ -2210,7 +2211,8 @@ const Oraculus = () => {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+        </div>
+      </main>
 
       <ResearchPanel
         isOpen={isResearchPanelOpen}
@@ -2246,7 +2248,7 @@ const Oraculus = () => {
         entityName={selectedResearcher || ""}
         entityType={selectedEntityType}
       />
-    </div >
+    </div>
   );
 };
 

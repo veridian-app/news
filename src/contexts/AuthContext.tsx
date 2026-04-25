@@ -8,6 +8,10 @@ interface AuthContextType {
     isLoading: boolean;
     isAuthenticated: boolean;
     signInWithMagicLink: (email: string, metadata?: { phone?: string; full_name?: string }) => Promise<{ error: AuthError | null }>;
+    signInWithPassword: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+    signUpWithPassword: (email: string, password: string, metadata?: any) => Promise<{ error: AuthError | null }>;
+    signInWithGoogle: () => Promise<{ error: AuthError | null }>;
+    signInWithApple: () => Promise<{ error: AuthError | null }>;
     signOut: () => Promise<void>;
 }
 
@@ -103,16 +107,79 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         // Use production URL for redirects, fallback to current origin for local dev
-        const siteUrl = import.meta.env.VITE_SITE_URL || 'https://veridian.news';
+        const siteUrl = window.location.origin;
 
         const { error } = await supabase.auth.signInWithOtp({
             email,
             options: {
-                emailRedirectTo: `${siteUrl}/veridian-news`,
+                emailRedirectTo: `${siteUrl}/`,
                 data: metadata,
             },
         });
 
+        return { error };
+    };
+
+    const signInWithGoogle = async () => {
+        if (!isSupabaseConfigured()) {
+            return { error: { message: 'Supabase no configurado' } as AuthError };
+        }
+        const siteUrl = window.location.origin;
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: `${siteUrl}/`,
+            }
+        });
+        return { error };
+    };
+
+    const signInWithApple = async () => {
+        if (!isSupabaseConfigured()) {
+            return { error: { message: 'Supabase no configurado' } as AuthError };
+        }
+        const siteUrl = import.meta.env.VITE_SITE_URL || 'https://veridian.news';
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'apple',
+            options: {
+                redirectTo: `${siteUrl}/`,
+            }
+        });
+        return { error };
+    };
+
+    const signInWithPassword = async (email: string, password: string) => {
+        if (!isSupabaseConfigured()) {
+            return { error: { message: 'Supabase no configurado' } as AuthError };
+        }
+        console.log('Intentando inicio de sesión para:', email);
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
+
+        if (error) {
+            console.error('Error detallado de inicio de sesión:', error);
+            // Manejo específico para email no confirmado
+            if (error.message.includes('Email not confirmed')) {
+                return { error: { ...error, message: 'Su email aún no ha sido verificado. Por favor, revise su bandeja de entrada.' } as AuthError };
+            }
+        }
+        
+        return { error };
+    };
+
+    const signUpWithPassword = async (email: string, password: string, metadata?: any) => {
+        if (!isSupabaseConfigured()) {
+            return { error: { message: 'Supabase no configurado' } as AuthError };
+        }
+        const { error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: metadata,
+            }
+        });
         return { error };
     };
 
@@ -128,6 +195,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         isLoading,
         isAuthenticated: !!user,
         signInWithMagicLink,
+        signInWithPassword,
+        signUpWithPassword,
+        signInWithGoogle,
+        signInWithApple,
         signOut,
     };
 

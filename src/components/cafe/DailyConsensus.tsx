@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { Check, Users } from "lucide-react";
 import { CafeConsensusPoll } from "./data/cafeData";
 import { cn } from "@/lib/utils";
@@ -41,17 +40,23 @@ export const DailyConsensus = ({ data, onVote }: DailyConsensusProps) => {
     };
 
     return (
-        <div className="w-full max-w-2xl mx-auto mb-32 px-4 md:px-0">
-            <div className="bg-zinc-900/60 border border-white/10 rounded-3xl overflow-hidden backdrop-blur-md">
+        <div className="w-full max-w-2xl mx-auto mb-32 px-4 md:px-0 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+            <div className="bg-zinc-950/40 border border-white/10 rounded-[2.5rem] overflow-hidden backdrop-blur-2xl shadow-2xl relative group">
+                {/* Tactical Glass Reflection */}
+                <div className="absolute inset-0 bg-gradient-to-tr from-white/5 to-transparent pointer-events-none" />
+                
                 {/* Header */}
-                <div className="p-8 border-b border-white/5 bg-gradient-to-r from-green-900/20 to-transparent">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-green-500/20 rounded-lg text-green-400">
-                            <Users className="w-5 h-5" />
+                <div className="p-10 border-b border-white/5 bg-gradient-to-br from-green-500/10 via-transparent to-transparent relative">
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="w-12 h-12 bg-green-500/10 rounded-2xl border border-green-500/20 flex items-center justify-center text-green-400 shadow-[0_0_20px_rgba(34,197,94,0.1)]">
+                            <Users className="w-6 h-6" />
                         </div>
-                        <span className="text-xs font-bold text-green-400 uppercase tracking-widest">The Consensus</span>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-green-500 uppercase tracking-[0.3em]">Consenso_Global</span>
+                            <span className="text-[9px] font-mono text-white/30 uppercase tracking-widest">Protocolo de Opinión v.2</span>
+                        </div>
                     </div>
-                    <h3 className="text-2xl font-bold text-white leading-tight">
+                    <h3 className="text-3xl font-black text-white leading-[1.1] tracking-tighter uppercase max-w-lg">
                         {data.question}
                     </h3>
                 </div>
@@ -63,7 +68,7 @@ export const DailyConsensus = ({ data, onVote }: DailyConsensusProps) => {
                         const percent = getPercentage(option.votes + (isSelected ? 1 : 0)); // Add user vote visually
 
                         return (
-                            <motion.button
+                            <button
                                 key={option.id}
                                 onClick={() => handleVote(option.id)}
                                 disabled={hasVoted}
@@ -76,12 +81,10 @@ export const DailyConsensus = ({ data, onVote }: DailyConsensusProps) => {
                             >
                                 {/* Progress Bar Background */}
                                 {hasVoted && (
-                                    <motion.div
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${percent}%` }}
-                                        transition={{ duration: 1, ease: "easeOut" }}
+                                    <div
+                                        style={{ width: `${percent}%` }}
                                         className={cn(
-                                            "absolute inset-0 h-full opacity-20",
+                                            "absolute inset-0 h-full opacity-20 transition-all duration-1000 ease-out",
                                             isSelected ? "bg-green-500" : "bg-zinc-500"
                                         )}
                                     />
@@ -102,7 +105,7 @@ export const DailyConsensus = ({ data, onVote }: DailyConsensusProps) => {
                                         </div>
                                     )}
                                 </div>
-                            </motion.button>
+                            </button>
                         );
                     })}
                 </div>

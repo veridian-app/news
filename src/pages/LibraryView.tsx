@@ -75,72 +75,74 @@ const LibraryView = () => {
   const activeThemes = 1; // Simplified for now
 
   return (
-    <div className="library-view">
-      {/* Cabecera de Valor */}
-      <header className="library-header">
-        <div className="header-content">
-          <h1 className="header-title">Mi Dossier</h1>
-          <div className="header-stats">
-            <span className="stat-item">{savedNews.length} Datos guardados</span>
-            <span className="stat-divider">|</span>
-            <span className="stat-item">{activeThemes} Temas activos</span>
-            <span className="stat-divider">|</span>
-            <span className="stat-item">Top tema: {getTopCategory()}</span>
+    <div className="h-[100dvh] w-full bg-neutral-950 text-white overflow-hidden flex flex-col">
+      <main className="flex-1 overflow-y-auto no-scrollbar pb-32">
+        {/* Cabecera de Valor */}
+        <header className="library-header">
+          <div className="header-content">
+            <h1 className="header-title">Mi Dossier</h1>
+            <div className="header-stats">
+              <span className="stat-item">{savedNews.length} Datos guardados</span>
+              <span className="stat-divider">|</span>
+              <span className="stat-item">{activeThemes} Temas activos</span>
+              <span className="stat-divider">|</span>
+              <span className="stat-item">Top tema: {getTopCategory()}</span>
+            </div>
+          </div>
+        </header>
+
+        {/* Buscador Inteligente */}
+        <div className="search-container">
+          <div className="search-input-wrapper">
+            <Search className="search-icon" />
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Buscar en mis datos..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
         </div>
-      </header>
 
-      {/* Buscador Inteligente */}
-      <div className="search-container">
-        <div className="search-input-wrapper">
-          <Search className="search-icon" />
-          <input
-            type="text"
-            className="search-input"
-            placeholder="Buscar en mis datos..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        {/* Colecciones Automáticas */}
+        <div className="categories-container">
+          <div className="categories-scroll">
+            {categories.map((category) => (
+              <button
+                key={category}
+                className={`category-chip ${selectedCategory === category ? 'active' : ''}`}
+                onClick={() => setSelectedCategory(category)}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
 
-      {/* Colecciones Automáticas */}
-      <div className="categories-container">
-        <div className="categories-scroll">
-          {categories.map((category) => (
-            <button
-              key={category}
-              className={`category-chip ${selectedCategory === category ? 'active' : ''}`}
-              onClick={() => setSelectedCategory(category)}
+        {/* Grid de Archivos */}
+        <div className="items-grid">
+          {filteredItems.map((item) => (
+            <div
+              key={item.id}
+              className="item-card cursor-pointer active:scale-95 transition-transform"
+              onClick={() => navigate(`/veridian-news?newsId=${item.id}`)}
             >
-              {category}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Grid de Archivos */}
-      <div className="items-grid">
-        {filteredItems.map((item) => (
-          <div
-            key={item.id}
-            className="item-card cursor-pointer active:scale-95 transition-transform"
-            onClick={() => navigate(`/veridian-news?newsId=${item.id}`)}
-          >
-            <div className="card-header">
-              <div className="card-icon">
-                {getTypeIcon("General")}
+              <div className="card-header">
+                <div className="card-icon">
+                  {getTypeIcon("General")}
+                </div>
+              </div>
+              <div className="card-body">
+                <h3 className="card-title line-clamp-3">{item.title}</h3>
+              </div>
+              <div className="card-footer">
+                <span className="card-date">{formatDate(item.date)}</span>
               </div>
             </div>
-            <div className="card-body">
-              <h3 className="card-title line-clamp-3">{item.title}</h3>
-            </div>
-            <div className="card-footer">
-              <span className="card-date">{formatDate(item.date)}</span>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      </main>
 
       {/* Botón Flotante Exportar */}
       <button className="export-button" title="Exportar datos">

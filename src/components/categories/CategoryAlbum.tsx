@@ -1,5 +1,4 @@
-import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { cn } from "../../lib/utils";
 
 interface CategoryInfo {
     name: string;
@@ -16,114 +15,131 @@ interface CategoryAlbumProps {
 }
 
 const CATEGORY_STYLES: Record<string, { icon: string; gradient: string; border: string }> = {
-    tecnología: { icon: "💻", gradient: "from-violet-600/80 to-indigo-900/80", border: "border-violet-500/30" },
-    ciencia: { icon: "🔬", gradient: "from-cyan-600/80 to-blue-900/80", border: "border-cyan-500/30" },
-    política: { icon: "🏛️", gradient: "from-red-600/80 to-rose-900/80", border: "border-red-500/30" },
-    economía: { icon: "💰", gradient: "from-amber-600/80 to-yellow-900/80", border: "border-amber-500/30" },
-    salud: { icon: "🏥", gradient: "from-emerald-600/80 to-green-900/80", border: "border-emerald-500/30" },
-    deportes: { icon: "⚽", gradient: "from-orange-600/80 to-red-900/80", border: "border-orange-500/30" },
-    cultura: { icon: "🎭", gradient: "from-pink-600/80 to-fuchsia-900/80", border: "border-pink-500/30" },
-    medioambiente: { icon: "🌱", gradient: "from-lime-600/80 to-green-900/80", border: "border-lime-500/30" },
-    internacional: { icon: "🌍", gradient: "from-sky-600/80 to-blue-900/80", border: "border-sky-500/30" },
-    educación: { icon: "📚", gradient: "from-teal-600/80 to-cyan-900/80", border: "border-teal-500/30" },
-    sociedad: { icon: "👥", gradient: "from-slate-500/80 to-zinc-800/80", border: "border-slate-500/30" },
-    general: { icon: "📰", gradient: "from-zinc-600/80 to-zinc-900/80", border: "border-zinc-500/30" },
+    geopolítica: { icon: "🛰️", gradient: "from-emerald-500/40 via-emerald-600/80 to-slate-950", border: "border-emerald-500/50" },
+    deportes: { icon: "🏆", gradient: "from-orange-600/60 to-zinc-950", border: "border-orange-500/30" },
+    empresa: { icon: "📈", gradient: "from-amber-500/60 to-zinc-950", border: "border-amber-400/30" },
+    tecnología: { icon: "⚡", gradient: "from-violet-600/60 to-zinc-950", border: "border-violet-500/30" },
+    política: { icon: "🏛️", gradient: "from-rose-600/60 to-zinc-950", border: "border-rose-500/30" },
+    españa: { icon: "🇪🇸", gradient: "from-red-600/60 to-zinc-950", border: "border-red-500/30" },
+    internacional: { icon: "🌐", gradient: "from-sky-600/60 to-zinc-950", border: "border-sky-500/30" },
+    general: { icon: "📰", gradient: "from-zinc-600/60 to-zinc-950", border: "border-zinc-500/30" },
 };
 
 export const CategoryAlbum = ({ categories, onSelectCategory }: CategoryAlbumProps) => {
-    return (
-        <div className="px-4 pb-32">
-            {/* Header */}
-            <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4 }}
-                className="mb-8"
-            >
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium uppercase tracking-wider mb-4">
-                    <span>Explorar</span>
-                    <span className="w-1 h-1 rounded-full bg-emerald-500" />
-                    <span>{categories.length} categorías</span>
-                </div>
-                <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight">
-                    Categorías
-                </h1>
-                <p className="text-zinc-400 mt-2 text-sm">
-                    Explora noticias por categoría. Pulsa para ver todas las noticias.
-                </p>
-            </motion.div>
+    // Separamos Geopolítica para destacarla
+    const mainCategory = categories.find(c => c.name.toLowerCase() === "geopolítica");
+    const otherCategories = categories.filter(c => c.name.toLowerCase() !== "geopolítica");
 
-            {/* Grid de tarjetas */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-                {categories.map((cat, index) => {
+    return (
+        <div className="px-4 pb-20"> {/* Ajustado para simetría con el padding del main */}
+            <div className="mb-8 pt-4">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-widest mb-4">
+                    <span>Sistema de Inteligencia</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                </div>
+                <h1 className="text-3xl font-black text-white tracking-tight">
+                    CATEGORÍAS
+                </h1>
+            </div>
+
+            {/* Categoría Destacada: Geopolítica */}
+            {mainCategory && (
+                <div className="mb-8">
+                    <button
+                        onClick={() => onSelectCategory(mainCategory.name)}
+                        className={cn(
+                            "group relative w-full overflow-hidden rounded-[2rem] p-8 text-left transition-all duration-500",
+                            "border border-emerald-500/30 bg-zinc-950 hover:border-emerald-500/60 hover:shadow-[0_0_30px_rgba(16,185,129,0.15)]",
+                            "active:scale-[0.98]"
+                        )}
+                    >
+                        <div className={cn(
+                            "absolute inset-0 bg-gradient-to-br opacity-40 group-hover:opacity-60 transition-opacity duration-500",
+                            CATEGORY_STYLES.geopolítica.gradient
+                        )} />
+                        
+                        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                            <div className="flex-1">
+                                <div className="flex items-center gap-4 mb-4">
+                                    <span className="text-5xl drop-shadow-2xl">{CATEGORY_STYLES.geopolítica.icon}</span>
+                                    <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-[9px] font-black uppercase tracking-[0.2em]">
+                                        Prioridad 01
+                                    </span>
+                                </div>
+                                <h2 className="text-4xl font-black text-white capitalize tracking-tighter mb-2">
+                                    {mainCategory.name}
+                                </h2>
+                                <p className="text-emerald-100/40 text-xs font-medium max-w-sm leading-relaxed uppercase tracking-wider">
+                                    Seguimiento estratégico global y conflictos de alto impacto.
+                                </p>
+                            </div>
+                            
+                            <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-end gap-2">
+                                <div className="text-right">
+                                    <span className="text-5xl font-black text-white block leading-none">{mainCategory.count}</span>
+                                    <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Registros</span>
+                                </div>
+                                <div className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-black transition-all">
+                                    <span className="text-xl">→</span>
+                                </div>
+                            </div>
+                        </div>
+                    </button>
+                </div>
+            )}
+
+            {/* Grid Equilibrado de Categorías Secundarias */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                {otherCategories.map((cat) => {
                     const style = CATEGORY_STYLES[cat.name] || CATEGORY_STYLES.general;
 
                     return (
-                        <motion.button
+                        <button
                             key={cat.name}
-                            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            transition={{
-                                duration: 0.35,
-                                delay: index * 0.05,
-                                ease: [0.25, 0.1, 0.25, 1],
-                            }}
-                            whileHover={{ scale: 1.03, y: -2 }}
-                            whileTap={{ scale: 0.97 }}
                             onClick={() => onSelectCategory(cat.name)}
                             className={cn(
-                                "relative overflow-hidden rounded-2xl p-4 md:p-5 text-left",
-                                "border backdrop-blur-sm",
-                                "transition-shadow duration-300 hover:shadow-lg hover:shadow-black/30",
-                                style.border,
-                                "group"
+                                "relative overflow-hidden rounded-2xl p-6 text-left transition-all duration-300",
+                                "border border-white/5 bg-zinc-900/40 hover:bg-zinc-900 hover:border-white/20 group",
+                                "min-h-[140px] flex flex-col justify-between"
                             )}
                         >
-                            {/* Gradient background */}
                             <div className={cn(
-                                "absolute inset-0 bg-gradient-to-br opacity-80 group-hover:opacity-100 transition-opacity duration-300",
+                                "absolute inset-0 bg-gradient-to-br opacity-5 group-hover:opacity-10 transition-opacity",
                                 style.gradient
                             )} />
 
-                            {/* Subtle pattern overlay */}
-                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,_rgba(255,255,255,0.08),_transparent_60%)]" />
+                            <div className="relative z-10">
+                                <span className="text-3xl block mb-4 grayscale group-hover:grayscale-0 transition-all duration-500">
+                                    {style.icon}
+                                </span>
+                                <h3 className="text-white font-bold text-sm uppercase tracking-widest">
+                                    {cat.name}
+                                </h3>
+                            </div>
 
-                            {/* Today indicator */}
-                            {cat.hasToday && (
-                                <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1">
-                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_6px_2px_rgba(16,185,129,0.4)]" />
-                                    <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider">Hoy</span>
-                                </div>
-                            )}
-
-                            {/* Content */}
-                            <div className="relative z-10 flex flex-col h-full min-h-[110px] md:min-h-[130px] justify-between">
-                                <div>
-                                    <span className="text-3xl md:text-4xl block mb-2 drop-shadow-lg">
-                                        {style.icon}
-                                    </span>
-                                    <h3 className="text-white font-semibold text-sm md:text-base capitalize leading-tight">
-                                        {cat.name}
-                                    </h3>
-                                </div>
-
-                                <div className="flex items-center gap-1.5 mt-3">
-                                    <span className="text-white/60 text-xs font-medium">
-                                        {cat.count} {cat.count === 1 ? "noticia" : "noticias"}
-                                    </span>
-                                    <motion.span
-                                        className="text-white/40 text-xs"
-                                        animate={{ x: [0, 3, 0] }}
-                                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                                    >
-                                        →
-                                    </motion.span>
+                            <div className="relative z-10 flex items-center justify-between mt-auto pt-4 border-t border-white/5">
+                                <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.15em]">
+                                    {cat.count} Docs
+                                </span>
+                                <div className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-white/20 transition-all">
+                                    <span className="text-xs text-white/40">→</span>
                                 </div>
                             </div>
-                        </motion.button>
+                        </button>
                     );
                 })}
+            </div>
+            
+            {/* Footer Táctico para cierre premium */}
+            <div className="mt-12 flex flex-col items-center justify-center gap-4 opacity-20">
+                <div className="w-12 h-px bg-gradient-to-r from-transparent via-white to-transparent" />
+                <span className="text-[8px] font-black tracking-[0.4em] text-white uppercase">
+                    Veridian Terminal // End of Line
+                </span>
             </div>
         </div>
     );
 };
+
+
+

@@ -7,7 +7,6 @@ import { GobiernoGasto } from "./GobiernoGasto";
 import { Button } from "@/components/ui/button";
 import { X, Coffee, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { AnimatePresence, useScroll, useSpring, useTransform } from "framer-motion";
 import { useHaptic } from "@/hooks/use-haptic";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +35,9 @@ const transformToExpandable = (items: CafeItem[]): ExpandableNewsItem[] => {
     return result;
 };
 
+import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
+import { isAd, detectCategory } from "../../utils/news-utils";
+
 export const CafeLayout = () => {
     const navigate = useNavigate();
     const { triggerImpact } = useHaptic();
@@ -49,59 +51,101 @@ export const CafeLayout = () => {
     // Consensus State
     const [hasConsensusVoted, setHasConsensusVoted] = useState(false);
 
-    // Scroll Progress
-    const { scrollYProgress } = useScroll({
-        container: containerRef,
-    });
-
-    const scaleX = useSpring(scrollYProgress, {
-        stiffness: 100,
-        damping: 30,
-        restDelta: 0.001
-    });
-
-    const progressPercent = useTransform(scaleX, value => value * 100);
+    // Manual Scroll Progress (Native for stability)
     const [progress, setProgress] = useState(0);
 
     useEffect(() => {
-        const unsubscribe = progressPercent.on("change", (v) => setProgress(v));
-        return () => unsubscribe();
-    }, [progressPercent]);
+        const container = containerRef.current;
+        if (!container) return;
+
+        const handleScroll = () => {
+            const scrollHeight = container.scrollHeight - container.clientHeight;
+            if (scrollHeight <= 0) return;
+            const currentProgress = (container.scrollTop / scrollHeight) * 100;
+            setProgress(currentProgress);
+        };
+
+        container.addEventListener('scroll', handleScroll);
+        // Initial trigger
+        handleScroll();
+        
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, [isLoading]); // Re-bind when content loads and scrollHeight changes
 
     // Fetch real data on mount
     useEffect(() => {
         const fetchData = async () => {
+            setIsLoading(true);
             try {
-                // Fetch featured news
-                const newsResponse = await fetch('/api/cafe?type=featured');
-                if (newsResponse.ok) {
-                    const newsData = await newsResponse.json();
-                    if (newsData.news && newsData.news.length > 0) {
-                        setCafeNews(newsData.news);
+                if (isSupabaseConfigured()) {
+                    console.log("📡 Conectando con Supabase para obtener noticias...");
+                    // Fetch real news from Supabase for El Café
+                    const { data: dbNews, error: dbError } = await supabase
+                        .from('daily_news' as any)
+                        .select('*')
+                        .order('published_at', { ascending: false })
+                        .limit(15);
+
+                    if (dbError) {
+                        console.error("❌ Error en la consulta a Supabase:", dbError);
+                        throw dbError;
+                    }
+
+                    if (dbNews && dbNews.length > 0) {
+                        console.log(`✅ Recibidas ${dbNews.length} noticias de Supabase`);
+                        const transformed: any[] = dbNews
+                            .filter((item: any) => !isAd(item.title, item.content, item.source)) // ANTI-ADS
+                            .map((item: any) => ({
+                                id: item.id,
+                                type: 'standard',
+                                title: item.title,
+                                subtitle: item.summary || '',
+                                content: item.content || '',
+                                imageUrl: item.image || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800',
+                                category: item.category || detectCategory(item.title, item.content), // AUTO-FILTER
+                                readTime: item.metadata?.read_time || '2 min',
+                                author: item.source || 'Veridian Intelligence'
+                            }));
+                        setCafeNews(transformed);
+                    } else {
+                        console.warn("⚠️ Supabase devolvió una lista vacía de noticias.");
+                    }
+                } else {
+                    console.log("🔌 Supabase no configurado, usando API local...");
+                    const newsResponse = await fetch('/api/cafe?type=featured');
+                    if (newsResponse.ok) {
+                        const newsData = await newsResponse.json();
+                        if (newsData.news && newsData.news.length > 0) {
+                            setCafeNews(newsData.news);
+                        }
                     }
                 }
 
                 // Fetch polls
-                const pollsResponse = await fetch('/api/cafe?type=polls');
-                if (pollsResponse.ok) {
-                    const pollsData = await pollsResponse.json();
-                    if (pollsData.polls && pollsData.polls.length > 0) {
-                        // Transform API polls to component format
-                        const transformedPolls = pollsData.polls.map((poll: any) => ({
-                            id: poll.id,
-                            question: poll.question,
-                            options: poll.options.map((opt: any) => ({
-                                id: opt.id,
-                                label: opt.label,
-                                votes: poll.voteCounts?.[opt.id] || 0
-                            })),
-                            totalVotes: poll.totalVotes || 0
-                        }));
-                        setDailyPolls(transformedPolls);
+                try {
+                    const pollsResponse = await fetch('/api/cafe?type=polls');
+                    if (pollsResponse.ok) {
+                        const pollsData = await pollsResponse.json();
+                        if (pollsData.polls && pollsData.polls.length > 0) {
+                            const transformedPolls = pollsData.polls.map((poll: any) => ({
+                                id: poll.id,
+                                question: poll.question,
+                                options: poll.options.map((opt: any) => ({
+                                    id: opt.id,
+                                    label: opt.label,
+                                    votes: poll.voteCounts?.[opt.id] || 0
+                                })),
+                                totalVotes: poll.totalVotes || 0
+                            }));
+                            setDailyPolls(transformedPolls);
+                        }
                     }
+                } catch (e) {
+                    console.error("Error fetching polls:", e);
                 }
+
             } catch (error) {
-                console.error('Error fetching café data:', error);
+                console.error('❌ Error general en fetchData:', error);
             } finally {
                 setIsLoading(false);
             }
@@ -127,7 +171,7 @@ export const CafeLayout = () => {
     return (
         <div className="fixed inset-0 bg-zinc-950 text-white flex z-50 overflow-hidden">
             {/* Left/Main Content: Scrollable */}
-            <div ref={containerRef} className="flex-1 overflow-y-auto relative custom-scrollbar scroll-smooth">
+            <div ref={containerRef} className="flex-1 overflow-y-auto relative custom-scrollbar">
                 {/* Header Overlay */}
                 <div className="sticky top-0 z-40 p-6 flex justify-between items-start bg-gradient-to-b from-zinc-950/90 to-transparent pointer-events-none">
 

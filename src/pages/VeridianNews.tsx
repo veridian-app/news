@@ -1,257 +1,41 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { NewsImage } from "../components/NewsImage";
 import "./VeridianNews.css";
 import { supabase, isSupabaseConfigured } from "../integrations/supabase/client";
 import { useIsMobile, useScreenSize } from "../hooks/use-mobile";
-import { Clock, Brain, ThumbsUp, ThumbsDown, X, ExternalLink, Search } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Search, Globe, X } from "lucide-react";
 import { BottomDock } from "../components/BottomDock";
 import { NewsCard } from "@/components/NewsCard";
-import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSearch } from "@/contexts/SearchContext";
+import { StreakHeader } from "../components/StreakHeader";
+import { NewsItem, detectCategory, detectBias, isAd } from "../utils/news-utils";
+import { recommendNews } from "../utils/recommendation-utils";
+import { TacticalLoader } from "../components/TacticalLoader";
+import { GeopoliticsTicker } from "../components/GeopoliticsTicker";
+import { mockNews } from "../data/mockNews";
 
-
-interface NewsItem {
-  id: string;
-  title: string;
-  summary: string;
-  content: string;
-  image?: string;
-  date: string;
-  source: string;
-  url?: string;
-  likes?: number;
-  comments?: number;
-  isLiked?: boolean;
-  category?: string;
-}
-
-// Usar datos de ejemplo si el servidor no está disponible
-// Usa window.location.origin para que funcione con el proxy de Vite
 const API_BASE = import.meta.env.VITE_VERIDIAN_API_BASE || window.location.origin;
 
-// Datos de ejemplo para cuando el servidor no esté disponible
-const mockNews: NewsItem[] = [
-  {
-    id: 'news-1',
-    title: 'Tecnología: Inteligencia Artificial revoluciona la medicina',
-    summary: 'Los avances en IA están transformando el diagnóstico médico, permitiendo detectar enfermedades con mayor precisión y rapidez.',
-    content: 'Los avances en IA están transformando el diagnóstico médico, permitiendo detectar enfermedades con mayor precisión y rapidez. Los sistemas de aprendizaje automático pueden analizar imágenes médicas en segundos, identificando patrones que el ojo humano podría pasar por alto. Esta tecnología ya se está utilizando en hospitales de todo el mundo para detectar cáncer, enfermedades cardíacas y otras condiciones médicas con una precisión superior al 90%. Los expertos predicen que en los próximos años, la IA será una herramienta estándar en la práctica médica diaria.',
-    image: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800',
-    date: new Date().toISOString(),
-    source: 'Veridian Tech',
-    url: undefined // Sin URL para que no aparezca el link
-  },
-  {
-    id: 'news-2',
-    title: 'Ciencia: Descubrimiento de agua en Marte',
-    summary: 'Los científicos han confirmado la presencia de agua líquida en el planeta rojo, abriendo nuevas posibilidades para la exploración espacial.',
-    content: 'Los científicos han confirmado la presencia de agua líquida en el planeta rojo, abriendo nuevas posibilidades para la exploración espacial y la búsqueda de vida extraterrestre. El descubrimiento se realizó utilizando datos del rover Perseverance de la NASA, que detectó señales de agua líquida bajo la superficie marciana. Este hallazgo es crucial para futuras misiones tripuladas a Marte, ya que el agua es esencial para la supervivencia humana y puede ser utilizada para producir combustible. Los investigadores están ahora planificando misiones más profundas para estudiar estas reservas de agua.',
-    image: 'https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=800',
-    date: new Date(Date.now() - 3600000).toISOString(),
-    source: 'Veridian Science',
-    url: undefined // Sin URL para que no aparezca el link
-  },
-  {
-    id: 'news-3',
-    title: 'Innovación: Nuevos materiales sostenibles',
-    summary: 'Investigadores desarrollan materiales biodegradables que podrían reemplazar el plástico en múltiples aplicaciones.',
-    content: 'Investigadores desarrollan materiales biodegradables que podrían reemplazar el plástico en múltiples aplicaciones, reduciendo significativamente el impacto ambiental. Estos nuevos materiales, creados a partir de algas y residuos agrícolas, se descomponen completamente en menos de 90 días cuando se exponen a condiciones naturales. A diferencia del plástico tradicional que tarda cientos de años en degradarse, estos materiales ofrecen una solución sostenible para el empaquetado, la construcción y la industria textil. Varias empresas ya están adoptando estos materiales en sus productos, marcando el inicio de una nueva era en la fabricación sostenible.',
-    image: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800',
-    date: new Date(Date.now() - 7200000).toISOString(),
-    source: 'Veridian Green',
-    url: undefined // Sin URL para que no aparezca el link
-  }
-];
-// Legacy fingerprint function - kept for backwards compatibility but now we use Supabase Auth
+// Legacy fingerprint function fallback
 const getOrCreateUserId = (): string => {
-  // This is now just a fallback - the real user ID comes from useAuth
   let userId = localStorage.getItem('veridian_userId');
-  if (!userId) {
-    userId = `anon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!userId || !uuidRegex.test(userId)) {
+    userId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
     localStorage.setItem('veridian_userId', userId);
   }
   return userId;
 };
 
-// Fallback for non-authenticated context (shouldn't happen with ProtectedRoute)
 const FALLBACK_USER_ID = getOrCreateUserId();
-
-// Funciones auxiliares - deben estar antes del componente para evitar errores de inicialización
-const shuffleNews = (newsArray: NewsItem[]) => {
-  const shuffled = [...newsArray];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-};
-
-// Detectar categoría de una noticia basándose en su título y contenido
-const detectCategory = (title: string, content?: string): string => {
-  const textToAnalyze = `${title} ${content || ''}`.toLowerCase();
-
-  // Helper to check regex with word boundaries
-  const matches = (keywords: string) => {
-    const regex = new RegExp(`\\b(${keywords})\\b`, 'i');
-    return regex.test(textToAnalyze);
-  };
-
-  // Tecnología
-  if (matches('tecnología|tech|innovación|digital|app|apps|software|hardware|ia|inteligencia artificial|robot|robots|ciber|chatgpt|openai|meta|facebook|google|apple|microsoft|amazon|tesla|nvidia|blockchain|crypto|bitcoin|web3|metaverso|realidad virtual|vr|ar|programación|desarrollador|startup|startups|emprendimiento|disruptivo|digitalización|transformación digital')) {
-    return 'tecnología';
-  }
-
-  // Ciencia
-  if (matches('ciencia|científico|científicos|investigación|descubrimiento|estudio|marte|espacio|nasa|astronomía|física|química|biología|genética|adn|molecular|experimento|laboratorio|universidad|investigador|publicación científica|revista científica|nature|science|hallazgo|teoría|hipótesis')) {
-    return 'ciencia';
-  }
-
-  // Política
-  if (matches('política|político|gobierno|elecciones|partido|presidente|ministro|congreso|senado|diputado|alcalde|municipal|autonómico|nacional|ley|decreto|normativa|regulación|votación|sufragio|democracia|parlamento|asamblea|coalición|oposición')) {
-    return 'política';
-  }
-
-  // Economía
-  if (matches('economía|económico|mercado|empresa|empresas|negocio|negocios|finanzas|bolsa|inversión|acciones|índice|ibex|dow jones|nasdaq|pib|inflación|desempleo|paro|trabajo|empleo|salario|sueldo|contrato|despido|contratación|empresario|directivo|ceo|gerente|banco|financiero|crédito|préstamo|hipoteca|ahorro|pensiones')) {
-    return 'economía';
-  }
-
-  // Salud
-  if (matches('salud|médico|hospital|medicina|enfermedad|vacuna|virus|bacteria|epidemia|pandemia|covid|coronavirus|tratamiento|terapia|cirugía|operación|doctor|enfermero|paciente|diagnóstico|síntoma|prevención|sanidad|farmacia|medicamento|fármaco|ensayo clínico')) {
-    return 'salud';
-  }
-
-  // Deportes
-  if (matches('deporte|deportes|fútbol|baloncesto|olímpico|atleta|futbolista|jugador|equipo|liga|champions|mundial|copa|partido|competición|torneo|campeonato|entrenador|estadio|gimnasio|ejercicio|fitness|running|maratón|tenis|natación|ciclismo|motociclismo|fórmula 1|f1')) {
-    return 'deportes';
-  }
-
-  // Cultura
-  if (matches('cultura|arte|música|cine|teatro|literatura|libro|libros|escritor|autor|película|actor|actriz|director|festival|exposición|museo|galería|pintura|escultura|fotografía|diseño|moda|gastronomía|chef|restaurante|receta|cocina')) {
-    return 'cultura';
-  }
-
-  // Medioambiente
-  if (matches('medioambiente|clima|sostenibilidad|verde|ecología|contaminación|emisiones|co2|cambio climático|calentamiento global|energía renovable|solar|eólica|reciclaje|residuos|plástico|biodiversidad|especies|extinción|naturaleza|animales|plantas|bosque|océano|mar|río|agua|sequía|inundación')) {
-    return 'medioambiente';
-  }
-
-  // Internacional
-  if (matches('internacional|mundo|país|global|onu|naciones unidas|ue|unión europea|brexit|tratado|diplomacia|embajada|consulado|migración|refugiado|inmigración|conflicto|guerra|paz|rusia|ucrania|china|eeuu|estados unidos|europa|asia|áfrica|américa latina')) {
-    return 'internacional';
-  }
-
-  // Educación
-  if (matches('educación|educativo|escuela|colegio|universidad|estudiante|profesor|maestro|alumno|grado|máster|doctorado|título|diploma|formación|enseñanza|aprendizaje|pedagogía')) {
-    return 'educación';
-  }
-
-  // Sociedad
-  if (matches('sociedad|social|comunidad|vecino|barrio|ciudad|población|demografía|natalidad|mortalidad|envejecimiento|jubilación|pensiones|vivienda|alquiler|hipoteca|transporte|tráfico|movilidad|urbanismo')) {
-    return 'sociedad';
-  }
-
-  return 'general';
-};
-
-// Algoritmo de recomendación mejorado: reordena noticias basándose en preferencias del usuario
-const recommendNews = (newsArray: NewsItem[], preferences: Map<string, number>, likedIds: Set<string>): NewsItem[] => {
-  if (preferences.size === 0 && likedIds.size === 0) {
-    // Si no hay preferencias ni likes, usar shuffle aleatorio pero priorizar noticias con más likes
-    const sortedByLikes = [...newsArray].sort((a, b) => (b.likes || 0) - (a.likes || 0));
-    const topLiked = sortedByLikes.slice(0, Math.min(5, sortedByLikes.length));
-    const rest = shuffleNews(sortedByLikes.slice(5));
-    return [...topLiked, ...rest];
-  }
-
-  // Calcular el score máximo de preferencias para normalizar
-  const maxPreferenceScore = Math.max(...Array.from(preferences.values()), 1);
-
-  // Calcular score para cada noticia
-  const scoredNews = newsArray.map(item => {
-    let score = 0;
-    const category = item.category || detectCategory(item.title || '', item.content || '');
-    const source = item.source || '';
-
-    // Score basado en categoría (peso alto) - normalizado
-    const categoryScore = preferences.get(category) || 0;
-    const normalizedCategoryScore = maxPreferenceScore > 0 ? (categoryScore / maxPreferenceScore) * 10 : 0;
-    score += normalizedCategoryScore * 4; // Las categorías tienen más peso (aumentado de 3 a 4)
-
-    // Score basado en fuente (peso medio) - normalizado
-    const sourceScore = preferences.get(`source:${source}`) || 0;
-    const normalizedSourceScore = maxPreferenceScore > 0 ? (sourceScore / maxPreferenceScore) * 10 : 0;
-    score += normalizedSourceScore * 2; // Aumentado de 1.5 a 2
-
-    // Bonus por likes totales (popularidad) - con escala logarítmica para evitar dominancia
-    const likesCount = item.likes || 0;
-    if (likesCount > 0) {
-      // Usar escala logarítmica: log(1 + likes) para que no domine sobre las preferencias
-      const likesBonus = Math.log10(1 + likesCount) * 1.5;
-      score += likesBonus;
-    }
-
-    // Penalizar noticias ya vistas (que el usuario ya le dio like) - más agresivo
-    if (likedIds.has(item.id)) {
-      score -= 20; // Aumentado de 15 a 20 para evitar mostrar noticias ya vistas
-    }
-
-    // Bonus por novedad (noticias más recientes) - mejorado
-    try {
-      const newsDate = new Date(item.date || Date.now());
-      const daysSincePublication = (Date.now() - newsDate.getTime()) / (1000 * 60 * 60 * 24);
-      if (daysSincePublication < 0.5) score += 3; // Muy reciente (menos de 12 horas)
-      else if (daysSincePublication < 1) score += 2.5; // Muy reciente (menos de 24 horas)
-      else if (daysSincePublication < 3) score += 2; // Reciente (menos de 3 días)
-      else if (daysSincePublication < 7) score += 1; // Reciente (menos de una semana)
-      else if (daysSincePublication < 30) score += 0.5; // Moderadamente reciente
-    } catch (e) {
-      // Ignorar errores de fecha
-    }
-
-    // Bonus por tener contenido completo (no solo título)
-    if (item.content && item.content.length > 100) {
-      score += 0.5;
-    }
-
-    // Bonus por tener URL (noticia completa)
-    if (item.url) {
-      score += 0.3;
-    }
-
-    return { item, score };
-  });
-
-  // Ordenar por score (mayor a menor)
-  scoredNews.sort((a, b) => {
-    // Si los scores son muy cercanos (diferencia < 0.5), darle un poco de variedad
-    if (Math.abs(a.score - b.score) < 0.5) {
-      return Math.random() > 0.5 ? -1 : 1;
-    }
-    return b.score - a.score;
-  });
-
-  // Separar en grupos: muy recomendadas, recomendadas, y resto - con umbrales mejorados
-  const veryRecommended = scoredNews.filter(n => n.score > 8).map(n => n.item);
-  const recommended = scoredNews.filter(n => n.score > 2 && n.score <= 8).map(n => n.item);
-  const rest = scoredNews.filter(n => n.score <= 2).map(n => n.item);
-
-  // Mezclar un poco el grupo de "recomendadas" para variedad (pero mantener orden general)
-  const shuffledRecommended = shuffleNews(recommended);
-  const shuffledRest = shuffleNews(rest);
-
-  // Combinar: muy recomendadas primero, luego recomendadas mezcladas, luego resto
-  // Añadir algunas noticias del resto al principio para evitar burbujas de filtro
-  const varietyFromRest = shuffledRest.slice(0, Math.min(3, shuffledRest.length));
-  const remainingRest = shuffledRest.slice(3);
-
-  return [...veryRecommended, ...varietyFromRest, ...shuffledRecommended, ...remainingRest];
-};
 
 const VeridianNews = () => {
   const navigate = useNavigate();
@@ -261,107 +45,97 @@ const VeridianNews = () => {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Use authenticated user ID, fallback to anonymous ID for backwards compatibility
   const USER_ID = user?.id || FALLBACK_USER_ID;
 
-
-  const [isLoading, setIsLoading] = useState(false); // Empezar en false
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tableExists, setTableExists] = useState<boolean | null>(null); // null = desconocido, true = existe, false = no existe
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
   const [showContentModal, setShowContentModal] = useState(false);
-  const [currentVisibleNews, setCurrentVisibleNews] = useState<NewsItem | null>(null);
-  const [showAIPanel, setShowAIPanel] = useState(false);
+  const [activeNewsId, setActiveNewsId] = useState<string | null>(null);
   const [likedNewsIds, setLikedNewsIds] = useState<Set<string>>(new Set());
   const [userPreferences, setUserPreferences] = useState<Map<string, number>>(new Map());
-  // Inicializar vacío - solo mostrar noticias del Excel
-  const [rawNews, setRawNews] = useState<NewsItem[]>([]); // Noticias sin ordenar - solo del Excel
+  const [streakCount, setStreakCount] = useState<number>(0);
+  const [rawNews, setRawNews] = useState<NewsItem[]>(mockNews);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  
+  const { showSearchModal, openSearch, closeSearch, searchQuery } = useSearch();
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const feedContainerRef = useRef<HTMLDivElement>(null);
-  const loadingProgressRef = useRef<HTMLDivElement>(null);
+  const [loadingProgress, setLoadingProgress] = useState(10);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
-  const [sortBy, setSortBy] = useState<'recommended' | 'recent'>('recommended');
-
-  // Búsqueda desde contexto compartido
-  const { searchQuery, setSearchQuery, showSearchModal, closeSearch } = useSearch();
-
-  // Debounced search query para evitar colapso de UI
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
-    }, 300); // 300ms debounce
+    const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-
-
-
-
-  // Calcular noticias recomendadas basándose en preferencias y búsqueda
   const news = useMemo(() => {
-    console.log('📰 Calculando noticias, rawNews.length:', rawNews.length);
-    // Solo usar noticias del Excel, no usar mockNews
-    if (rawNews.length === 0) {
-      console.log('⚠️ No hay noticias del Excel disponibles');
-      return [];
-    }
+    if (rawNews.length === 0) return [];
+    
+    // Read AI Algorithm settings from Control Center
+    const savedSettings = localStorage.getItem('veridian_settings');
+    const settings = savedSettings ? JSON.parse(savedSettings) : { aiBias: 50 };
+    
+    let filtered = rawNews;
 
-    // Primero filtrar por búsqueda si hay query (usando debounced para performance)
-    let filteredNews = rawNews;
+    // Apply AI Bias Filter
+    // Filter news that are within a range of the user's bias
+    // Range is userBias +/- 25
+    filtered = rawNews.filter(item => {
+      const newsBias = item.bias ?? 50;
+      const lowerBound = Math.max(0, settings.aiBias - 25);
+      const upperBound = Math.min(100, settings.aiBias + 25);
+      return newsBias >= lowerBound && newsBias <= upperBound;
+    });
+
     if (debouncedSearchQuery.trim()) {
       const query = debouncedSearchQuery.toLowerCase().trim();
-      filteredNews = rawNews.filter(item =>
+      filtered = filtered.filter(item =>
         item.title.toLowerCase().includes(query) ||
-        item.summary?.toLowerCase().includes(query) ||
-        item.source?.toLowerCase().includes(query) ||
-        item.content?.toLowerCase().includes(query)
+        item.summary?.toLowerCase().includes(query)
       );
-      console.log(`🔍 Búsqueda "${debouncedSearchQuery}": ${filteredNews.length} resultados`);
     }
 
-    // Si el usuario elige "Recientes", forzar orden cronológico
-    if (sortBy === 'recent') {
-      console.log('📅 Ordenando por fecha (Recientes)');
-      return [...filteredNews].sort((a, b) => {
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
-      });
-    }
+    const categorized = filtered.map(item => {
+      const category = item.category || detectCategory(item.title, item.content);
+      const bias = item.bias ?? detectBias(item.title, item.content);
+      let weight = 0;
+      if (category === 'geopolítica') weight = 100;
+      else if (category === 'política') weight = 50;
+      else if (category === 'empresa') weight = 30;
+      return { ...item, category, weight, bias };
+    });
 
-    if (userPreferences.size === 0) {
-      const shuffled = shuffleNews([...filteredNews]);
-      console.log('✅ Noticias mezcladas:', shuffled.length);
-      return shuffled;
-    }
-    const recommended = recommendNews([...filteredNews], userPreferences, likedNewsIds);
-    console.log('✅ Noticias recomendadas:', recommended.length);
-    return recommended;
-  }, [rawNews, userPreferences, likedNewsIds, sortBy, debouncedSearchQuery]);
+    const sorted = [...categorized].sort((a, b) => {
+      if (b.weight !== a.weight) return b.weight - a.weight;
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
 
-  // DEEP LINKING EFFECT
+    const finalNews = !debouncedSearchQuery.trim() && userPreferences.size > 0
+      ? recommendNews(sorted, userPreferences, likedNewsIds)
+      : sorted;
+
+    if (selectedCategory === 'all') return finalNews;
+    return finalNews.filter(n => n.category?.toLowerCase() === selectedCategory.toLowerCase());
+  }, [rawNews, userPreferences, likedNewsIds, debouncedSearchQuery, selectedCategory]);
+
   useEffect(() => {
     const newsId = searchParams.get('newsId');
-    // Esperar a que las noticias estén cargadas y el contenedor también
     if (newsId && news.length > 0 && feedContainerRef.current) {
-      console.log('🔗 Deep link detectado para newsId:', newsId);
-
       const index = news.findIndex(n => n.id === newsId);
-
       if (index !== -1) {
-        console.log(`✅ Noticia encontrada en índice ${index}, haciendo scroll...`);
-
-        // Scroll inmediato al índice
-        // Calculamos la posición basada en la altura de la ventana (100dvh)
-        const scrollPosition = index * window.innerHeight;
-
         feedContainerRef.current.scrollTo({
-          top: scrollPosition,
-          behavior: 'instant' // Instantáneo para que parezca que carga ahí
+          top: index * window.innerHeight,
+          behavior: 'instant'
         });
-
-        setCurrentVisibleNews(news[index]);
-
-        // Limpiar el parámetro de la URL
         const newParams = new URLSearchParams(searchParams);
         newParams.delete('newsId');
         setSearchParams(newParams, { replace: true });
@@ -370,1394 +144,477 @@ const VeridianNews = () => {
   }, [news, searchParams, setSearchParams]);
 
   useEffect(() => {
-    // No usar mockNews - solo cargar del Excel
-    setIsLoading(false);
+    if (showContentModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [showContentModal]);
 
-    // Intentar cargar desde la API en segundo plano (sin bloquear)
+  useEffect(() => {
+    setIsLoading(true);
     const loadFromAPI = async () => {
-      try {
-        await loadNews();
-      } catch (error) {
-        console.error('Error cargando noticias desde API:', error);
-        // Si falla, no usar mockNews - dejar vacío
-      }
+      try { await fetchNews(); } catch (e) { console.error(e); }
     };
+    setTimeout(loadFromAPI, 500);
 
-    // Cargar desde API después de un pequeño delay
-    setTimeout(() => {
-      loadFromAPI();
-    }, 500);
-
-    // Cargar preferencias y likes (opcional, no crítico)
     if (isSupabaseConfigured()) {
-      try {
-        loadUserLikes();
-        loadUserPreferences();
-      } catch (error) {
-        console.error('Error cargando preferencias:', error);
-      }
+      loadUserLikes();
+      loadUserPreferences();
+      loadUserStreak();
     }
 
-    // Auto-refresh cada 5 minutos
-    const interval = setInterval(() => {
-      loadFromAPI();
-    }, 5 * 60 * 1000);
-
+    const interval = setInterval(loadFromAPI, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // Ref para el observer
-  const observerRef = useRef<IntersectionObserver | null>(null);
-
-  // Efecto para IntersectionObserver
   useEffect(() => {
     const container = feedContainerRef.current;
     if (!container) return;
 
-    // Limpiar observer anterior si existe
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-    }
+    if (observerRef.current) observerRef.current.disconnect();
 
-    // Callback del observer
     const handleIntersection = (entries: IntersectionObserverEntry[]) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
-          // Encontrar la noticia correspondiente al elemento visible
           const index = Number(entry.target.getAttribute('data-index'));
           if (!isNaN(index) && news[index]) {
-            setCurrentVisibleNews(news[index]);
-
-            // Preload next images logic could go here
-            const nextNews = news[index + 1];
-            if (nextNews && nextNews.image) {
-              const img = new Image();
-              img.src = nextNews.image;
-            }
+            setActiveNewsId(news[index].id);
           }
         }
       });
     };
 
-    // Crear nuevo observer
     observerRef.current = new IntersectionObserver(handleIntersection, {
       root: container,
-      threshold: 0.6, // La tarjeta debe estar al 60% visible
+      threshold: 0.5,
       rootMargin: "0px"
     });
 
-    // Observar todas las tarjetas
-    const cards = container.querySelectorAll('.news-card');
-    cards.forEach((card) => {
-      observerRef.current?.observe(card);
-    });
+    container.querySelectorAll('.news-card').forEach(card => observerRef.current?.observe(card));
 
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
-  }, [news, isMobile, screenSize]); // Dependencias
+    return () => observerRef.current?.disconnect();
+  }, [news]);
 
-  // Función dummy para mantener compatibilidad si es llamada desde otro lado, 
-  // aunque ahora el observer se encarga de esto.
-  const updateVisibleNews = () => {
-    // Ya no es necesario lógica manual aquí gracias al IntersectionObserver
-  };
-
-  const openFullContent = (item: NewsItem) => {
-    setSelectedNews(item);
-    setShowContentModal(true);
-    // Intentar entrar en modo fullscreen para ocultar UI del navegador
-    if (document.documentElement.requestFullscreen) {
-      document.documentElement.requestFullscreen().catch(() => {
-        // Ignorar errores si el usuario no permite fullscreen
-      });
-    } else if ((document.documentElement as any).webkitRequestFullscreen) {
-      (document.documentElement as any).webkitRequestFullscreen();
-    } else if ((document.documentElement as any).mozRequestFullScreen) {
-      (document.documentElement as any).mozRequestFullScreen();
-    } else if ((document.documentElement as any).msRequestFullscreen) {
-      (document.documentElement as any).msRequestFullscreen();
-    }
-  };
-
-  const openAIChat = (item: NewsItem) => {
-    toast({
-      title: "Próximamente",
-      description: "El asistente IA estará disponible muy pronto para responder tus dudas.",
-    });
-  };
-
-
-  const updateLoadingProgress = (percent: number) => {
-    if (loadingProgressRef.current) {
-      loadingProgressRef.current.style.width = `${percent}%`;
-    }
-  };
-
-  // Extraer 3 puntos clave del contenido/resumen
-  const extractKeyPoints = (text: string): string[] => {
-    if (!text || text.trim().length === 0) {
-      return ['Información no disponible', 'Contenido pendiente', 'Datos en actualización'];
-    }
-
-    // Dividir el texto en oraciones
-    const sentences = text
-      .split(/[.!?]\s+/)
-      .map(s => s.trim())
-      .filter(s => s.length > 20 && s.length < 200); // Filtrar oraciones muy cortas o muy largas
-
-    if (sentences.length === 0) {
-      // Si no hay oraciones válidas, dividir por comas o puntos
-      const parts = text.split(/[,;]\s+/).filter(p => p.length > 15);
-      return parts.slice(0, 3).map(p => p.trim());
-    }
-
-    // Seleccionar las 3 oraciones más informativas (las más largas y con más contenido)
-    const sortedSentences = sentences
-      .sort((a, b) => b.length - a.length)
-      .slice(0, 3)
-      .map(s => {
-        // Limpiar y formatear
-        let cleaned = s.replace(/^\d+[\.\)]\s*/, ''); // Eliminar numeración
-        cleaned = cleaned.replace(/^[-•]\s*/, ''); // Eliminar bullets
-        cleaned = cleaned.trim();
-        // Asegurar que termine con punto si no lo tiene
-        if (!cleaned.match(/[.!?]$/)) {
-          cleaned += '.';
-        }
-        return cleaned;
-      });
-
-    // Si no hay suficientes oraciones, completar con partes del texto
-    while (sortedSentences.length < 3 && text.length > 0) {
-      const remaining = text.substring(
-        sortedSentences.join(' ').length
-      ).trim();
-      if (remaining.length > 20) {
-        const nextSentence = remaining.split(/[.!?]/)[0].trim();
-        if (nextSentence.length > 20) {
-          sortedSentences.push(nextSentence + '.');
-        } else {
-          break;
-        }
-      } else {
-        break;
-      }
-    }
-
-    // Asegurar que siempre haya 3 puntos
-    while (sortedSentences.length < 3) {
-      sortedSentences.push('Información adicional disponible en la fuente.');
-    }
-
-    return sortedSentences.slice(0, 3);
-  };
-
-  const loadNews = async () => {
-    // 1. Cargar caché inmediatamente si existe (Stale-While-Revalidate)
+  const fetchNews = async () => {
+    // 1. Intentar cargar desde caché local para velocidad instantánea
     const cachedNews = localStorage.getItem('veridian_news_cache');
     if (cachedNews) {
       try {
-        const parsedCache = JSON.parse(cachedNews);
-        if (Array.isArray(parsedCache) && parsedCache.length > 0) {
-          console.log('📦 Cargando noticias desde caché local (instantáneo)');
-          setRawNews(parsedCache);
-          // No ponemos isLoading(false) aquí para mostrar indicador de "actualizando" si se desea,
-          // o podemos ponerlo para que la UI esté lista ya.
-          // Estrategia: Mostrar contenido ya, pero dejar el indicador de carga pequeño o invisible.
+        const parsed = JSON.parse(cachedNews);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setRawNews(parsed);
+          if (isLoading) setIsLoading(false);
         }
-      } catch (e) {
-        console.error('Error parseando caché:', e);
-      }
-    } else {
-      setIsLoading(true); // Solo mostrar loading full si no hay caché
+      } catch (e) { console.error("Error cargando caché:", e); }
     }
 
-    setError(null);
-
     try {
-      updateLoadingProgress(10);
+      setLoadingProgress(20);
+      
+      // 2. PRIORIDAD: Supabase (Conexión directa)
+      if (isSupabaseConfigured()) {
+        console.log("📡 Cargando noticias desde Supabase...");
+        const { data: dbNews, error: dbError } = await supabase
+          .from('daily_news' as any)
+          .select('*')
+          .order('published_at', { ascending: false })
+          .limit(100);
 
-      // Intentar cargar desde el servidor (Google Sheets)
-      const apiUrl = `${API_BASE}/api/news?limit=100`;
+        if (dbError) throw dbError;
 
-      // Timeout reducido a 5s para no bloquear
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+        if (dbNews && dbNews.length > 0) {
+          const transformed: NewsItem[] = dbNews
+            .filter((item: any) => !isAd(item.title, item.content, item.source)) // BLOQUEO DE ANUNCIOS
+            .map((item: any) => {
+              const category = item.category || detectCategory(item.title, item.content);
+              return {
+                id: item.id,
+                title: item.title,
+                summary: item.summary || item.content?.substring(0, 200) || 'Sin resumen',
+                content: item.content || 'Sin contenido',
+                image: item.image,
+                date: item.published_at || new Date().toISOString(),
+                source: item.source || 'Veridian News',
+                url: item.url,
+                category: category,
+                bias: item.bias || detectBias(item.title, item.content)
+              };
+            });
+          
+          setRawNews(transformed);
+          localStorage.setItem('veridian_news_cache', JSON.stringify(transformed));
+          setLoadingProgress(100);
+          console.log(`✅ ${transformed.length} noticias filtradas y clasificadas cargadas`);
+          return;
+        }
+      }
 
-      const response = await fetch(apiUrl, {
+      // 3. FALLBACK: API externa (si Supabase falla o no está configurado)
+      console.log("🔌 Intentando fallback a API externa...");
+      const response = await fetch(`${API_BASE}/api/news?limit=100`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal
       });
 
-      clearTimeout(timeoutId);
-      updateLoadingProgress(50);
-
       if (response.ok) {
-        const newsData = await response.json();
-
-        if (newsData && Array.isArray(newsData) && newsData.length > 0) {
-          // Actualizar estado y guardar en caché
-          setRawNews(newsData);
-          localStorage.setItem('veridian_news_cache', JSON.stringify(newsData));
-
-          updateLoadingProgress(100);
-          console.log(`✅ Noticias actualizadas desde API (${newsData.length})`);
-        } else {
-          console.warn('⚠️ API respondió pero sin noticias');
-          // Si ya teníamos caché, no mostramos error, solo log
-          if (!cachedNews) setError('No hay noticias disponibles en este momento.');
+        const data = await response.json();
+        if (data && Array.isArray(data) && data.length > 0) {
+          setRawNews(data);
+          localStorage.setItem('veridian_news_cache', JSON.stringify(data));
+          setLoadingProgress(100);
+          return;
         }
-      } else {
-        throw new Error(`Error servidor: ${response.status}`);
       }
-    } catch (error: any) {
-      console.error('❌ Error actualizando noticias:', error);
-      // Si falló la red pero tenemos caché, es un éxito parcial (usuario ve contenido)
-      if (cachedNews) {
-        console.log('⚠️ Usando versión en caché debido a error de red');
-        toast({ title: "Modo Offline", description: "Mostrando noticias guardadas", duration: 3000 });
-      } else {
-        setError('No se pudieron cargar las noticias. Verifica tu conexión.');
-        // En último caso, usar mockNews si todo falla y no hay caché?
-        // Por ahora mantenemos la lógica original de no usar mockNews si falla API real, 
-        // pero podríamos habilitarlo si el usuario quiere "ver algo" siempre
-        setRawNews(mockNews); // Fallback final a mockNews para que la app no parezca rota
-      }
+    } catch (e) {
+      console.error("❌ Error cargando noticias:", e);
+      setError("No se pudieron cargar las noticias. Comprueba tu conexión.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Cargar likes del usuario desde Supabase (userId anónimo) - SOLO funciona con Supabase
   const loadUserLikes = async () => {
-    if (!isSupabaseConfigured()) {
-      console.warn('⚠️ Supabase no configurado. Los likes no se cargarán.');
-      // Limpiar likes locales si Supabase no está configurado
-      setLikedNewsIds(new Set());
-      return;
-    }
     try {
-      const { data, error } = await supabase
-        .from('news_likes')
-        .select('news_id')
-        .eq('user_id', USER_ID);
-
-      if (error) {
-        // Detectar si la tabla no existe o hay problema de schema cache
-        const isTableNotFound = error.message && (
-          error.message.includes('schema cache') ||
-          error.message.includes('Could not find the table') ||
-          error.message.includes('relation') && error.message.includes('does not exist')
-        );
-
-        if (isTableNotFound) {
-          console.warn('⚠️ Error de schema cache detectado, intentando refrescar con delays más largos...');
-
-          // Intentar múltiples veces con delays más largos (el schema cache puede tardar)
-          for (let attempt = 1; attempt <= 5; attempt++) {
-            const delay = attempt * 3000; // 3s, 6s, 9s, 12s, 15s
-            console.log(`🔄 Intento ${attempt}/5: Esperando ${delay / 1000}s antes de reintentar...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-
-            // Reintentar la consulta
-            const { data: retryData, error: retryError } = await supabase
-              .from('news_likes')
-              .select('news_id')
-              .eq('user_id', USER_ID);
-
-            if (!retryError && retryData !== null) {
-              console.log('✅ Tabla encontrada después del reintento!');
-              const likedIds = new Set(retryData.map(like => like.news_id));
-              setLikedNewsIds(likedIds);
-              setTableExists(true);
-              return; // Éxito!
-            }
-
-            if (retryError && !retryError.message.includes('schema cache') && !retryError.message.includes('Could not find')) {
-              // Si el error cambió completamente, puede ser otro problema
-              console.warn('⚠️ Error diferente después del reintento:', retryError.message);
-              // Continuar intentando si aún es schema cache
-            }
-          }
-
-          // Si después de 5 intentos (hasta 45 segundos) sigue fallando, asumir que la tabla no existe
-          console.warn('⚠️ La tabla news_likes no se encontró después de múltiples intentos');
-          setTableExists(false);
-          return; // Continuar sin likes
-        }
-        throw error;
-      }
-
-      if (data) {
-        const likedIds = new Set(data.map(like => like.news_id));
-        setLikedNewsIds(likedIds);
-        setTableExists(true); // La tabla existe si pudimos leer datos
-      }
-    } catch (error) {
-      console.log('Error cargando likes:', error);
-      // Continuar sin likes si hay error
-    }
+      const { data } = await supabase.from('news_likes').select('news_id').eq('user_id', USER_ID);
+      if (data) setLikedNewsIds(new Set(data.map(l => l.news_id)));
+    } catch (e) { console.error(e); }
   };
 
-  // Cargar preferencias del usuario desde Supabase (userId anónimo) - SOLO funciona con Supabase
   const loadUserPreferences = async () => {
-    if (!isSupabaseConfigured()) {
-      console.warn('⚠️ Supabase no configurado. Las preferencias no se cargarán.');
-      // Limpiar preferencias locales si Supabase no está configurado
-      setUserPreferences(new Map());
-      return;
-    }
     try {
-      const { data, error } = await supabase
-        .from('user_preferences')
-        .select('category, source, score')
-        .eq('user_id', USER_ID)
-        .order('score', { ascending: false });
-
-      if (error) throw error;
-
+      const { data } = await supabase.from('user_preferences').select('category, source, score').eq('user_id', USER_ID);
       if (data) {
         const prefs = new Map<string, number>();
-        data.forEach(pref => {
-          prefs.set(pref.category, pref.score);
-          if (pref.source) {
-            prefs.set(`source:${pref.source}`, pref.score);
-          }
+        data.forEach(p => {
+          prefs.set(p.category, p.score);
+          if (p.source) prefs.set(`source:${p.source}`, p.score);
         });
         setUserPreferences(prefs);
       }
-    } catch (error) {
-      console.log('Error cargando preferencias:', error);
-      // Continuar sin preferencias si hay error
-    }
+    } catch (e) { console.error(e); }
   };
 
-  // Dar like a una noticia (guardado SOLO en Supabase con userId anónimo)
-  const toggleLike = async (item: NewsItem) => {
-    console.log('❤️ toggleLike llamado para:', item.id, item.title);
+  const loadUserStreak = async () => {
+    try {
+      const { data } = await supabase.from('user_profiles' as any).select('streak_count').eq('id', USER_ID).maybeSingle();
+      if (data) setStreakCount((data as any).streak_count || 0);
+    } catch (e) { console.error(e); }
+  };
 
-    if (!isSupabaseConfigured()) {
-      console.error('❌ Supabase no configurado. Los likes requieren Supabase para funcionar.');
-      setError('⚠️ Los likes requieren Supabase. Por favor, configura las variables de entorno VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY en Vercel.');
-      setTimeout(() => setError(null), 5000);
-      return;
-    }
+  const updateStreak = async () => {
+    if (!isSupabaseConfigured()) return;
+    try {
+      const { data: profile } = await supabase.from('user_profiles' as any).select('*').eq('id', USER_ID).maybeSingle();
+      const lastVisit = profile?.last_visit_date ? new Date(profile.last_visit_date) : null;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-    const isLiked = likedNewsIds.has(item.id);
-    console.log('📊 Estado actual - isLiked:', isLiked, 'USER_ID:', USER_ID);
+      if (!lastVisit || lastVisit < today) {
+        const newStreak = lastVisit && (today.getTime() - lastVisit.getTime()) / (1000 * 60 * 60 * 24) <= 1 
+          ? (profile?.streak_count || 0) + 1 
+          : 1;
+        
+        await supabase.from('user_profiles' as any).upsert({
+          id: USER_ID,
+          streak_count: newStreak,
+          last_visit_date: new Date().toISOString()
+        });
+        setStreakCount(newStreak);
+      }
+    } catch (e) { console.error(e); }
+  };
 
-    // ACTUALIZACIÓN OPTIMISTA (feedback inmediato como TikTok)
-    // Actualizar el estado inmediatamente antes de la petición
-    if (isLiked) {
-      // Quitar like - actualización optimista
-      setLikedNewsIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(item.id);
-        return newSet;
-      });
-      setRawNews(prevNews =>
-        prevNews.map(n =>
-          n.id === item.id
-            ? { ...n, likes: Math.max(0, (n.likes || 0) - 1) }
-            : n
-        )
-      );
-    } else {
-      // Agregar like - actualización optimista
-      setLikedNewsIds(prev => new Set([...prev, item.id]));
-      setRawNews(prevNews =>
-        prevNews.map(n =>
-          n.id === item.id
-            ? { ...n, likes: (n.likes || 0) + 1 }
-            : n
-        )
-      );
-    }
-
+  const handleLike = async (newsId: string) => {
+    if (!isSupabaseConfigured()) return;
+    const isLiked = likedNewsIds.has(newsId);
     try {
       if (isLiked) {
-        // Quitar like
-        console.log('🗑️ Quitando like...');
-        const { error } = await supabase
-          .from('news_likes')
-          .delete()
-          .eq('user_id', USER_ID)
-          .eq('news_id', item.id);
-
-        if (error) {
-          console.error('❌ Error al quitar like:', error);
-          // Revertir actualización optimista en caso de error
-          setLikedNewsIds(prev => new Set([...prev, item.id]));
-          setRawNews(prevNews =>
-            prevNews.map(n =>
-              n.id === item.id
-                ? { ...n, likes: (n.likes || 0) + 1 }
-                : n
-            )
-          );
-          // Don't throw - just log and continue
-          console.warn('Like removal failed but app continues');
-          return;
-        }
-
-        console.log('✅ Like quitado exitosamente');
+        await supabase.from('news_likes').delete().eq('user_id', USER_ID).eq('news_id', newsId);
+        likedNewsIds.delete(newsId);
       } else {
-        // Agregar like
-        console.log('➕ Agregando like...');
-        const { error } = await supabase
-          .from('news_likes')
-          .insert({
-            user_id: USER_ID,
-            news_id: item.id,
-            news_title: item.title,
-            news_source: item.source,
-            news_url: item.url || null
-          });
-
-        if (error) {
-          console.error('❌ Error al agregar like:', error);
-
-          // Revertir actualización optimista en caso de error
-          setLikedNewsIds(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(item.id);
-            return newSet;
-          });
-          setRawNews(prevNews =>
-            prevNews.map(n =>
-              n.id === item.id
-                ? { ...n, likes: Math.max(0, (n.likes || 0) - 1) }
-                : n
-            )
-          );
-
-          // Show user-friendly error briefly
-          toast({ title: "Error", description: "No se pudo guardar el like", duration: 2000 });
-          return;
-        }
-
-        console.log('✅ Like agregado exitosamente');
-        setTableExists(true);
-
-        // Recargar preferencias después de dar like (non-blocking)
-        setTimeout(() => {
-          loadUserPreferences().catch(console.error);
-        }, 1000);
+        await supabase.from('news_likes').insert({ user_id: USER_ID, news_id: newsId });
+        likedNewsIds.add(newsId);
       }
-    } catch (error: any) {
-      console.error('❌ Error inesperado al dar like:', error);
-      // Catch-all to prevent app crash
-      toast({ title: "Error", description: "Error al procesar like", duration: 2000 });
-    }
+      setLikedNewsIds(new Set(likedNewsIds));
+    } catch (e) { console.error(e); }
   };
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'Fecha no disponible';
+  const geoCount = news.filter(n => n.category?.toLowerCase() === 'geopolítica' || n.category?.toLowerCase() === 'geopolitica').length;
+  console.log('VeridianNews rendering', news.length, 'geo:', geoCount, 'isLoading:', isLoading);
 
-    try {
-      const date = new Date(dateString);
-      const now = new Date();
-      const diff = now.getTime() - date.getTime();
-      const minutes = Math.floor(diff / 60000);
-      const hours = Math.floor(diff / 3600000);
-      const days = Math.floor(diff / 86400000);
-
-      if (minutes < 1) return 'Ahora';
-      if (minutes < 60) return `Hace ${minutes} min`;
-      if (hours < 24) return `Hace ${hours} h`;
-      if (days < 7) return `Hace ${days} días`;
-
-      return date.toLocaleDateString('es-ES', {
-        day: 'numeric',
-        month: 'short',
-        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
-      });
-    } catch (e) {
-      return dateString;
-    }
-  };
-
-  const escapeHtml = (text: string) => {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    let cleaned = div.innerHTML
-      .replace(/<a[^>]*>.*?<\/a>/gi, '')
-      .replace(/<img[^>]*>/gi, '')
-      .replace(/<[^>]+>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .trim();
-    return cleaned;
-  };
-
-  const getSourceColor = (source: string) => {
-    const colors = [
-      { gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', badge: 'rgba(102, 126, 234, 0.25)', border: 'rgba(102, 126, 234, 0.5)' },
-      { gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', badge: 'rgba(245, 87, 108, 0.25)', border: 'rgba(245, 87, 108, 0.5)' },
-      { gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', badge: 'rgba(79, 172, 254, 0.25)', border: 'rgba(79, 172, 254, 0.5)' },
-      { gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', badge: 'rgba(67, 233, 123, 0.25)', border: 'rgba(67, 233, 123, 0.5)' },
-      { gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', badge: 'rgba(250, 112, 154, 0.25)', border: 'rgba(250, 112, 154, 0.5)' },
-      { gradient: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)', badge: 'rgba(48, 207, 208, 0.25)', border: 'rgba(48, 207, 208, 0.5)' },
-      { gradient: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', badge: 'rgba(168, 237, 234, 0.25)', border: 'rgba(168, 237, 234, 0.5)' },
-      { gradient: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)', badge: 'rgba(255, 154, 158, 0.25)', border: 'rgba(255, 154, 158, 0.5)' },
-      { gradient: 'linear-gradient(135deg, #fa8bff 0%, #2bd2ff 50%, #2bff88 100%)', badge: 'rgba(250, 139, 255, 0.25)', border: 'rgba(250, 139, 255, 0.5)' },
-      { gradient: 'linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%)', badge: 'rgba(255, 234, 167, 0.25)', border: 'rgba(255, 234, 167, 0.5)' }
-    ];
-    const hash = source.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colors[hash % colors.length];
-  };
-
-  const getThemeIcon = (title: string) => {
-    const titleLower = title.toLowerCase();
-    const icons: { [key: string]: string } = {
-      política: '🏛️', politico: '🏛️', gobierno: '🏛️', elecciones: '🗳️', partido: '🏛️',
-      tecnología: '💻', tech: '💻', innovación: '🚀', digital: '💻', app: '📱',
-      economía: '💰', económico: '💰', mercado: '📈', empresa: '🏢', negocio: '💼',
-      salud: '🏥', médico: '⚕️', hospital: '🏥', medicina: '💊',
-      deportes: '⚽', deporte: '⚽', fútbol: '⚽', baloncesto: '🏀',
-      cultura: '🎭', arte: '🎨', música: '🎵', cine: '🎬',
-      ciencia: '🔬', investigación: '🔬', estudio: '📊',
-      internacional: '🌍', mundo: '🌍', país: '🗺️',
-      sociedad: '👥', social: '👥', comunidad: '👥',
-      medioambiente: '🌱', clima: '🌡️', sostenibilidad: '♻️'
-    };
-
-    for (const [keyword, icon] of Object.entries(icons)) {
-      if (titleLower.includes(keyword)) {
-        return icon;
-      }
-    }
-
-    return '📰';
-  };
-
-
-  const openChat = (item: NewsItem) => {
-    toast({
-      title: "Próximamente",
-      description: "La función de chat con IA estará disponible muy pronto.",
-    });
-  };
-
-  // Función para feedback háptico sutil
-  const triggerHapticFeedback = (intensity: 'light' | 'medium' | 'strong' = 'light') => {
-    if ('vibrate' in navigator) {
-      const patterns = {
-        light: [5],      // Vibración muy sutil
-        medium: [10],    // Vibración media
-        strong: [15]     // Vibración más fuerte
-      };
-      navigator.vibrate(patterns[intensity]);
-    }
-  };
-
-  const setupTikTokScroll = () => {
-    if (!feedContainerRef.current) return;
-
-    const container = feedContainerRef.current;
-    let scrollTimeout: NodeJS.Timeout;
-    let isScrolling = false;
-    let lastScrollTop = 0;
-    let scrollVelocity = 0;
-    let lastScrollTime = Date.now();
-    let rafId: number | null = null;
-    let currentCardIndex = -1;
-    let lastSnappedIndex = -1;
-
-    const getCardHeight = () => {
-      // Usar window.innerHeight para obtener altura real del viewport (incluye barras del navegador)
-      const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-      const headerHeight = isMobile ? 60 : 70;
-      // Asegurar que siempre haya espacio visible
-      return Math.max(viewportHeight - headerHeight, 400);
-    };
-
-    const getCurrentCardIndex = () => {
-      const scrollTop = container.scrollTop;
-      const cardHeight = getCardHeight();
-      return Math.round(scrollTop / cardHeight);
-    };
-
-    const snapToNearestCard = (immediate = false, skipHaptic = false) => {
-      if (isScrolling && !immediate) return;
-
-      const cards = container.querySelectorAll('.news-card');
-      if (cards.length === 0) return;
-
-      const scrollTop = container.scrollTop;
-      const cardHeight = getCardHeight();
-      const targetIndex = Math.round(scrollTop / cardHeight);
-      const limitedIndex = Math.max(0, Math.min(targetIndex, cards.length - 1));
-      const targetScroll = limitedIndex * cardHeight;
-      const distance = Math.abs(scrollTop - targetScroll);
-
-      // Snap más suave y controlado - umbrales más altos para evitar cambios bruscos
-      const snapThreshold = isMobile
-        ? (immediate ? 20 : 50)  // En móvil: más espacio antes de snap
-        : (immediate ? 30 : 60); // En desktop: umbral más alto
-
-      if (distance > snapThreshold || immediate) {
-        // Feedback háptico solo si cambiamos de card (más suave)
-        if (!skipHaptic && limitedIndex !== lastSnappedIndex && lastSnappedIndex !== -1) {
-          triggerHapticFeedback(isMobile ? 'light' : 'light');
-        }
-        lastSnappedIndex = limitedIndex;
-
-        isScrolling = true;
-
-        // Efectos visuales más suaves y visibles
-        const currentCard = cards[limitedIndex] as HTMLElement;
-        if (currentCard) {
-          if (isMobile) {
-            // En móvil: efectos más visibles pero suaves
-            currentCard.style.transition = 'transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.6s ease';
-            currentCard.style.transform = 'scale(0.98)';
-            currentCard.style.opacity = '0.95';
-          } else {
-            // En desktop: efectos más pronunciados y suaves
-            currentCard.style.transition = 'transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.7s ease';
-            currentCard.style.transform = 'scale(0.97)';
-            currentCard.style.opacity = '0.92';
-          }
-        }
-
-        // Usar requestAnimationFrame para scroll más suave con easing mejorado
-        const startScroll = scrollTop;
-        const startTime = performance.now();
-        // Duración más larga para scroll más suave y visible
-        const duration = isMobile
-          ? (immediate ? 500 : 700)  // Móvil: más suave y visible
-          : (immediate ? 600 : 800); // Desktop: más suave y visible
-
-        const animateScroll = (currentTime: number) => {
-          const elapsed = currentTime - startTime;
-          const progress = Math.min(elapsed / duration, 1);
-
-          // Easing más suave y gradual (ease-out-cubic mejorado con curva más suave)
-          const ease = 1 - Math.pow(1 - progress, 2.5); // Reducido de 3.5 a 2.5 para más suavidad
-          const currentScroll = startScroll + (targetScroll - startScroll) * ease;
-
-          container.scrollTop = currentScroll;
-
-          if (progress < 1) {
-            rafId = requestAnimationFrame(animateScroll);
-          } else {
-            container.scrollTop = targetScroll;
-            isScrolling = false;
-            rafId = null;
-
-            // Restaurar efecto visual con transición suave
-            if (currentCard) {
-              setTimeout(() => {
-                currentCard.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.4s ease';
-                currentCard.style.transform = 'scale(1)';
-                currentCard.style.opacity = '1';
-              }, isMobile ? 100 : 150); // Más tiempo para transición suave
-            }
-          }
-        };
-
-        if (rafId) {
-          cancelAnimationFrame(rafId);
-        }
-        rafId = requestAnimationFrame(animateScroll);
-      } else {
-        isScrolling = false;
-      }
-    };
-
-    // Manejar scroll con mejor detección de velocidad y snap más inmediato
-    const handleScroll = () => {
-      const currentScrollTop = container.scrollTop;
-      const currentTime = Date.now();
-      const timeDelta = currentTime - lastScrollTime;
-
-      if (timeDelta > 0) {
-        scrollVelocity = Math.abs(currentScrollTop - lastScrollTop) / timeDelta;
-      }
-
-      // Detectar cambio de card para efectos visuales (más sutiles en móvil)
-      const newCardIndex = getCurrentCardIndex();
-      if (newCardIndex !== currentCardIndex && currentCardIndex !== -1) {
-        // Aplicar efecto visual sutil al card actual
-        const cards = container.querySelectorAll('.news-card');
-        const prevCard = cards[currentCardIndex] as HTMLElement;
-        const newCard = cards[newCardIndex] as HTMLElement;
-
-        if (prevCard) {
-          prevCard.style.transform = 'scale(1)';
-          prevCard.style.opacity = '1';
-        }
-        if (newCard) {
-          // Efectos más sutiles en móvil para mejor rendimiento
-          if (isMobile) {
-            newCard.style.transform = 'scale(1.005)';
-            newCard.style.opacity = '1';
-          } else {
-            newCard.style.transform = 'scale(1.01)';
-            newCard.style.opacity = '1';
-          }
-        }
-      }
-      currentCardIndex = newCardIndex;
-
-      lastScrollTop = currentScrollTop;
-      lastScrollTime = currentTime;
-
-      // Cancelar snap anterior si el usuario sigue scrolleando
-      if (scrollTimeout) clearTimeout(scrollTimeout);
-
-      // Snap más suave y controlado - delays más largos para evitar cambios bruscos
-      const snapDelay = isMobile
-        ? (scrollVelocity > 1.5 ? 300 : 200)  // Móvil: más tiempo antes de snap
-        : (scrollVelocity > 1.5 ? 400 : 250);   // Desktop: más tiempo antes de snap
-
-      scrollTimeout = setTimeout(() => {
-        // Umbral de velocidad más alto para snap más suave (esperar a que pare más)
-        const velocityThreshold = isMobile ? 0.05 : 0.03; // Reducido para esperar más tiempo
-        if (scrollVelocity < velocityThreshold) {
-          snapToNearestCard(false, false);
-        }
-      }, snapDelay);
-    };
-
-    // Scroll con rueda mejorado para desktop - más responsivo y fluido
-    let wheelTimeout: NodeJS.Timeout;
-    let wheelAccumulator = 0;
-    const handleWheel = (e: WheelEvent) => {
-      const delta = e.deltaY;
-      wheelAccumulator += delta;
-
-      // Limpiar acumulador después de un tiempo más corto para mejor respuesta
-      if (wheelTimeout) clearTimeout(wheelTimeout);
-      wheelTimeout = setTimeout(() => {
-        wheelAccumulator = 0;
-      }, 100); // Reducido de 150 a 100
-
-      // Umbral más bajo para scroll más responsivo
-      if (Math.abs(wheelAccumulator) > 30 && !isScrolling) { // Reducido de 50 a 30
-        const direction = wheelAccumulator > 0 ? 1 : -1;
-        const cardHeight = getCardHeight();
-        const currentScroll = container.scrollTop;
-        const currentIndex = Math.round(currentScroll / cardHeight);
-        const cards = container.querySelectorAll('.news-card');
-        const nextIndex = Math.max(0, Math.min(currentIndex + direction, cards.length - 1));
-
-        if (nextIndex !== currentIndex) {
-          isScrolling = true;
-          wheelAccumulator = 0;
-
-          // Feedback háptico sutil en desktop (si está disponible)
-          triggerHapticFeedback('light');
-
-          // Scroll suave con requestAnimationFrame y easing mejorado
-          const startScroll = currentScroll;
-          const targetScroll = nextIndex * cardHeight;
-          const startTime = performance.now();
-          const duration = 700; // Más lento para scroll más suave y visible
-
-          // Aplicar efecto visual más suave y visible
-          const currentCard = cards[currentIndex] as HTMLElement;
-          const nextCard = cards[nextIndex] as HTMLElement;
-          if (currentCard) {
-            currentCard.style.transition = 'transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.7s ease';
-            currentCard.style.transform = 'scale(0.97)';
-            currentCard.style.opacity = '0.9';
-          }
-          if (nextCard) {
-            nextCard.style.transition = 'transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.7s ease';
-            nextCard.style.transform = 'scale(1.02)';
-            nextCard.style.opacity = '1';
-          }
-
-          const animateWheelScroll = (currentTime: number) => {
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            // Easing más suave y gradual
-            const ease = 1 - Math.pow(1 - progress, 2.5); // Reducido de 3.5 a 2.5
-            const currentScrollPos = startScroll + (targetScroll - startScroll) * ease;
-
-            container.scrollTop = currentScrollPos;
-
-            if (progress < 1) {
-              rafId = requestAnimationFrame(animateWheelScroll);
-            } else {
-              container.scrollTop = targetScroll;
-              isScrolling = false;
-              rafId = null;
-
-              // Restaurar efectos visuales con transición suave
-              if (currentCard) {
-                setTimeout(() => {
-                  currentCard.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.4s ease';
-                  currentCard.style.transform = 'scale(1)';
-                  currentCard.style.opacity = '1';
-                }, 150);
-              }
-              if (nextCard) {
-                setTimeout(() => {
-                  nextCard.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.4s ease';
-                  nextCard.style.transform = 'scale(1)';
-                  nextCard.style.opacity = '1';
-                }, 150);
-              }
-
-              snapToNearestCard(true, true);
-            }
-          };
-
-          if (rafId) {
-            cancelAnimationFrame(rafId);
-          }
-          rafId = requestAnimationFrame(animateWheelScroll);
-
-          e.preventDefault();
-        }
-      }
-    };
-
-    // Manejar touch events mejorado para scroll más fluido y responsivo en móvil
-    let touchStartY = 0;
-    let touchStartTime = 0;
-    let isTouching = false;
-    let touchMoveY = 0;
-    let touchMoveTime = 0;
-
-    const handleTouchStart = (e: TouchEvent) => {
-      touchStartY = e.touches[0].clientY;
-      touchStartTime = Date.now();
-      touchMoveY = touchStartY;
-      touchMoveTime = touchStartTime;
-      isTouching = true;
-      scrollVelocity = 0;
-
-      // Efecto visual sutil al iniciar touch
-      const currentIndex = getCurrentCardIndex();
-      const cards = container.querySelectorAll('.news-card');
-      const currentCard = cards[currentIndex] as HTMLElement;
-      if (currentCard) {
-        currentCard.style.transition = 'transform 0.2s ease';
-        currentCard.style.transform = 'scale(0.99)';
-      }
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!isTouching) return;
-      touchMoveY = e.touches[0].clientY;
-      touchMoveTime = Date.now();
-
-      // Efecto visual más sutil en móvil para mejor rendimiento
-      const deltaY = touchMoveY - touchStartY;
-      const currentIndex = getCurrentCardIndex();
-      const cards = container.querySelectorAll('.news-card');
-      const currentCard = cards[currentIndex] as HTMLElement;
-
-      if (currentCard && Math.abs(deltaY) > 15) {
-        // Efectos más sutiles en móvil
-        const maxScale = 0.03; // Reducido de 0.05 para móvil
-        const maxOpacity = 0.15; // Reducido de 0.2 para móvil
-        const scale = 1 - Math.min(Math.abs(deltaY) / 600, maxScale);
-        const opacity = 1 - Math.min(Math.abs(deltaY) / 400, maxOpacity);
-        currentCard.style.transform = `scale(${scale})`;
-        currentCard.style.opacity = `${opacity}`;
-      }
-    };
-
-    const handleTouchEnd = (e: TouchEvent) => {
-      if (!isTouching) return;
-
-      const touchEndY = e.changedTouches[0].clientY;
-      const touchEndTime = Date.now();
-      const distance = Math.abs(touchStartY - touchEndY);
-      const duration = touchEndTime - touchStartTime;
-      const velocity = distance / duration; // Velocidad del swipe
-
-      // Restaurar efecto visual
-      const currentIndex = getCurrentCardIndex();
-      const cards = container.querySelectorAll('.news-card');
-      const currentCard = cards[currentIndex] as HTMLElement;
-      if (currentCard) {
-        currentCard.style.transform = 'scale(1)';
-        currentCard.style.opacity = '1';
-      }
-
-      // Snap más inteligente y suave basado en velocidad y distancia
-      if (duration < 200 && distance > 50) {
-        // Swipe muy rápido - snap suave con feedback háptico medio
-        triggerHapticFeedback('medium');
-        setTimeout(() => {
-          snapToNearestCard(true, false);
-        }, 100); // Más tiempo para transición suave
-      } else if (duration < 300 && distance > 60) {
-        // Swipe rápido - snap suave con feedback háptico ligero
-        triggerHapticFeedback('light');
-        setTimeout(() => {
-          snapToNearestCard(true, false);
-        }, 150);
-      } else if (velocity > 0.3 && distance > 40) {
-        // Swipe con buena velocidad - snap suave con feedback ligero
-        triggerHapticFeedback('light');
-        setTimeout(() => {
-          snapToNearestCard(true, false);
-        }, 200); // Más tiempo para transición suave
-      } else {
-        // Snap normal después de que termine el momentum - más tiempo para suavidad
-        setTimeout(() => {
-          snapToNearestCard(false, false);
-        }, 300); // Aumentado para scroll más suave
-      }
-
-      isTouching = false;
-    };
-
-    // Inicializar índice actual
-    currentCardIndex = getCurrentCardIndex();
-    lastSnappedIndex = currentCardIndex;
-
-    // Agregar event listeners
-    container.addEventListener('scroll', handleScroll, { passive: true });
-
-    if (!isMobile) {
-      container.addEventListener('wheel', handleWheel, { passive: false });
-    } else {
-      container.addEventListener('touchstart', handleTouchStart, { passive: true });
-      container.addEventListener('touchmove', handleTouchMove, { passive: true });
-      container.addEventListener('touchend', handleTouchEnd, { passive: true });
-    }
-
-    // Cleanup function
-    return () => {
-      if (scrollTimeout) clearTimeout(scrollTimeout);
-      if (wheelTimeout) clearTimeout(wheelTimeout);
-      if (rafId) cancelAnimationFrame(rafId);
-      container.removeEventListener('scroll', handleScroll);
-      if (!isMobile) {
-        container.removeEventListener('wheel', handleWheel);
-      } else {
-        container.removeEventListener('touchstart', handleTouchStart);
-        container.removeEventListener('touchmove', handleTouchMove);
-        container.removeEventListener('touchend', handleTouchEnd);
-      }
-    };
-  };
-
-  // Verificar si hay error de configuración
-  const supabaseConfigured = isSupabaseConfigured();
-
-  // Solo mostrar noticias del Excel, no usar mockNews
-  const displayNews = news && news.length > 0 ? news : [];
-
-  useEffect(() => {
-    if (displayNews.length > 0) {
-      console.log('📊 News Categories Debug:', displayNews.map(n => ({
-        id: n.id,
-        title: n.title?.substring(0, 20),
-        apiCategory: n.category,
-        detectedCategory: detectCategory(n.title, n.content)
-      })));
-    }
-  }, [displayNews]);
-
-  // Only show full screen loading if we are actually loading and have no data
-  if (isLoading && rawNews.length === 0) {
-    return (
-      <div className="h-[100dvh] w-full flex items-center justify-center bg-black text-white">
-        <div className="flex flex-col items-center gap-4">
-          {!supabaseConfigured && (
-            <div className="p-4 bg-yellow-500/20 rounded-lg text-yellow-200 text-center max-w-sm mb-4">
-              Supabase no configurado.
-            </div>
-          )}
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <p className="opacity-70 animate-pulse">Cargando noticias...</p>
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return <TacticalLoader progress={loadingProgress} />;
 
   return (
-    <div className="h-[100dvh] w-full bg-black overflow-hidden relative font-sans text-white">
-      {/* Background ambient for tablet/desktop */}
-      <div className="hidden md:block absolute inset-0 bg-zinc-900 z-0 pr-[calc(100vw-100%)]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_rgba(59,130,246,0.1),_transparent_70%)] opacity-40" />
+    <div className="veridian-news-container font-sans bg-black text-white h-[100dvh] overflow-hidden flex flex-col relative">
+      {/* Tactical Command Header - ULTRA MINIMALIST */}
+      <div className={cn(
+        "flex flex-col bg-background/80 backdrop-blur-xl border-b border-border z-[100] shrink-0 relative transition-all duration-500",
+        showContentModal ? "opacity-0 invisible -translate-y-10" : "opacity-100 visible translate-y-0"
+      )}>
+        <div className="flex justify-between items-center h-[60px] px-6">
+          {/* Logo Section */}
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+            <h1 className="text-lg font-black tracking-[0.2em] text-foreground uppercase italic">
+              Veridian<span className="text-emerald-500">_</span>
+            </h1>
+          </div>
+
+          {/* Center Clock (Discreet) */}
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="text-[11px] font-tactical font-black text-emerald-400 tabular-nums">
+              {currentTime.getUTCHours().toString().padStart(2, '0')}:
+              {currentTime.getUTCMinutes().toString().padStart(2, '0')}:
+              {currentTime.getUTCSeconds().toString().padStart(2, '0')}
+              <span className="ml-1 text-[8px] text-emerald-500/50 uppercase">UTC</span>
+            </span>
+          </div>
+          
+          {/* Action Section */}
+          <div className="flex items-center gap-4">
+            <div className="scale-90 opacity-80">
+              <StreakHeader streak={streakCount} />
+            </div>
+            <div className="h-6 w-[1px] bg-white/10 mx-1" />
+            <a 
+              href="#" 
+              className="px-4 py-1.5 rounded-full bg-emerald-500 text-black text-[10px] font-black uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] active:scale-95"
+            >
+              Descargar web.app
+            </a>
+            <button onClick={openSearch} className="p-2 text-foreground/40 hover:text-emerald-400 transition-colors">
+              <Search className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Global Geopolitics Ticker - Integrated */}
+        <div className="h-[34px] flex items-center bg-black/40 border-t border-white/5 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-2 px-4 shrink-0 border-r border-white/10 mr-4">
+            <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Filter_Mode</span>
+          </div>
+          <div className="flex items-center gap-6 px-4 shrink-0">
+            {['all', 'geopolítica', 'tecnología', 'empresa', 'españa', 'política'].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={cn(
+                  "text-[10px] font-tactical font-bold uppercase tracking-[0.2em] transition-all relative py-2",
+                  selectedCategory === cat 
+                    ? "text-emerald-400" 
+                    : "text-white/30 hover:text-white/60"
+                )}
+              >
+                {cat === 'all' ? 'Ver_Todo' : cat}
+                {selectedCategory === cat && (
+                  <div className="absolute bottom-0 left-0 w-full h-[1px] bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]" />
+                )}
+              </button>
+            ))}
+          </div>
+          <div className="h-4 w-[1px] bg-white/10 mx-2 shrink-0" />
+          <GeopoliticsTicker news={news} />
+        </div>
       </div>
 
-      {/* Modal de Búsqueda */}
-      <AnimatePresence>
-        {showSearchModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-start justify-center pt-12 bg-black/80 backdrop-blur-sm"
-            onClick={() => closeSearch()}
-          >
-            <motion.div
-              initial={{ y: -20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="w-full max-w-md mx-4 bg-zinc-900/95 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl max-h-[80vh] flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header con input de búsqueda */}
-              <div className="p-4 border-b border-white/10">
-                <div className="flex items-center gap-3">
-                  <Search className="w-5 h-5 text-white/50" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Buscar noticias..."
-                    autoFocus
-                    className="flex-1 bg-transparent border-none text-white text-lg placeholder:text-white/40 focus:outline-none"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-                    >
-                      <X className="w-4 h-4 text-white/70" />
-                    </button>
-                  )}
-                </div>
-                <div className="text-xs text-white/40 mt-2">
-                  {searchQuery ? `${news.length} resultado${news.length !== 1 ? 's' : ''}` : 'Busca por título, fuente o contenido'}
-                </div>
-              </div>
+      {/* Bottom Navigation Dock - Smart Visibility */}
+      <div className={cn(
+        "fixed bottom-0 left-0 w-full z-[1000] transition-all duration-700",
+        showContentModal ? "opacity-0 translate-y-20" : "opacity-100 translate-y-0"
+      )}>
+        <BottomDock />
+      </div>
 
-              {/* Lista de resultados scrolleable */}
-              {searchQuery && news.length > 0 && (
-                <div className="flex-1 overflow-y-auto">
-                  {news.slice(0, 20).map((item, idx) => (
-                    <motion.button
-                      key={item.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.03 }}
-                      onClick={() => {
-                        closeSearch();
-                        setSelectedNews(item);
-                        setShowContentModal(true);
-                      }}
-                      className="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors border-b border-white/5 text-left"
-                    >
-                      {/* Thumbnail */}
-                      {item.image && (
-                        <img
-                          src={item.image}
-                          alt=""
-                          className="w-14 h-14 rounded-lg object-cover flex-shrink-0 bg-zinc-800"
-                        />
-                      )}
-                      {!item.image && (
-                        <div className="w-14 h-14 rounded-lg bg-zinc-800 flex items-center justify-center flex-shrink-0">
-                          <span className="text-2xl">📰</span>
-                        </div>
-                      )}
-
-                      {/* Contenido */}
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-white text-sm font-medium line-clamp-2 leading-tight">
-                          {item.title}
-                        </h4>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-white/40">{item.source}</span>
-                          {item.date && (
-                            <>
-                              <span className="text-white/20">•</span>
-                              <span className="text-xs text-white/40">
-                                {new Date(item.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </motion.button>
-                  ))}
-
-                  {news.length > 20 && (
-                    <div className="p-3 text-center text-xs text-white/40">
-                      +{news.length - 20} más resultados
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Estado vacío */}
-              {searchQuery && news.length === 0 && (
-                <div className="p-8 text-center">
-                  <span className="text-4xl mb-3 block">🔍</span>
-                  <p className="text-white/50 text-sm">No se encontraron noticias</p>
-                </div>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <main
+      {/* MAIN FEED CONTAINER - ONLY THIS PART SCROLLS */}
+      <main 
         ref={feedContainerRef}
-        className="h-full w-full md:max-w-md md:mx-auto relative z-10 overflow-y-scroll snap-y snap-mandatory scroll-smooth no-scrollbar md:border-x md:border-white/10 shadow-2xl bg-black"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }} // Hide scrollbar specifically
-      >
-        <style>{`
-          .no-scrollbar::-webkit-scrollbar {
-            display: none;
-          }
-        `}</style>
-
-        {displayNews.map((item, index) => {
-          // Determinar si esta tarjeta está activa (visible)
-          // Por simplicidad en MVP, usamos el índice del observer
-          const isActive = currentVisibleNews?.id === item.id;
-
-          return (
-            <div key={item.id} data-index={index} className="news-card h-[100dvh] w-full snap-start">
-              <NewsCard
-                item={{ ...item, isLiked: likedNewsIds.has(item.id) }}
-                index={index}
-                isActive={isActive}
-                onLike={() => {
-                  toggleLike(item);
-                }}
-                onShare={() => {
-                  if (navigator.share) {
-                    navigator.share({
-                      title: item.title,
-                      text: item.summary,
-                      url: window.location.href
-                    }).catch(console.error);
-                  } else {
-                    // Fallback copy to clipboard
-                    navigator.clipboard.writeText(`${item.title}\n${window.location.href}`);
-                    toast({
-                      title: "Enlace copiado",
-                      description: "El enlace a la noticia se ha copiado al portapapeles.",
-                    });
-                  }
-                }}
-                onReadMore={() => openFullContent(item)}
-                category={item.category || detectCategory(item.title, item.content)}
-              />
-            </div>
-          );
-        })}
-
-        {/* Loading Indicator at bottom */}
-        {isLoading && (
-          <div className="h-20 w-full flex items-center justify-center snap-end bg-black">
-            <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          </div>
+        className={cn(
+          "feed-container flex-1 w-full relative z-10 overflow-x-hidden snap-y snap-mandatory scrollbar-hide bg-black transition-all duration-700",
+          showContentModal ? "opacity-0 invisible overflow-y-hidden pointer-events-none" : "opacity-100 visible overflow-y-auto"
         )}
+      >
+        {news.map((item, index) => (
+          <div 
+            key={item.id} 
+            data-index={index}
+            className="news-card w-full h-full snap-start snap-always relative"
+          >
+            <NewsCard 
+              item={item} 
+              isActive={activeNewsId === item.id}
+              index={index}
+              onLike={() => handleLike(item.id)}
+              onShare={() => {}}
+              onReadMore={() => {
+                closeSearch();
+                setSelectedNews(item);
+                setShowContentModal(true);
+                updateStreak();
+              }}
+              category={item.category}
+            />
+          </div>
+        ))}
+        
+        {/* Tactical Loader Footer - Extra height to avoid dock overlap */}
+        <div className="h-48 flex flex-col items-center justify-center gap-4 border-t border-white/5 bg-black/40">
+          <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
+          <span className="text-[10px] font-tactical text-emerald-500/50 animate-pulse tracking-widest">SYNCHRONIZING_FEED...</span>
+        </div>
       </main>
 
-      {/* Floating Bottom Dock */}
-      <BottomDock />
+      {/* Deep Intelligence Detail Modal - High-Fidelity Editorial Edition */}
+      {showContentModal && selectedNews && createPortal(
+        <div className="fixed inset-0 z-[2000000] bg-black flex flex-col overflow-hidden pointer-events-auto">
+          {/* Reading Progress Bar */}
+          <div className="absolute top-0 left-0 w-full h-1 bg-white/5 z-[210000]">
+            <div className="h-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.8)] transition-all duration-300" style={{ width: '0%' }} id="reading-progress" />
+          </div>
 
-      {/* Modals (Keep existing ones intact for now, just ensure z-index is high enough) */}
-      {/* Modal de Contenido Completo */}
-      {
-        showContentModal && selectedNews && (
-          <motion.div
-            className="fixed inset-0 z-50 bg-zinc-950 flex flex-col"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            {/* Header elegante con gradiente */}
-            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-gradient-to-b from-zinc-900/95 to-transparent backdrop-blur-xl sticky top-0 z-10">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-white text-sm font-bold">
-                  V
-                </div>
-                <span className="text-white/60 text-sm font-medium">Veridian News</span>
+          <header className="px-6 py-4 md:px-10 md:py-6 flex items-center justify-between border-b border-white/5 bg-black z-[205000] shrink-0">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                <Globe className="w-5 h-5 text-emerald-500" />
               </div>
-              <button
-                onClick={() => setShowContentModal(false)}
-                className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all duration-200 hover:scale-105"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-500">Expediente_Verificado</span>
+                  <div className="w-1 h-1 rounded-full bg-emerald-500/40" />
+                  <span className="text-[9px] font-mono text-emerald-500/60 uppercase">Protocolo_V.9</span>
+                </div>
+                <span className="text-[11px] font-bold text-white/60 truncate max-w-[250px] md:max-w-xl uppercase tracking-tighter">
+                  {selectedNews.source.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
+                </span>
+              </div>
             </div>
-
-            <div className="flex-1 overflow-y-auto pb-32">
-              {/* Imagen hero con gradiente overlay */}
-              {selectedNews.image && (
-                <motion.div
-                  className="relative w-full aspect-[16/9] md:aspect-[21/9]"
-                  initial={{ scale: 1.05 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.6 }}
+            <div className="flex items-center gap-3">
+              {selectedNews.url && (
+                <a 
+                  href={selectedNews.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest text-white/60 hover:bg-white/10 hover:text-white transition-all"
                 >
-                  <img
-                    src={selectedNews.image}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent" />
-                </motion.div>
+                  Documento Original
+                </a>
               )}
+            <button 
+              onClick={() => setShowContentModal(false)} 
+              className="w-12 h-12 rounded-2xl bg-white/10 hover:bg-emerald-500 hover:text-black text-white flex items-center justify-center transition-all duration-300 group active:scale-90 z-[210000] border border-white/10 shadow-[0_0_20px_rgba(0,0,0,0.5)]"
+              aria-label="Cerrar expediente"
+            >
+              <X className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
+            </button>
+          </div>
+        </header>
 
-              <div className="px-5 md:px-8 lg:px-12 max-w-3xl mx-auto">
-                {/* Metadata con estilo editorial */}
-                <motion.div
-                  className="flex items-center gap-3 text-sm py-6"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                >
-                  <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 font-medium border border-emerald-500/30">
-                    {selectedNews.source}
-                  </span>
-                  <span className="text-white/40">•</span>
-                  <span className="text-white/50">{new Date(selectedNews.date).toLocaleDateString('es-ES', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                  })}</span>
-                </motion.div>
-
-                {/* Título con animación */}
-                <motion.h1
-                  className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight mb-8 tracking-tight"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.15, duration: 0.4 }}
-                >
-                  {selectedNews.title}
-                </motion.h1>
-
-                {/* Contenido con formato automático */}
-                <div className="space-y-8">
-                  {(() => {
-                    const rawContent = selectedNews.content && selectedNews.content.trim().length > 30 && !selectedNews.content.toLowerCase().includes("sin contenido")
-                      ? selectedNews.content
-                      : selectedNews.summary;
-
-                    // Función para dividir texto largo en párrafos legibles
-                    const formatTextIntoParagraphs = (text: string): string[] => {
-                      // Si ya tiene saltos de línea, usarlos
-                      if (text.includes('\n')) {
-                        return text.split('\n').filter(p => p.trim().length > 0);
-                      }
-
-                      // Si no, dividir inteligentemente por oraciones (cada 2-3 oraciones = 1 párrafo)
-                      const sentences = text.split(/(?<=[.!?])\s+/);
-                      const paragraphs: string[] = [];
-                      let currentParagraph: string[] = [];
-
-                      sentences.forEach((sentence, i) => {
-                        currentParagraph.push(sentence);
-                        // Crear nuevo párrafo cada 2-3 oraciones o si la oración es muy larga
-                        if (currentParagraph.length >= 3 ||
-                          (currentParagraph.length >= 2 && currentParagraph.join(' ').length > 400)) {
-                          paragraphs.push(currentParagraph.join(' '));
-                          currentParagraph = [];
-                        }
-                      });
-
-                      // Añadir el último párrafo si queda algo
-                      if (currentParagraph.length > 0) {
-                        paragraphs.push(currentParagraph.join(' '));
-                      }
-
-                      return paragraphs;
-                    };
-
-                    const paragraphs = formatTextIntoParagraphs(rawContent);
-
-                    return paragraphs.map((paragraph, idx) => {
-                      const isFirstParagraph = idx === 0;
-                      const showDivider = idx > 0 && idx % 3 === 0;
-
-                      return (
-                        <motion.div
-                          key={idx}
-                          initial={{ opacity: 0, y: 12 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{
-                            delay: 0.15 + (idx * 0.06),
-                            duration: 0.35,
-                            ease: [0.25, 0.1, 0.25, 1]
-                          }}
-                        >
-                          {/* Separador minimalista cada 3 párrafos */}
-                          {showDivider && (
-                            <div className="flex items-center justify-center py-6 mb-6">
-                              <div className="w-16 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-                            </div>
-                          )}
-
-                          <p className={cn(
-                            "text-zinc-300 leading-[1.9] tracking-wide",
-                            isFirstParagraph
-                              ? "text-[17px] md:text-lg text-zinc-200 font-medium"
-                              : "text-base md:text-[17px]"
-                          )}>
-                            {paragraph}
-                          </p>
-                        </motion.div>
-                      );
-                    });
-                  })()}
+          <main 
+            className="flex-1 overflow-y-auto scrollbar-hide scroll-smooth"
+            onScroll={(e) => {
+              const target = e.currentTarget;
+              const progress = (target.scrollTop / (target.scrollHeight - target.clientHeight)) * 100;
+              const bar = document.getElementById('reading-progress');
+              if (bar) bar.style.width = `${progress}%`;
+            }}
+          >
+            {/* Dynamic Hero Section */}
+            <div className="relative w-full min-h-[40vh] md:min-h-[60vh] bg-black flex flex-col justify-end overflow-hidden">
+              <div className="absolute inset-0">
+                <img 
+                  src={selectedNews.image || "/tactical_intel_asset.png"} 
+                  alt="" 
+                  className="w-full h-full object-cover opacity-50 transition-opacity duration-1000"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "/tactical_intel_asset.png";
+                    (e.target as HTMLImageElement).classList.add('opacity-20');
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+              </div>
+              
+              <div className="relative z-10 w-full p-6 md:p-16">
+                <div className="max-w-4xl mx-auto">
+                  <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase tracking-widest mb-6 backdrop-blur-md">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Lectura Prioritaria
+                  </div>
+                  <h2 className="text-3xl md:text-7xl font-black text-white tracking-tighter uppercase leading-[0.9] md:leading-[0.85] max-w-4xl drop-shadow-2xl">
+                    {selectedNews.title}
+                  </h2>
                 </div>
-
-                {/* Footer con acciones */}
-                {selectedNews.url && (
-                  <motion.div
-                    className="mt-12 pt-8 border-t border-white/10"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                  >
-                    <a
-                      href={selectedNews.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2.5 px-6 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 rounded-full text-emerald-400 hover:text-emerald-300 font-medium transition-all duration-300 group"
-                    >
-                      <span>Leer fuente original</span>
-                      <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                    </a>
-                  </motion.div>
-                )}
               </div>
             </div>
 
-            {/* Floating AI Button - diseño mejorado */}
-            <div className="absolute bottom-8 right-6">
-              <motion.button
-                onClick={() => openAIChat(selectedNews)}
-                className="flex items-center gap-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-6 py-3.5 rounded-full shadow-lg shadow-blue-900/50 font-medium transition-all duration-300 group"
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.4, type: "spring", stiffness: 200 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Brain className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-                <span>Analizar con IA</span>
-              </motion.button>
-            </div>
-          </motion.div>
-        )
-      }
+            {/* Editorial Content */}
+            <div className="max-w-4xl mx-auto px-6 py-12 md:py-24">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-start">
+                <div className="lg:col-span-8 space-y-12 mt-8 md:mt-0">
+                  <p className="text-xl md:text-3xl text-white/90 font-bold leading-tight border-l-4 border-emerald-500 pl-6 md:pl-10 italic bg-emerald-500/5 py-6 pr-6 rounded-r-2xl">
+                    {selectedNews.summary}
+                  </p>
+                  
+                  <div className="prose prose-invert max-w-none">
+                    <div className="text-lg md:text-xl text-white/70 leading-[1.8] space-y-10 font-medium tracking-tight">
+                      {selectedNews.content.split('\n').map((p, i) => (
+                        p.trim() && (
+                          <p key={i} className="animate-in fade-in duration-1000 fill-mode-both">
+                            {p}
+                          </p>
+                        )
+                      ))}
+                    </div>
+                  </div>
+                </div>
 
-      {/* Other modals (Comments, AI, etc) - keeping minimal logic for brevity but ensuring they render */}
-      {/* Modals removed */}
-    </div >
+                {/* Sidebar Info */}
+                <aside className="lg:col-span-4 space-y-8 lg:sticky lg:top-8">
+                  <div className="p-8 rounded-[32px] bg-white/[0.03] border border-white/5 backdrop-blur-sm space-y-8">
+                    <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                      Análisis_Técnico
+                    </h4>
+                    
+                    <div className="space-y-6">
+                      <MetaItem label="Origen de la Inteligencia" value={selectedNews.source.replace(/^https?:\/\/(www\.)?/, '').split('/')[0].toUpperCase()} />
+                      <MetaItem label="Clasificación Sectorial" value={selectedNews.category || "GENERAL_INTEL"} />
+                      <MetaItem label="Registro Temporal" value={new Date(selectedNews.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })} />
+                      <MetaItem label="Cripto-ID" value={`#VER-${selectedNews.id.substring(0, 8).toUpperCase()}`} />
+                    </div>
+
+                    <button className="w-full py-4 rounded-2xl bg-emerald-500 text-black font-black uppercase text-[11px] tracking-[0.2em] hover:bg-emerald-400 transition-all shadow-[0_0_30px_rgba(16,185,129,0.3)] active:scale-95 flex items-center justify-center gap-3">
+                      Descargar Dossier
+                    </button>
+                  </div>
+                </aside>
+              </div>
+
+              <footer className="text-center py-20 mt-12 space-y-6">
+                <div className="flex items-center justify-center gap-4">
+                  <div className="h-px w-12 bg-white/10" />
+                  <div className="w-2 h-2 rounded-full bg-emerald-500/40" />
+                  <div className="h-px w-12 bg-white/10" />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-[10px] font-mono text-white/20 uppercase tracking-[0.5em]">Fin de la Transmisión</p>
+                  <p className="text-[8px] font-mono text-white/10 uppercase tracking-[0.3em]">Veridian News // Deep Intel Protocol</p>
+                </div>
+              </footer>
+            </div>
+          </main>
+        </div>,
+        document.body
+      )}
+    </div>
   );
 };
 
+const MetaItem = ({ label, value }: { label: string, value: string }) => (
+  <div className="space-y-1">
+    <p className="text-[8px] text-foreground/30 uppercase tracking-widest">{label}</p>
+    <p className="text-[11px] font-bold text-foreground/80 uppercase tracking-tight">{value}</p>
+  </div>
+);
 
 export default VeridianNews;

@@ -3,21 +3,19 @@ import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useDockVisibility } from "@/contexts/DockVisibilityContext";
 import { useSearch } from "@/contexts/SearchContext";
-import { motion, AnimatePresence } from "framer-motion";
 
 const DockItem = ({ icon, path, isActive }: { icon: React.ReactNode, path: string, isActive: boolean }) => (
   <Link to={path} className={cn(
-    "relative p-1.5 transition-all duration-300",
-    isActive ? "text-white scale-110" : "text-white/40 hover:text-white/80"
+    "relative flex flex-col items-center justify-center transition-all duration-300",
+    isActive ? "text-emerald-400 scale-110" : "text-white/40 hover:text-white/80"
   )}>
     {icon}
     {isActive && (
-      <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-emerald-500 rounded-full shadow-[0_0_6px_2px_rgba(16,185,129,0.5)]" />
+      <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-emerald-400 rounded-full shadow-[0_0_10px_rgba(16,185,129,1)]" />
     )}
   </Link>
 );
 
-// Botón de búsqueda que abre el modal
 const SearchButton = ({ isActive }: { isActive: boolean }) => {
   const { openSearch, searchQuery } = useSearch();
 
@@ -25,17 +23,19 @@ const SearchButton = ({ isActive }: { isActive: boolean }) => {
     <button
       onClick={openSearch}
       className={cn(
-        "relative p-1.5 transition-all duration-300",
-        isActive || searchQuery ? "text-white scale-110" : "text-white/40 hover:text-white/80"
+        "relative flex flex-col items-center justify-center transition-all duration-300",
+        isActive || searchQuery ? "text-emerald-400 scale-110" : "text-white/40 hover:text-white/80"
       )}
     >
-      <Search size={20} />
+      <Search size={24} />
       {(isActive || searchQuery) && (
-        <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-emerald-500 rounded-full shadow-[0_0_6px_2px_rgba(16,185,129,0.5)]" />
+        <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-emerald-400 rounded-full shadow-[0_0_10px_rgba(16,185,129,1)]" />
       )}
     </button>
   );
 };
+
+import { createPortal } from "react-dom";
 
 export const BottomDock = () => {
   const location = useLocation();
@@ -50,58 +50,52 @@ export const BottomDock = () => {
   const isCafeActive = isActive("/cafe");
   const isProfileActive = isActive("/profile");
 
-  return (
+  // Usamos createPortal para asegurar que el dock esté por encima de TODO
+  return createPortal(
     <>
-      {/* Profile avatar - top right corner */}
-      <Link
-        to="/profile"
-        className={cn(
-          "fixed top-4 right-4 z-50 flex items-center justify-center w-9 h-9 rounded-full transition-all duration-300",
-          "bg-black/40 backdrop-blur-xl border border-white/10 shadow-lg",
-          "hover:border-white/20 hover:bg-black/60 active:scale-95",
-          isProfileActive && "border-emerald-500/40 bg-emerald-500/10"
-        )}
+      {/* Tactical Frame Navigation Dock - AT THE VERY BOTTOM */}
+      <div 
+        style={{ 
+          position: 'fixed', 
+          bottom: '0', 
+          left: '0',
+          right: '0', 
+          zIndex: 1000000,
+          pointerEvents: 'auto',
+          display: 'flex',
+          justifyContent: 'center',
+          background: '#020305',
+          borderTop: '1px solid rgba(16, 185, 129, 0.4)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          boxShadow: '0 -10px 40px rgba(0,0,0,0.8)'
+        }}
       >
-        <User size={16} className={cn(
-          "transition-colors",
-          isProfileActive ? "text-emerald-400" : "text-white/60"
-        )} />
-      </Link>
+        <div className="flex items-center w-full max-w-lg px-8 py-4 justify-between relative">
+          {/* Visual Indicator of Active Frame */}
+          <div className="absolute top-0 left-0 w-full h-[1px] bg-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.2)]" />
+          
+          <DockItem icon={<Home size={24} />} path="/" isActive={location.pathname === "/" || location.pathname === "/veridian-news"} />
+          <SearchButton isActive={showSearchModal} />
 
-      {/* Bottom dock */}
-      <AnimatePresence>
-        {isVisible && (
-          <motion.div
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed bottom-3 inset-x-0 z-50 flex justify-center pb-[env(safe-area-inset-bottom)]"
+          {/* Hub Central Táctico - Solid Frame Hub */}
+          <Link
+            to="/cafe"
+            className="relative flex items-center justify-center -mt-8"
           >
-            <div className="flex items-center justify-between px-6 py-2.5 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl min-w-[280px] max-w-[360px] gap-2">
-              <DockItem icon={<Home size={22} />} path="/" isActive={location.pathname === "/" || location.pathname === "/veridian-news"} />
-              <SearchButton isActive={showSearchModal} />
-
-              {/* Central Café Button */}
-              <Link
-                to="/cafe"
-                className={cn(
-                  "relative flex items-center justify-center w-12 h-12 bg-gradient-to-tr from-green-600 to-emerald-500 rounded-full shadow-lg shadow-green-900/50 active:scale-95 transition-transform mx-2",
-                  isCafeActive && "scale-110 ring-2 ring-emerald-400/50"
-                )}
-              >
-                <Coffee className="text-white" size={20} />
-                {isCafeActive && (
-                  <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-emerald-500 rounded-full shadow-[0_0_6px_2px_rgba(16,185,129,0.5)]" />
-                )}
-              </Link>
-
-              <DockItem icon={<LayoutGrid size={22} />} path="/categorias" isActive={isActive("/categorias")} />
-              <DockItem icon={<Brain size={22} />} path="/oraculus" isActive={isActive("/oraculus")} />
+            <div className={cn(
+              "w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 border-4 border-[#020305] shadow-[0_5px_20px_rgba(0,0,0,0.5)]",
+              isCafeActive ? "bg-emerald-400 scale-110 shadow-[0_0_40px_rgba(16,185,129,0.7)]" : "bg-emerald-500 hover:bg-emerald-400"
+            )}>
+              <Coffee className="text-black" size={30} />
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+          </Link>
+
+          <DockItem icon={<LayoutGrid size={24} />} path="/categorias" isActive={isActive("/categorias")} />
+          <DockItem icon={<User size={24} />} path="/profile" isActive={isProfileActive} />
+          
+        </div>
+      </div>
+    </>,
+    document.body
   );
 };

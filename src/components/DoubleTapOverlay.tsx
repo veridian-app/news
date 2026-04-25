@@ -1,4 +1,3 @@
-import { motion, AnimatePresence } from "framer-motion";
 import { Heart } from "lucide-react";
 
 interface DoubleTapOverlayProps {
@@ -8,22 +7,22 @@ interface DoubleTapOverlayProps {
 
 export const DoubleTapOverlay = ({ showLike, position }: DoubleTapOverlayProps) => {
     return (
-        <AnimatePresence>
+        <>
             {showLike && (
-                <motion.div
-                    initial={{ opacity: 0, scale: 0, x: position.x - 50, y: position.y - 50 }}
-                    animate={{ opacity: 1, scale: 1.5 }}
-                    exit={{ opacity: 0, scale: 3, y: position.y - 150 }}
-                    transition={{ duration: 0.6, ease: "easeOut" }}
-                    className="absolute z-50 pointer-events-none"
-                    style={{ left: 0, top: 0 }}
+                <div
+                    className="absolute z-50 pointer-events-none animate-in fade-in zoom-in slide-out-to-top-12 duration-700 ease-out fill-mode-both"
+                    style={{ 
+                        left: position.x - 48, 
+                        top: position.y - 48,
+                        transform: `rotate(${Math.random() * 40 - 20}deg)`
+                    }}
                 >
                     <Heart
-                        className="w-24 h-24 text-red-500 fill-red-500 drop-shadow-[0_0_10px_rgba(220,38,38,0.5)]"
+                        className="w-24 h-24 text-red-500 fill-red-500 drop-shadow-[0_0_20px_rgba(239,68,68,0.6)] animate-pulse"
                         strokeWidth={0}
                     />
-                </motion.div>
+                </div>
             )}
-        </AnimatePresence>
+        </>
     );
 };

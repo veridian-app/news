@@ -1,7 +1,6 @@
-import { motion } from "framer-motion";
 import { ArrowLeft, Newspaper } from "lucide-react";
-import { ExpandableNewsCard, ExpandableNewsItem } from "@/components/cafe/ExpandableNewsCard";
-import { cn } from "@/lib/utils";
+import { ExpandableNewsCard, ExpandableNewsItem } from "../cafe/ExpandableNewsCard";
+import { cn } from "../../lib/utils";
 
 interface NewsItem {
     id: string;
@@ -90,14 +89,12 @@ export const CategoryView = ({ category, newsItems, onBack }: CategoryViewProps)
             {/* Sticky Header */}
             <div className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-xl border-b border-white/5">
                 <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
-                    <motion.button
+                    <button
                         onClick={onBack}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
                         className="p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
                     >
                         <ArrowLeft className="w-5 h-5 text-white/70" />
-                    </motion.button>
+                    </button>
 
                     <div className="flex items-center gap-2 flex-1">
                         <span className="text-xl">{icon}</span>
@@ -118,11 +115,7 @@ export const CategoryView = ({ category, newsItems, onBack }: CategoryViewProps)
                         {/* Today section */}
                         {todayExpandable.length > 0 && (
                             <div className="mb-8">
-                                <motion.div
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    className="flex items-center gap-2 mb-4"
-                                >
+                                <div className="flex items-center gap-2 mb-4">
                                     <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                                     <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider">
                                         Hoy
@@ -130,7 +123,7 @@ export const CategoryView = ({ category, newsItems, onBack }: CategoryViewProps)
                                     <span className="text-xs text-emerald-400/50 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                                         {todayNews.length}
                                     </span>
-                                </motion.div>
+                                </div>
                                 {todayExpandable.map((item, index) => (
                                     <ExpandableNewsCard key={item.id} item={item} index={index} />
                                 ))}
@@ -147,12 +140,7 @@ export const CategoryView = ({ category, newsItems, onBack }: CategoryViewProps)
                         {/* Older section */}
                         {olderExpandable.length > 0 && (
                             <div>
-                                <motion.div
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: todayExpandable.length > 0 ? 0.2 : 0 }}
-                                    className="flex items-center gap-2 mb-4"
-                                >
+                                <div className="flex items-center gap-2 mb-4">
                                     <div className="w-2 h-2 rounded-full bg-zinc-500" />
                                     <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">
                                         Anteriores
@@ -160,7 +148,7 @@ export const CategoryView = ({ category, newsItems, onBack }: CategoryViewProps)
                                     <span className="text-xs text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full">
                                         {olderNews.length}
                                     </span>
-                                </motion.div>
+                                </div>
                                 {olderExpandable.map((item, index) => (
                                     <ExpandableNewsCard key={item.id} item={item} index={index} />
                                 ))}
@@ -168,11 +156,7 @@ export const CategoryView = ({ category, newsItems, onBack }: CategoryViewProps)
                         )}
                     </>
                 ) : (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="flex flex-col items-center justify-center py-20 text-center"
-                    >
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
                         <Newspaper className="w-12 h-12 text-white/20 mb-4" />
                         <p className="text-white/50 text-lg font-medium">
                             No hay noticias en esta categoría
@@ -180,7 +164,7 @@ export const CategoryView = ({ category, newsItems, onBack }: CategoryViewProps)
                         <p className="text-white/30 text-sm mt-1">
                             Vuelve más tarde para ver contenido nuevo.
                         </p>
-                    </motion.div>
+                    </div>
                 )}
             </div>
         </div>
