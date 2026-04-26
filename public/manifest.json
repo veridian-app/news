@@ -1,0 +1,22 @@
+{
+  "name": "Veridian News",
+  "short_name": "Veridian",
+  "description": "Noticias sin Sesgos | Datos Objetivos",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "/tactical_intel_asset.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/tactical_intel_asset.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

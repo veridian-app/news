@@ -380,6 +380,7 @@ const VeridianNews = () => {
             <div className="hidden xs:block h-6 w-[1px] bg-white/10 mx-1" />
             <a 
               href="#" 
+              onClick={handleInstallClick}
               className="px-3 py-1 md:px-4 md:py-1.5 rounded-full bg-emerald-500 text-black text-[9px] md:text-[10px] font-black uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] active:scale-95 whitespace-nowrap"
             >
               <span className="xs:hidden">App</span>
@@ -610,6 +611,13 @@ const VeridianNews = () => {
         </div>,
         document.body
       )}
+      <InstallAppModal 
+        isOpen={showInstallModal} 
+        onClose={() => setShowInstallModal(false)}
+        isIOS={isIOS}
+        onInstall={executeInstall}
+        canInstall={!!deferredPrompt}
+      />
     </div>
   );
 };
