@@ -13,12 +13,20 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="alternate icon" href="/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0, user-scalable=yes" />
-    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Veridian - Noticias sin Sesgos | Datos Objetivos</title>
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#000000" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" content="#000000" />
-    <title>Veridian - Noticias sin Sesgos | Datos Objetivos</title>
+    <meta name="apple-mobile-web-app-title" content="Veridian" />
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js');
+        });
+      }
+    </script>
     <meta name="description" content="Únete a la revolución de las noticias objetivas. Primera plataforma que elimina sesgos y opiniones, enfocada en datos verificados para profesionales." />
     <meta name="author" content="Veridian" />
     <meta name="keywords" content="noticias objetivas, periodismo sin sesgos, datos verificados, noticias para profesionales, ciencias sociales" />
@@ -31,8 +39,8 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Veridian - Noticias sin Sesgos" />
     <meta name="twitter:description" content="Únete a la revolución de las noticias objetivas. Datos verificados sin sesgos editoriales." />
-    <script type="module" crossorigin src="/assets/index-BSdR7xw9.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-Gv3eweZb.css">
+    <script type="module" crossorigin src="/assets/index-fUr9Ca7J.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-x_uGiXlz.css">
   </head>
 
   <body>
