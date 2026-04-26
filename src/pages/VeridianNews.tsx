@@ -17,6 +17,7 @@ import { recommendNews } from "../utils/recommendation-utils";
 import { TacticalLoader } from "../components/TacticalLoader";
 import { GeopoliticsTicker } from "../components/GeopoliticsTicker";
 import { InstallAppModal } from "../components/InstallAppModal";
+import { CriticalSidebar } from "../components/CriticalSidebar";
 import { mockNews } from "../data/mockNews";
 
 const API_BASE = import.meta.env.VITE_VERIDIAN_API_BASE || window.location.origin;
@@ -429,31 +430,46 @@ const VeridianNews = () => {
         </div>
 
         {/* Global Geopolitics Ticker - Integrated */}
-        <div className="h-[34px] flex items-center bg-black/40 border-t border-white/5 overflow-x-auto no-scrollbar">
-          <div className="flex items-center gap-2 px-4 shrink-0 border-r border-white/10 mr-4">
-            <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Filter_Mode</span>
+        <div className="h-[44px] flex items-center bg-black/40 border-t border-white/5 relative group">
+          {/* Label */}
+          <div className="flex items-center gap-2 px-6 shrink-0 border-r border-white/10 h-full bg-black/60 z-20">
+            <span className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.2em]">Filter_Mode</span>
           </div>
-          <div className="flex items-center gap-6 px-4 shrink-0">
-            {['all', 'geopolítica', 'tecnología', 'empresa', 'españa', 'política'].map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={cn(
-                  "text-[10px] font-tactical font-bold uppercase tracking-[0.2em] transition-all relative py-2",
-                  selectedCategory === cat 
-                    ? "text-emerald-400" 
-                    : "text-white/30 hover:text-white/60"
-                )}
-              >
-                {cat === 'all' ? 'Ver_Todo' : cat}
-                {selectedCategory === cat && (
-                  <div className="absolute bottom-0 left-0 w-full h-[1px] bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]" />
-                )}
-              </button>
-            ))}
+
+          {/* Scrollable Container with Masks */}
+          <div className="flex-1 relative h-full overflow-hidden">
+            {/* Left Mask */}
+            <div className="absolute left-0 inset-y-0 w-12 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />
+            
+            {/* Filter Buttons */}
+            <div className="flex items-center gap-8 px-12 h-full overflow-x-auto no-scrollbar scroll-smooth">
+              {['all', 'geopolítica', 'tecnología', 'empresa', 'españa', 'política'].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={cn(
+                    "text-[10px] md:text-[11px] font-tactical font-black uppercase tracking-[0.25em] transition-all relative py-3 shrink-0 whitespace-nowrap",
+                    selectedCategory === cat 
+                      ? "text-emerald-400" 
+                      : "text-white/30 hover:text-white/60"
+                  )}
+                >
+                  {cat === 'all' ? 'Ver_Todo' : cat}
+                  {selectedCategory === cat && (
+                    <div className="absolute bottom-0 left-0 w-full h-[2px] bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Right Mask */}
+            <div className="absolute right-0 inset-y-0 w-12 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
           </div>
-          <div className="h-4 w-[1px] bg-white/10 mx-2 shrink-0" />
-          <GeopoliticsTicker news={news} />
+          
+          <div className="hidden lg:block h-6 w-[1px] bg-white/10 mx-4 shrink-0" />
+          <div className="hidden lg:block flex-1 min-w-0">
+            <GeopoliticsTicker news={news} />
+          </div>
         </div>
       </div>
 
@@ -465,14 +481,16 @@ const VeridianNews = () => {
         <BottomDock />
       </div>
 
-      {/* MAIN FEED CONTAINER - ONLY THIS PART SCROLLS */}
-      <main 
-        ref={feedContainerRef}
-        className={cn(
-          "feed-container flex-1 w-full relative z-10 overflow-x-hidden snap-y snap-mandatory scrollbar-hide bg-black transition-all duration-700",
-          showContentModal ? "opacity-0 invisible overflow-y-hidden pointer-events-none" : "opacity-100 visible overflow-y-auto"
-        )}
-      >
+      {/* MAIN LAYOUT WRAPPER */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* MAIN FEED CONTAINER - ONLY THIS PART SCROLLS */}
+        <main 
+          ref={feedContainerRef}
+          className={cn(
+            "feed-container flex-1 w-full relative z-10 overflow-x-hidden snap-y snap-mandatory scrollbar-hide bg-black transition-all duration-700",
+            showContentModal ? "opacity-0 invisible overflow-y-hidden pointer-events-none" : "opacity-100 visible overflow-y-auto"
+          )}
+        >
         {news.map((item, index) => (
           <div 
             key={item.id} 
@@ -494,14 +512,17 @@ const VeridianNews = () => {
               category={item.category}
             />
           </div>
-        ))}
-        
-        {/* Tactical Loader Footer - Extra height to avoid dock overlap */}
-        <div className="h-48 flex flex-col items-center justify-center gap-4 border-t border-white/5 bg-black/40">
-          <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
-          <span className="text-[10px] font-tactical text-emerald-500/50 animate-pulse tracking-widest">SYNCHRONIZING_FEED...</span>
-        </div>
-      </main>
+        </main>
+
+        {/* Desktop Critical Sidebar */}
+        {!showContentModal && <CriticalSidebar 
+          news={news} 
+          onReadMore={(item) => {
+            setSelectedNews(item);
+            setShowContentModal(true);
+          }} 
+        />}
+      </div>
 
       {/* Deep Intelligence Detail Modal - High-Fidelity Editorial Edition */}
       {showContentModal && selectedNews && createPortal(
