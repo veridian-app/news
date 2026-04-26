@@ -121,11 +121,11 @@ const VeridianNews = () => {
     const savedSettings = localStorage.getItem('veridian_settings');
     const settings = savedSettings ? JSON.parse(savedSettings) : { aiBias: 50 };
     
-    let filtered = rawNews;
-
+    let processedNews = rawNews;
+    
     // Apply AI Bias Filter (Disabled temporarily for testing)
     /*
-    filtered = rawNews.filter(item => {
+    processedNews = rawNews.filter(item => {
       const newsBias = item.bias ?? 50;
       const lowerBound = Math.max(0, settings.aiBias - 25);
       const upperBound = Math.min(100, settings.aiBias + 25);
@@ -135,13 +135,13 @@ const VeridianNews = () => {
 
     if (debouncedSearchQuery.trim()) {
       const query = debouncedSearchQuery.toLowerCase().trim();
-      filtered = filtered.filter(item =>
+      processedNews = processedNews.filter(item =>
         item.title.toLowerCase().includes(query) ||
         item.summary?.toLowerCase().includes(query)
       );
     }
 
-    const categorized = filtered.map(item => {
+    const categorizedNews = processedNews.map(item => {
       const category = item.category || detectCategory(item.title, item.content);
       const bias = item.bias ?? detectBias(item.title, item.content);
       let weight = 0;
@@ -151,22 +151,22 @@ const VeridianNews = () => {
       return { ...item, category, weight, bias };
     });
 
-    const sorted = [...categorized].sort((a, b) => {
+    const sortedNews = [...categorizedNews].sort((a, b) => {
       if (b.weight !== a.weight) return b.weight - a.weight;
       return new Date(b.date).getTime() - new Date(a.date).getTime();
     });
 
-    const finalNews = !debouncedSearchQuery.trim() && userPreferences.size > 0
-      ? recommendNews(sorted, userPreferences, likedNewsIds)
-      : sorted;
+    const recommendedNewsList = !debouncedSearchQuery.trim() && userPreferences.size > 0
+      ? recommendNews(sortedNews, userPreferences, likedNewsIds)
+      : sortedNews;
 
     if (selectedCategory === 'all') {
-      console.log(`📰 VeridianNews rendering ${finalNews.length} news items`);
-      return finalNews;
+      console.log(`📰 VeridianNews rendering ${recommendedNewsList.length} news items`);
+      return recommendedNewsList;
     }
-    const categoryFiltered = finalNews.filter(n => n.category?.toLowerCase() === selectedCategory.toLowerCase());
-    console.log(`📰 VeridianNews rendering ${categoryFiltered.length} news items for category: ${selectedCategory}`);
-    return categoryFiltered;
+    const finalFilteredNews = recommendedNewsList.filter(n => n.category?.toLowerCase() === selectedCategory.toLowerCase());
+    console.log(`📰 VeridianNews rendering ${finalFilteredNews.length} news items for category: ${selectedCategory}`);
+    return finalFilteredNews;
   }, [rawNews, userPreferences, likedNewsIds, debouncedSearchQuery, selectedCategory]);
 
   useEffect(() => {
