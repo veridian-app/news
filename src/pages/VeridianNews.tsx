@@ -16,6 +16,7 @@ import { NewsItem, detectCategory, detectBias, isAd } from "../utils/news-utils"
 import { recommendNews } from "../utils/recommendation-utils";
 import { TacticalLoader } from "../components/TacticalLoader";
 import { GeopoliticsTicker } from "../components/GeopoliticsTicker";
+import { InstallAppModal } from "../components/InstallAppModal";
 import { mockNews } from "../data/mockNews";
 
 const API_BASE = import.meta.env.VITE_VERIDIAN_API_BASE || window.location.origin;
@@ -60,6 +61,41 @@ const VeridianNews = () => {
   
   const { showSearchModal, openSearch, closeSearch, searchQuery } = useSearch();
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // PWA Logic
+  const [showInstallModal, setShowInstallModal] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isIOS, setIsIOS] = useState(false);
+
+  useEffect(() => {
+    // Detect iOS
+    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    setIsIOS(isIOSDevice);
+
+    // Capture install prompt
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
+  const handleInstallClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setShowInstallModal(true);
+  };
+
+  const executeInstall = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+      setShowInstallModal(false);
+    }
+  };
   
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
