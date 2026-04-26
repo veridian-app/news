@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Mail, Lock, Shield, ArrowRight, CheckCircle2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { Button } from "../components/ui/button";
 import { InstallAppModal } from '../components/InstallAppModal';
+import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'sonner';
 
 const VeridianLanding = () => {
   const [email, setEmail] = useState('');
@@ -9,7 +11,9 @@ const VeridianLanding = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [isSent, setIsSent] = useState(false);
-  const [error] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { signInWithPassword, signUpWithPassword } = useAuth();
 
   // PWA Logic
   const [showInstallModal, setShowInstallModal] = useState(false);
@@ -46,12 +50,40 @@ const VeridianLanding = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSent(true);
-    setTimeout(() => {
-      window.location.href = '/';
-    }, 1500);
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      if (authMode === 'login') {
+        const { error } = await signInWithPassword(email, password);
+        if (error) {
+          setError(error.message);
+          toast.error("Error de Acceso", { description: error.message });
+          return;
+        }
+      } else {
+        const { error } = await signUpWithPassword(email, password);
+        if (error) {
+          setError(error.message);
+          toast.error("Error de Registro", { description: error.message });
+          return;
+        }
+        toast.success("Registro completado", { description: "Revisa tu email para confirmar la cuenta." });
+        setAuthMode('login');
+        return;
+      }
+
+      setIsSent(true);
+      // No necesitamos redirigir manualmente, el estado global de AuthContext
+      // detectará el cambio y App.tsx mostrará VeridianNews automáticamente.
+    } catch (err: any) {
+      setError(err.message);
+      toast.error("Error crítico", { description: err.message });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -140,10 +172,12 @@ const VeridianLanding = () => {
 
                 <Button 
                   type="submit"
+                  disabled={isLoading}
                   className={`w-full h-14 rounded-xl text-[11px] font-black uppercase tracking-[0.3em] transition-all relative overflow-hidden group shadow-[0_20px_40px_rgba(0,0,0,0.3)] ${authMode === 'signup' ? 'bg-cyan-500 hover:bg-cyan-400' : 'bg-emerald-500 hover:bg-emerald-400'} text-black`}
                 >
                   <span className="relative z-10 flex items-center gap-2">
-                    {authMode === 'login' ? 'Sincronizar' : 'Registrar'} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    {isLoading ? 'Sincronizando...' : (authMode === 'login' ? 'Sincronizar' : 'Registrar')} 
+                    {!isLoading && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
                   </span>
                 </Button>
 

@@ -123,15 +123,15 @@ const VeridianNews = () => {
     
     let filtered = rawNews;
 
-    // Apply AI Bias Filter
-    // Filter news that are within a range of the user's bias
-    // Range is userBias +/- 25
+    // Apply AI Bias Filter (Disabled temporarily for testing)
+    /*
     filtered = rawNews.filter(item => {
       const newsBias = item.bias ?? 50;
       const lowerBound = Math.max(0, settings.aiBias - 25);
       const upperBound = Math.min(100, settings.aiBias + 25);
       return newsBias >= lowerBound && newsBias <= upperBound;
     });
+    */
 
     if (debouncedSearchQuery.trim()) {
       const query = debouncedSearchQuery.toLowerCase().trim();
@@ -160,8 +160,13 @@ const VeridianNews = () => {
       ? recommendNews(sorted, userPreferences, likedNewsIds)
       : sorted;
 
-    if (selectedCategory === 'all') return finalNews;
-    return finalNews.filter(n => n.category?.toLowerCase() === selectedCategory.toLowerCase());
+    if (selectedCategory === 'all') {
+      console.log(`📰 VeridianNews rendering ${finalNews.length} news items`);
+      return finalNews;
+    }
+    const categoryFiltered = finalNews.filter(n => n.category?.toLowerCase() === selectedCategory.toLowerCase());
+    console.log(`📰 VeridianNews rendering ${categoryFiltered.length} news items for category: ${selectedCategory}`);
+    return categoryFiltered;
   }, [rawNews, userPreferences, likedNewsIds, debouncedSearchQuery, selectedCategory]);
 
   useEffect(() => {
@@ -242,8 +247,8 @@ const VeridianNews = () => {
         const parsed = JSON.parse(cachedNews);
         if (Array.isArray(parsed) && parsed.length > 0) {
           setRawNews(parsed);
-          if (isLoading) setIsLoading(false);
         }
+        if (isLoading) setIsLoading(false);
       } catch (e) { console.error("Error cargando caché:", e); }
     }
 
@@ -390,11 +395,10 @@ const VeridianNews = () => {
         "flex flex-col bg-background/80 backdrop-blur-xl border-b border-border z-[100] shrink-0 relative transition-all duration-500",
         showContentModal ? "opacity-0 invisible -translate-y-10" : "opacity-100 visible translate-y-0"
       )}>
-        <div className="flex justify-between items-center h-[60px] px-6">
+        <div className="flex justify-between items-center h-[60px] px-4 md:px-6">
           {/* Logo Section */}
-          <div className="flex items-center gap-3">
             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
-            <h1 className="text-lg font-black tracking-[0.2em] text-foreground uppercase italic">
+            <h1 className="text-xl md:text-lg font-black tracking-[0.2em] text-foreground uppercase italic">
               Veridian<span className="text-emerald-500">_</span>
             </h1>
           </div>

@@ -19,7 +19,7 @@ export const CriticalSidebar = ({ news, onReadMore }: CriticalSidebarProps) => {
   if (criticalNews.length === 0) return null;
 
   return (
-    <div className="hidden xl:flex flex-col w-72 h-fit max-h-[80vh] bg-black/40 backdrop-blur-2xl border border-white/10 rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] sticky top-24 mr-8">
+    <div className="hidden lg:flex flex-col w-72 h-fit max-h-[80vh] bg-black/40 backdrop-blur-2xl border border-white/10 rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] sticky top-24 mr-8">
       {/* Header */}
       <div className="p-4 border-b border-white/5 bg-red-500/5 flex items-center justify-between">
         <div className="flex items-center gap-2">
