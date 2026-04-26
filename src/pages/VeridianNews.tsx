@@ -373,19 +373,20 @@ const VeridianNews = () => {
           </div>
           
           {/* Action Section */}
-          <div className="flex items-center gap-4">
-            <div className="scale-90 opacity-80">
+          <div className="flex items-center gap-2 md:gap-4">
+            <div className="hidden xs:flex scale-75 md:scale-90 opacity-80">
               <StreakHeader streak={streakCount} />
             </div>
-            <div className="h-6 w-[1px] bg-white/10 mx-1" />
+            <div className="hidden xs:block h-6 w-[1px] bg-white/10 mx-1" />
             <a 
               href="#" 
-              className="px-4 py-1.5 rounded-full bg-emerald-500 text-black text-[10px] font-black uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] active:scale-95"
+              className="px-3 py-1 md:px-4 md:py-1.5 rounded-full bg-emerald-500 text-black text-[9px] md:text-[10px] font-black uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] active:scale-95 whitespace-nowrap"
             >
-              Descargar web.app
+              <span className="xs:hidden">App</span>
+              <span className="hidden xs:inline">Descargar web.app</span>
             </a>
-            <button onClick={openSearch} className="p-2 text-foreground/40 hover:text-emerald-400 transition-colors">
-              <Search className="w-4 h-4" />
+            <button onClick={openSearch} className="p-2 text-foreground/40 hover:text-emerald-400 transition-colors shrink-0">
+              <Search className="w-4 h-4 md:w-5 md:h-5" />
             </button>
           </div>
         </div>
@@ -473,45 +474,46 @@ const VeridianNews = () => {
             <div className="h-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.8)] transition-all duration-300" style={{ width: '0%' }} id="reading-progress" />
           </div>
 
-          <header className="px-6 py-4 md:px-10 md:py-6 flex items-center justify-between border-b border-white/5 bg-black z-[205000] shrink-0">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                <Globe className="w-5 h-5 text-emerald-500" />
+          <header className="px-4 py-3 md:px-10 md:py-6 flex items-center justify-between border-b border-white/5 bg-black z-[205000] shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                <Globe className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" />
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-500">Expediente_Verificado</span>
+                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-emerald-500">Expediente_Verificado</span>
                   <div className="w-1 h-1 rounded-full bg-emerald-500/40" />
-                  <span className="text-[9px] font-mono text-emerald-500/60 uppercase">Protocolo_V.9</span>
+                  <span className="text-[8px] md:text-[9px] font-mono text-emerald-500/60 uppercase">V.9</span>
                 </div>
-                <span className="text-[11px] font-bold text-white/60 truncate max-w-[250px] md:max-w-xl uppercase tracking-tighter">
+                <span className="text-[10px] md:text-[11px] font-bold text-white/60 truncate max-w-[120px] md:max-w-xl uppercase tracking-tighter">
                   {selectedNews.source.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            
+            <div className="flex items-center gap-2 md:gap-3">
               {selectedNews.url && (
                 <a 
                   href={selectedNews.url} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest text-white/60 hover:bg-white/10 hover:text-white transition-all"
+                  className="px-3 py-1.5 md:px-4 md:py-2 rounded-xl bg-white/5 border border-white/10 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white/60 hover:bg-white/10 hover:text-white transition-all flex items-center gap-2"
                 >
-                  Documento Original
+                  <span className="hidden sm:inline">Documento</span> Original
                 </a>
               )}
-            <button 
-              onClick={() => setShowContentModal(false)} 
-              className="w-12 h-12 rounded-2xl bg-white/10 hover:bg-emerald-500 hover:text-black text-white flex items-center justify-center transition-all duration-300 group active:scale-90 z-[210000] border border-white/10 shadow-[0_0_20px_rgba(0,0,0,0.5)]"
-              aria-label="Cerrar expediente"
-            >
-              <X className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
-            </button>
-          </div>
-        </header>
+              <button 
+                onClick={() => setShowContentModal(false)} 
+                className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white/10 hover:bg-emerald-500 hover:text-black text-white flex items-center justify-center transition-all duration-300 group active:scale-90 z-[210000] border border-white/10 shadow-[0_0_20px_rgba(0,0,0,0.5)]"
+                aria-label="Cerrar expediente"
+              >
+                <X className="w-5 h-5 md:w-6 md:h-6 group-hover:rotate-90 transition-transform duration-300" />
+              </button>
+            </div>
+          </header>
 
           <main 
-            className="flex-1 overflow-y-auto scrollbar-hide scroll-smooth"
+            className="flex-1 overflow-y-auto scrollbar-hide scroll-smooth overscroll-contain"
             onScroll={(e) => {
               const target = e.currentTarget;
               const progress = (target.scrollTop / (target.scrollHeight - target.clientHeight)) * 100;
@@ -519,8 +521,8 @@ const VeridianNews = () => {
               if (bar) bar.style.width = `${progress}%`;
             }}
           >
-            {/* Dynamic Hero Section */}
-            <div className="relative w-full min-h-[40vh] md:min-h-[60vh] bg-black flex flex-col justify-end overflow-hidden">
+            {/* Dynamic Hero Section - Optimized for Mobile Viewports */}
+            <div className="relative w-full min-h-[50dvh] md:min-h-[60vh] bg-black flex flex-col justify-end overflow-hidden shrink-0">
               <div className="absolute inset-0">
                 <img 
                   src={selectedNews.image || "/tactical_intel_asset.png"} 
@@ -531,16 +533,17 @@ const VeridianNews = () => {
                     (e.target as HTMLImageElement).classList.add('opacity-20');
                   }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-transparent md:hidden" />
               </div>
               
               <div className="relative z-10 w-full p-6 md:p-16">
                 <div className="max-w-4xl mx-auto">
-                  <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase tracking-widest mb-6 backdrop-blur-md">
+                  <div className="inline-flex items-center gap-3 px-3 py-1 md:px-4 md:py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[9px] md:text-[10px] font-black uppercase tracking-widest mb-4 md:mb-6 backdrop-blur-md">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     Lectura Prioritaria
                   </div>
-                  <h2 className="text-3xl md:text-7xl font-black text-white tracking-tighter uppercase leading-[0.9] md:leading-[0.85] max-w-4xl drop-shadow-2xl">
+                  <h2 className="text-2xl md:text-7xl font-black text-white tracking-tighter uppercase leading-[0.95] md:leading-[0.85] max-w-4xl drop-shadow-2xl">
                     {selectedNews.title}
                   </h2>
                 </div>
@@ -548,15 +551,16 @@ const VeridianNews = () => {
             </div>
 
             {/* Editorial Content */}
-            <div className="max-w-4xl mx-auto px-6 py-12 md:py-24">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-start">
-                <div className="lg:col-span-8 space-y-12 mt-8 md:mt-0">
-                  <p className="text-xl md:text-3xl text-white/90 font-bold leading-tight border-l-4 border-emerald-500 pl-6 md:pl-10 italic bg-emerald-500/5 py-6 pr-6 rounded-r-2xl">
+            {/* Editorial Content */}
+            <div className="max-w-4xl mx-auto px-5 py-8 md:px-6 md:py-24">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-20 items-start">
+                <div className="lg:col-span-8 space-y-10 mt-4 md:mt-0">
+                  <p className="text-lg md:text-3xl text-white/90 font-bold leading-tight border-l-4 border-emerald-500 pl-5 md:pl-10 italic bg-emerald-500/5 py-5 pr-5 rounded-r-2xl">
                     {selectedNews.summary}
                   </p>
                   
                   <div className="prose prose-invert max-w-none">
-                    <div className="text-lg md:text-xl text-white/70 leading-[1.8] space-y-10 font-medium tracking-tight">
+                    <div className="text-base md:text-xl text-white/70 leading-[1.7] md:leading-[1.8] space-y-8 md:space-y-10 font-medium tracking-tight">
                       {selectedNews.content.split('\n').map((p, i) => (
                         p.trim() && (
                           <p key={i} className="animate-in fade-in duration-1000 fill-mode-both">
@@ -569,36 +573,36 @@ const VeridianNews = () => {
                 </div>
 
                 {/* Sidebar Info */}
-                <aside className="lg:col-span-4 space-y-8 lg:sticky lg:top-8">
-                  <div className="p-8 rounded-[32px] bg-white/[0.03] border border-white/5 backdrop-blur-sm space-y-8">
-                    <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-3">
+                <aside className="lg:col-span-4 space-y-8 lg:sticky lg:top-8 pb-10">
+                  <div className="p-6 md:p-8 rounded-[24px] md:rounded-[32px] bg-white/[0.03] border border-white/5 backdrop-blur-sm space-y-6 md:space-y-8">
+                    <h4 className="text-[9px] md:text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-3">
                       <div className="w-2 h-2 rounded-full bg-emerald-500" />
                       Análisis_Técnico
                     </h4>
                     
-                    <div className="space-y-6">
+                    <div className="space-y-5 md:space-y-6">
                       <MetaItem label="Origen de la Inteligencia" value={selectedNews.source.replace(/^https?:\/\/(www\.)?/, '').split('/')[0].toUpperCase()} />
                       <MetaItem label="Clasificación Sectorial" value={selectedNews.category || "GENERAL_INTEL"} />
                       <MetaItem label="Registro Temporal" value={new Date(selectedNews.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })} />
                       <MetaItem label="Cripto-ID" value={`#VER-${selectedNews.id.substring(0, 8).toUpperCase()}`} />
                     </div>
 
-                    <button className="w-full py-4 rounded-2xl bg-emerald-500 text-black font-black uppercase text-[11px] tracking-[0.2em] hover:bg-emerald-400 transition-all shadow-[0_0_30px_rgba(16,185,129,0.3)] active:scale-95 flex items-center justify-center gap-3">
+                    <button className="w-full py-3.5 md:py-4 rounded-xl md:rounded-2xl bg-emerald-500 text-black font-black uppercase text-[10px] md:text-[11px] tracking-[0.2em] hover:bg-emerald-400 transition-all shadow-[0_0_30px_rgba(16,185,129,0.3)] active:scale-95 flex items-center justify-center gap-3">
                       Descargar Dossier
                     </button>
                   </div>
                 </aside>
               </div>
 
-              <footer className="text-center py-20 mt-12 space-y-6">
+              <footer className="text-center py-16 md:py-24 mt-8 md:mt-12 space-y-6 pb-20 md:pb-0">
                 <div className="flex items-center justify-center gap-4">
-                  <div className="h-px w-12 bg-white/10" />
-                  <div className="w-2 h-2 rounded-full bg-emerald-500/40" />
-                  <div className="h-px w-12 bg-white/10" />
+                  <div className="h-px w-10 md:w-12 bg-white/10" />
+                  <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-emerald-500/40" />
+                  <div className="h-px w-10 md:w-12 bg-white/10" />
                 </div>
                 <div className="space-y-2">
-                  <p className="text-[10px] font-mono text-white/20 uppercase tracking-[0.5em]">Fin de la Transmisión</p>
-                  <p className="text-[8px] font-mono text-white/10 uppercase tracking-[0.3em]">Veridian News // Deep Intel Protocol</p>
+                  <p className="text-[9px] md:text-[10px] font-mono text-white/20 uppercase tracking-[0.4em] md:tracking-[0.5em]">Fin de la Transmisión</p>
+                  <p className="text-[7px] md:text-[8px] font-mono text-white/10 uppercase tracking-[0.2em] md:tracking-[0.3em]">Veridian News // Deep Intel Protocol</p>
                 </div>
               </footer>
             </div>
