@@ -50,7 +50,7 @@ const VeridianLanding = () => {
     e.preventDefault();
     setIsSent(true);
     setTimeout(() => {
-      window.location.href = '/news';
+      window.location.href = '/';
     }, 1500);
   };
 

@@ -58,6 +58,7 @@ const AppContent = () => {
         <Route path="/" element={<RootRoute />} />
         <Route path="/landing" element={<VeridianLanding />} />
         <Route path="/noticias" element={<Navigate to="/" replace />} />
+        <Route path="/news" element={<Navigate to="/" replace />} />
         <Route path="/veridian-news" element={<Navigate to="/" replace />} />
         <Route path="/categorias" element={<CategoriesPage />} />
         <Route path="/privacidad" element={<PrivacyPolicy />} />
