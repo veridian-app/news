@@ -1,0 +1,31 @@
+
+> veridian-web@0.0.1 build
+> vite build
+
+vite v5.4.21 building for production...
+transforming...
+✓ 8 modules transformed.
+x Build failed in 276ms
+error during build:
+[vite:esbuild] Transform failed with 1 error:
+/Users/guillermohaya/veridian github/news/news/src/pages/VeridianNews.tsx:480:6: ERROR: Expected ")" but found "{"
+file: /Users/guillermohaya/veridian github/news/news/src/pages/VeridianNews.tsx:480:6
+
+Expected ")" but found "{"
+478|        </div>
+479|  
+480|        {/* Bottom Navigation Dock - Smart Visibility */}
+   |        ^
+481|        <div className={cn(
+482|          "fixed bottom-0 left-0 w-full z-[1000] transition-all duration-700",
+
+    at failureErrorWithLog (/Users/guillermohaya/veridian github/news/news/node_modules/vite/node_modules/esbuild/lib/main.js:1472:15)
+    at /Users/guillermohaya/veridian github/news/news/node_modules/vite/node_modules/esbuild/lib/main.js:755:50
+    at responseCallbacks.<computed> (/Users/guillermohaya/veridian github/news/news/node_modules/vite/node_modules/esbuild/lib/main.js:622:9)
+    at handleIncomingPacket (/Users/guillermohaya/veridian github/news/news/node_modules/vite/node_modules/esbuild/lib/main.js:677:12)
+    at Socket.readFromStdout (/Users/guillermohaya/veridian github/news/news/node_modules/vite/node_modules/esbuild/lib/main.js:600:7)
+    at Socket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)

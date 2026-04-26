@@ -397,6 +397,7 @@ const VeridianNews = () => {
       )}>
         <div className="flex justify-between items-center h-[60px] px-4 md:px-6">
           {/* Logo Section */}
+          <div className="flex items-center gap-3">
             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
             <h1 className="text-xl md:text-lg font-black tracking-[0.2em] text-foreground uppercase italic">
               Veridian<span className="text-emerald-500">_</span>
