@@ -512,6 +512,7 @@ const VeridianNews = () => {
               category={item.category}
             />
           </div>
+        ))}
         </main>
 
         {/* Desktop Critical Sidebar */}
